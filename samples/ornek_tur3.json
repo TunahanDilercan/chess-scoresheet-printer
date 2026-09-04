@@ -1,0 +1,15 @@
+{
+  "name": "Okul Kupası 2026",
+  "location": "İstanbul",
+  "roundNo": 3,
+  "date": "2026-06-14",
+  "timeControl": "90 dk + 30 sn",
+  "arbiter": "Örnek Hakem",
+  "pairings": [
+    { "board": 1, "white": { "startNo": 1, "name": "Çağla Şahin", "title": "WFM", "rating": 2105 }, "black": { "startNo": 8, "name": "Görkem Yıldız", "rating": 1980 } },
+    { "board": 2, "white": { "startNo": 2, "name": "İbrahim Öztürk", "rating": 2050 }, "black": { "startNo": 9, "name": "Şükrü Güneş", "rating": 1875 } },
+    { "board": 3, "white": { "startNo": 3, "name": "Ümit Çelik", "title": "FM", "rating": 2240 }, "black": { "startNo": 10, "name": "Ayşe Doğan", "rating": 0 } },
+    { "board": 4, "white": { "startNo": 4, "name": "Mehmet Aydın", "rating": 1990 }, "black": { "startNo": 11, "name": "Zeynep Kaya", "rating": 1820 } },
+    { "board": 5, "white": { "startNo": 5, "name": "Oğuzhan Şen", "rating": 1930 }, "black": null }
+  ]
+}

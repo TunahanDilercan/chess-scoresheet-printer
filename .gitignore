@@ -1,0 +1,22 @@
+# Build çıktıları
+bin/
+obj/
+publish/
+.gen/
+tmp/
+
+# Üretilen PDF'ler (örnek çıktı hariç istenirse tutulabilir)
+outputs/*.pdf
+samples/AnaOrnek/
+
+# IDE
+.vs/
+*.user
+.vscode/
+
+# Diğer
+*.swp
+*.local.json
+
+# Yerel kullanıcı ayarları
+config.json

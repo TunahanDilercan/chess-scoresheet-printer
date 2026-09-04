@@ -1,0 +1,55 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>NotasyonOtomasyonu.App</RootNamespace>
+    <AssemblyName>ChessScoresheetPrinter</AssemblyName>
+    <Product>Chess Scoresheet Printer</Product>
+    <Authors>Tunahan Dilercan</Authors>
+    <Description>Satranç turnuvaları için hazır notasyon kâğıdı yazdırma aracı.</Description>
+    <Version>1.0.0</Version>
+    <FileVersion>1.0.0.0</FileVersion>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Pencere ikonu ve başlık logosu (tek dosya exe'de de çalışsın diye gömülü). -->
+    <EmbeddedResource Include="..\..\assets\app.ico">
+      <LogicalName>NotasyonOtomasyonu.App.app.ico</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\assets\logo.png">
+      <LogicalName>NotasyonOtomasyonu.App.logo.png</LogicalName>
+    </EmbeddedResource>
+    <!-- Varsayılan hazır kağıt şablonu (kullanıcının ana örneği). -->
+    <EmbeddedResource Include="..\..\assets\AnaOrnek.png">
+      <LogicalName>NotasyonOtomasyonu.App.AnaOrnek.png</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Overlay önizleme PDF'i için (doğrudan kullanım). -->
+    <PackageReference Include="QuestPDF" Version="2024.12.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+    <ProjectReference Include="..\Parsers\Parsers.csproj" />
+    <ProjectReference Include="..\Render\Render.csproj" />
+    <ProjectReference Include="..\Online\Online.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- config.json exe yanına kopyalansın (yoksa varsayılan üretilir). -->
+    <None Include="..\..\config.json" Condition="Exists('..\..\config.json')">
+      <Link>config.json</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,29 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+
+    steps:
+      - name: Depoyu al
+        uses: actions/checkout@v6
+
+      - name: .NET 8'i kur
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Bağımlılıkları yükle
+        run: dotnet restore NotasyonOtomasyonu.sln
+
+      - name: Derle ve test et
+        run: dotnet test NotasyonOtomasyonu.sln -c Release --no-restore

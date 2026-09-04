@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>NotasyonOtomasyonu.Parsers</RootNamespace>
+    <AssemblyName>NotasyonOtomasyonu.Parsers</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- XLSX okuma (MIT lisans). EPPlus'tan kaçınıldı (ticari lisansa geçti). -->
+    <PackageReference Include="ClosedXML" Version="0.104.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+</Project>

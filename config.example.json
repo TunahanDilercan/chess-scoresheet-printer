@@ -1,0 +1,26 @@
+{
+  "tournament": {
+    "name": "Örnek Turnuva",
+    "location": "İstanbul",
+    "timeControl": "90 dk + 30 sn",
+    "arbiter": "Örnek Hakem",
+    "date": "2026-06-14",
+    "lastRound": 1
+  },
+  "layout": {
+    "pageSize": "A5",
+    "perPage": 1,
+    "moveRows": 60,
+    "showRefereeSignature": true,
+    "printByeSheets": true,
+    "copiesPerBoard": 2,
+    "excludedBoards": ""
+  },
+  "online": {
+    "country": "Türkiye",
+    "federation": "TUR",
+    "cityFilter": "",
+    "province": "(Tüm iller)",
+    "source": "Online"
+  }
+}
