@@ -12,7 +12,7 @@ public static class ParserFactory
         new CsvParser(),
     };
 
-    /// <summary>Dosyaya uygun parser'ı bul. Uzantı tanınmazsa (ör. .tunx) içerikten sezer.</summary>
+    /// <summary>Dosyaya uygun parser'ı bul. Uzantı tanınmazsa içerikten sezer.</summary>
     public static IPairingParser? Create(string filePath)
         => Parsers.FirstOrDefault(p => p.CanParse(filePath)) ?? SniffByContent(filePath);
 
@@ -57,14 +57,37 @@ public static class ParserFactory
         var parser = Create(filePath)
             ?? throw new ParseException(
                 $"Dosya türü tanınamadı: {Path.GetExtension(filePath)}. " +
-                "Desteklenenler: .json, .csv, .txt, .xlsx, .tunx");
+                "Desteklenenler: .json, .csv, .txt, .xlsx");
+
+        // Swiss-Manager'ın kendi turnuva dosyası (.TUNX/.TUN) ikili biçimdedir; metin sanılıp
+        // okunursa hata penceresine anlamsız karakterler dökülüyordu.
+        if (parser is CsvParser && LooksBinary(filePath))
+            throw new ParseException(
+                "Bu dosya Swiss-Manager'ın kendi turnuva dosyası (ikili TUNX biçimi) ve doğrudan okunamıyor.\n" +
+                "Swiss-Manager'da eşleştirme listesini Excel/CSV olarak dışa aktarın ya da " +
+                "Online (chess-results) kaynağını kullanın.");
 
         return parser.Parse(filePath, config);
     }
 
+    /// <summary>İlk 4 KB'ta NUL baytı varsa metin değil ikili dosyadır.</summary>
+    private static bool LooksBinary(string filePath)
+    {
+        try
+        {
+            using var fs = File.OpenRead(filePath);
+            var buf = new byte[4096];
+            int n = fs.Read(buf, 0, buf.Length);
+            // UTF-16 metinlerde de NUL olur; BOM'lu UTF-16'yı ikili sayma.
+            if (n >= 2 && ((buf[0] == 0xFF && buf[1] == 0xFE) || (buf[0] == 0xFE && buf[1] == 0xFF))) return false;
+            return Array.IndexOf(buf, (byte)0, 0, n) >= 0;
+        }
+        catch { return false; }
+    }
+
     /// <summary>Desteklenen uzantılar için OpenFileDialog filtresi.</summary>
     public const string FileDialogFilter =
-        "Eşleştirme dosyaları (*.json;*.csv;*.txt;*.xlsx;*.tunx)|*.json;*.csv;*.txt;*.xlsx;*.tunx|" +
+        "Eşleştirme dosyaları (*.json;*.csv;*.txt;*.xlsx)|*.json;*.csv;*.txt;*.xlsx|" +
         "JSON (*.json)|*.json|CSV/TXT (*.csv;*.txt)|*.csv;*.txt|Excel (*.xlsx)|*.xlsx|" +
-        "Swiss-Manager (*.tunx)|*.tunx|Tümü (*.*)|*.*";
+        "Tümü (*.*)|*.*";
 }

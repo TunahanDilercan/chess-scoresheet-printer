@@ -46,16 +46,26 @@ partial class MainForm
     private GroupBox grpQuick;
     private FlowLayoutPanel flowQuick;
     private Button btnPrintAll;
-    private Button btnPrint;
-    private Button btnSpecial;
     private Label lblStatus;
     private TextBox txtLog;
+
+    // Sağ panel: basılacak masalar + yazdırma
+    private GroupBox grpPairings;
+    private DataGridView dgvPairings;
+    private Button btnSelectAll;
+    private Button btnSelectNone;
+    private Label lblSelection;
+    private Label lblCopies;
+    private NumericUpDown numCopies;
+    private Button btnPdf;
+    private Button btnPrint;
 
     private void InitializeComponent()
     {
         var cream = System.Drawing.Color.FromArgb(245, 245, 240);
         var green = System.Drawing.Color.FromArgb(118, 150, 86);
         var greenDark = System.Drawing.Color.FromArgb(95, 122, 70);
+        var leftAnchor = AnchorStyles.Top | AnchorStyles.Left;
 
         pnlHeader = new Panel();
         pbLogo = new PictureBox();
@@ -89,14 +99,24 @@ partial class MainForm
         grpQuick = new GroupBox();
         flowQuick = new FlowLayoutPanel();
         btnPrintAll = new Button();
-        btnPrint = new Button();
-        btnSpecial = new Button();
         lblStatus = new Label();
         txtLog = new TextBox();
+        grpPairings = new GroupBox();
+        dgvPairings = new DataGridView();
+        btnSelectAll = new Button();
+        btnSelectNone = new Button();
+        lblSelection = new Label();
+        lblCopies = new Label();
+        numCopies = new NumericUpDown();
+        btnPdf = new Button();
+        btnPrint = new Button();
         ((System.ComponentModel.ISupportInitialize)numRound).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)numCopies).BeginInit();
+        ((System.ComponentModel.ISupportInitialize)dgvPairings).BeginInit();
         grpOnline.SuspendLayout();
         grpFile.SuspendLayout();
         grpQuick.SuspendLayout();
+        grpPairings.SuspendLayout();
         SuspendLayout();
 
         // Header
@@ -130,7 +150,7 @@ partial class MainForm
         btnSettings.FlatAppearance.BorderColor = greenDark;
         btnSettings.Click += btnSettings_Click;
 
-        // Source
+        // ================= SOL SÜTUN: turnuva / kategori / tur =================
         lblSource.AutoSize = true;
         lblSource.Location = new System.Drawing.Point(18, 70);
         lblSource.Text = "Veri kaynağı:";
@@ -141,14 +161,14 @@ partial class MainForm
         rbOnline.CheckedChanged += source_CheckedChanged;
         rbFile.AutoSize = true;
         rbFile.Location = new System.Drawing.Point(290, 68);
-        rbFile.Text = "Dosya (JSON/CSV/XLSX/TUNX)";
+        rbFile.Text = "Dosya (JSON/CSV/XLSX)";
         rbFile.CheckedChanged += source_CheckedChanged;
 
         // grpOnline
         grpOnline.Text = "chess-results'tan çek";
         grpOnline.Location = new System.Drawing.Point(18, 96);
         grpOnline.Size = new System.Drawing.Size(528, 192);
-        grpOnline.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        grpOnline.Anchor = leftAnchor;
         grpOnline.Controls.Add(lblSearch);
         grpOnline.Controls.Add(txtSearch);
         grpOnline.Controls.Add(btnSearch);
@@ -180,7 +200,7 @@ partial class MainForm
         cboTournament.DropDownStyle = ComboBoxStyle.DropDownList;
         cboTournament.SelectedIndexChanged += cboTournament_SelectedIndexChanged;
 
-        // 2. ADIM — Kategori ve tur seç
+        // 2. ADIM — Kategori ve tur seç (seçince eşleştirmeler kendiliğinden çekilir)
         lblCategory.AutoSize = true; lblCategory.Location = new System.Drawing.Point(12, 86); lblCategory.Text = "2) Kategori:";
         lblCategory.Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold);
         flowCategories.Location = new System.Drawing.Point(96, 80);
@@ -194,7 +214,7 @@ partial class MainForm
         flowRounds.AutoScroll = true;
         flowRounds.WrapContents = true;
 
-        // Eşleştirmeleri yeniden çek — küçük kare buton (otomatik çekildiği için büyük gerekmez).
+        // Eşleştirmeleri yeniden çek (F5) — chess-results'ta değişiklik olduysa.
         btnSync.Location = new System.Drawing.Point(460, 120); btnSync.Size = new System.Drawing.Size(56, 38);
         btnSync.Text = "🔄";
         btnSync.Font = new System.Drawing.Font("Segoe UI", 12F);
@@ -211,7 +231,7 @@ partial class MainForm
         grpFile.Text = "Dosyadan oku";
         grpFile.Location = new System.Drawing.Point(18, 96);
         grpFile.Size = new System.Drawing.Size(528, 100);
-        grpFile.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        grpFile.Anchor = leftAnchor;
         grpFile.Visible = false;
         grpFile.Controls.Add(txtFile);
         grpFile.Controls.Add(btnBrowse);
@@ -232,24 +252,24 @@ partial class MainForm
         lblInfo.BackColor = System.Drawing.Color.White;
         lblInfo.Padding = new Padding(8, 6, 6, 6);
         lblInfo.TextAlign = System.Drawing.ContentAlignment.TopLeft;
-        lblInfo.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        lblInfo.Anchor = leftAnchor;
         lblInfo.Text = "Turnuva: —";
         btnEditInfo.Location = new System.Drawing.Point(448, 296);
         btnEditInfo.Size = new System.Drawing.Size(98, 27);
         btnEditInfo.Text = "✏ Düzenle";
-        btnEditInfo.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnEditInfo.Anchor = leftAnchor;
         btnEditInfo.Click += btnEditInfo_Click;
         btnExclude.Location = new System.Drawing.Point(448, 325);
         btnExclude.Size = new System.Drawing.Size(98, 27);
         btnExclude.Text = "🚫 Hariç Tut";
-        btnExclude.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        btnExclude.Anchor = leftAnchor;
         btnExclude.Click += btnExclude_Click;
 
         // Hızlı yazdır (kısayollar) — kategori başına tek tık + tüm kategoriler.
-        grpQuick.Text = "🖨 Hızlı Yazdır (kısayollar)";
+        grpQuick.Text = "🖨 Hızlı Yazdır — bir kategorinin tamamı";
         grpQuick.Location = new System.Drawing.Point(18, 358);
         grpQuick.Size = new System.Drawing.Size(528, 70);
-        grpQuick.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        grpQuick.Anchor = leftAnchor;
         grpQuick.Controls.Add(flowQuick);
         grpQuick.Controls.Add(btnPrintAll);
         flowQuick.Location = new System.Drawing.Point(10, 20);
@@ -262,41 +282,103 @@ partial class MainForm
         btnPrintAll.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
         btnPrintAll.BackColor = green; btnPrintAll.ForeColor = System.Drawing.Color.White; btnPrintAll.FlatStyle = FlatStyle.Flat;
         btnPrintAll.FlatAppearance.BorderColor = greenDark;
-        btnPrintAll.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         btnPrintAll.Enabled = false;
         btnPrintAll.Click += btnPrintAll_Click;
 
-        // Eylem butonları — ana YAZDIR butonu geniş; yanında Özel Baskı.
-        btnPrint.Location = new System.Drawing.Point(20, 436); btnPrint.Size = new System.Drawing.Size(380, 46);
+        // Durum / log (sol alt)
+        lblStatus.Location = new System.Drawing.Point(20, 438); lblStatus.Size = new System.Drawing.Size(526, 20);
+        lblStatus.AutoEllipsis = true;
+        lblStatus.ForeColor = greenDark; lblStatus.Text = "Hazır.";
+        txtLog.Location = new System.Drawing.Point(20, 460); txtLog.Size = new System.Drawing.Size(526, 164);
+        txtLog.Multiline = true; txtLog.ReadOnly = true; txtLog.ScrollBars = ScrollBars.Vertical; txtLog.BackColor = System.Drawing.Color.White;
+        txtLog.Anchor = AnchorStyles.Top | AnchorStyles.Left; // yükseklik FitLog() ile pencereye uydurulur
+
+        // ================= SAĞ SÜTUN: 3) basılacak masalar + yazdır =================
+        grpPairings.Text = "3) Basılacak masalar — işareti kaldırılan masa basılmaz";
+        grpPairings.Location = new System.Drawing.Point(562, 64);
+        grpPairings.Size = new System.Drawing.Size(500, 560);
+        grpPairings.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        grpPairings.Controls.Add(dgvPairings);
+        grpPairings.Controls.Add(btnSelectAll);
+        grpPairings.Controls.Add(btnSelectNone);
+        grpPairings.Controls.Add(lblSelection);
+        grpPairings.Controls.Add(lblCopies);
+        grpPairings.Controls.Add(numCopies);
+        grpPairings.Controls.Add(btnPdf);
+        grpPairings.Controls.Add(btnPrint);
+
+        dgvPairings.Location = new System.Drawing.Point(10, 24);
+        dgvPairings.Size = new System.Drawing.Size(480, 400);
+        dgvPairings.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        dgvPairings.AllowUserToAddRows = false;
+        dgvPairings.AllowUserToDeleteRows = false;
+        dgvPairings.AllowUserToResizeRows = false;
+        dgvPairings.RowHeadersVisible = false;
+        dgvPairings.ShowCellToolTips = false;
+        dgvPairings.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
+        dgvPairings.MultiSelect = true;
+        dgvPairings.BackgroundColor = System.Drawing.Color.White;
+        dgvPairings.BorderStyle = BorderStyle.FixedSingle;
+        dgvPairings.AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill;
+        dgvPairings.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+        dgvPairings.EnableHeadersVisualStyles = false;
+        dgvPairings.ColumnHeadersDefaultCellStyle.BackColor = cream;
+        dgvPairings.ColumnHeadersDefaultCellStyle.ForeColor = greenDark;
+        dgvPairings.ColumnHeadersDefaultCellStyle.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+        dgvPairings.ColumnHeadersDefaultCellStyle.SelectionBackColor = cream;
+        dgvPairings.ColumnHeadersDefaultCellStyle.SelectionForeColor = greenDark;
+        dgvPairings.DefaultCellStyle.ForeColor = System.Drawing.Color.Black;
+        dgvPairings.DefaultCellStyle.SelectionBackColor = System.Drawing.Color.FromArgb(224, 231, 216);
+        dgvPairings.DefaultCellStyle.SelectionForeColor = System.Drawing.Color.Black;
+        dgvPairings.Columns.Add(new DataGridViewCheckBoxColumn { Name = "colPrint", HeaderText = "Bas", FillWeight = 9 });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBoard", HeaderText = "Masa", FillWeight = 11, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWhite", HeaderText = "Beyaz", FillWeight = 34, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWRtg", HeaderText = "ELO", FillWeight = 10, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBlack", HeaderText = "Siyah", FillWeight = 34, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBRtg", HeaderText = "ELO", FillWeight = 10, ReadOnly = true });
+
+        btnSelectAll.Location = new System.Drawing.Point(10, 430); btnSelectAll.Size = new System.Drawing.Size(90, 26);
+        btnSelectAll.Text = "☑ Tümü"; btnSelectAll.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        btnSelectAll.Click += btnSelectAll_Click;
+        btnSelectNone.Location = new System.Drawing.Point(104, 430); btnSelectNone.Size = new System.Drawing.Size(90, 26);
+        btnSelectNone.Text = "☐ Hiçbiri"; btnSelectNone.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        btnSelectNone.Click += btnSelectNone_Click;
+        lblSelection.Location = new System.Drawing.Point(202, 434); lblSelection.Size = new System.Drawing.Size(288, 20);
+        lblSelection.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+        lblSelection.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+        lblSelection.ForeColor = greenDark;
+        lblSelection.Text = "Eşleştirme yok.";
+
+        lblCopies.AutoSize = true; lblCopies.Location = new System.Drawing.Point(10, 476); lblCopies.Text = "Nüsha:";
+        lblCopies.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        numCopies.Location = new System.Drawing.Point(62, 473); numCopies.Size = new System.Drawing.Size(52, 25);
+        numCopies.Minimum = 1; numCopies.Maximum = 10; numCopies.Value = 2;
+        numCopies.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        numCopies.ValueChanged += numCopies_ValueChanged;
+
+        btnPdf.Location = new System.Drawing.Point(10, 506); btnPdf.Size = new System.Drawing.Size(104, 44);
+        btnPdf.Text = "📄 PDF";
+        btnPdf.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        btnPdf.Click += btnPdf_Click;
+
+        btnPrint.Location = new System.Drawing.Point(124, 470); btnPrint.Size = new System.Drawing.Size(366, 80);
         btnPrint.Text = "🖨  Yazdır";
-        btnPrint.Font = new System.Drawing.Font("Segoe UI", 11F, System.Drawing.FontStyle.Bold);
+        btnPrint.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
         btnPrint.BackColor = green; btnPrint.ForeColor = System.Drawing.Color.White; btnPrint.FlatStyle = FlatStyle.Flat;
         btnPrint.FlatAppearance.BorderColor = greenDark;
-        btnPrint.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        btnPrint.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         btnPrint.Click += btnPrint_Click;
-
-        btnSpecial.Location = new System.Drawing.Point(408, 436); btnSpecial.Size = new System.Drawing.Size(138, 46);
-        btnSpecial.Text = "🎯 Özel Baskı";
-        btnSpecial.FlatStyle = FlatStyle.Flat;
-        btnSpecial.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        btnSpecial.Click += btnSpecial_Click;
-
-        // Durum / log
-        lblStatus.AutoSize = true; lblStatus.Location = new System.Drawing.Point(20, 490); lblStatus.ForeColor = greenDark; lblStatus.Text = "Hazır.";
-        txtLog.Location = new System.Drawing.Point(20, 512); txtLog.Size = new System.Drawing.Size(526, 78);
-        txtLog.Multiline = true; txtLog.ReadOnly = true; txtLog.ScrollBars = ScrollBars.Vertical; txtLog.BackColor = System.Drawing.Color.White;
-        txtLog.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
 
         // MainForm
         AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         BackColor = cream;
-        ClientSize = new System.Drawing.Size(564, 606);
-        MinimumSize = new System.Drawing.Size(580, 645);
+        ClientSize = new System.Drawing.Size(1074, 636);
+        MinimumSize = new System.Drawing.Size(1000, 640);
+        KeyPreview = true;
+        Controls.Add(grpPairings);
         Controls.Add(txtLog);
         Controls.Add(lblStatus);
-        Controls.Add(btnSpecial);
-        Controls.Add(btnPrint);
         Controls.Add(grpQuick);
         Controls.Add(btnExclude);
         Controls.Add(btnEditInfo);
@@ -311,13 +393,17 @@ partial class MainForm
         Text = "Chess Scoresheet Printer";
         StartPosition = FormStartPosition.CenterScreen;
         FormClosing += MainForm_FormClosing;
+        KeyDown += MainForm_KeyDown;
 
         ((System.ComponentModel.ISupportInitialize)numRound).EndInit();
+        ((System.ComponentModel.ISupportInitialize)numCopies).EndInit();
+        ((System.ComponentModel.ISupportInitialize)dgvPairings).EndInit();
         grpOnline.ResumeLayout(false);
         grpOnline.PerformLayout();
         grpFile.ResumeLayout(false);
         grpFile.PerformLayout();
         grpQuick.ResumeLayout(false);
+        grpPairings.ResumeLayout(false);
         ResumeLayout(false);
         PerformLayout();
     }

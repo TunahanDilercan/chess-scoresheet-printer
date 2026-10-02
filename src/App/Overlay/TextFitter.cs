@@ -101,10 +101,27 @@ public static class TextFitter
         return null;
     }
 
-    /// <summary>"Mehmet Ali Yılmaz" için giderek kısalan adaylar üretir.</summary>
-    private static IEnumerable<string> AbbreviationLadder(string name)
+    /// <summary>
+    /// Giderek kısalan adaylar üretir. Soyad her zaman tam kalır:
+    /// "YILMAZ, MEHMET ALİ" (chess-results biçimi) → "YILMAZ, M. A." → "YILMAZ, M." → "YILMAZ";
+    /// "Mehmet Ali Yılmaz" → "M. A. Yılmaz" → "M. Yılmaz" → "Yılmaz".
+    /// </summary>
+    internal static IEnumerable<string> AbbreviationLadder(string name)
     {
         yield return name;
+
+        int comma = name.IndexOf(',');
+        if (comma > 0)
+        {
+            var surname = name[..comma].Trim();
+            var given = name[(comma + 1)..].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (surname.Length == 0 || given.Length == 0) yield break;
+            yield return surname + ", " + string.Join(" ", given.Select(Initial));
+            if (given.Length > 1) yield return surname + ", " + Initial(given[0]);
+            yield return surname;
+            yield break;
+        }
+
         var parts = name.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length < 2) yield break;
 

@@ -1,4 +1,3 @@
-using System.Text;
 using NotasyonOtomasyonu.Core;
 
 namespace NotasyonOtomasyonu.Online;
@@ -56,22 +55,7 @@ public sealed class ChessResultsService : IDisposable
     }
 
     /// <summary>Türkçe karakterleri ASCII'ye indirip küçük harfe çevirir (arama için).</summary>
-    private static string Fold(string s)
-    {
-        var sb = new StringBuilder(s.Length);
-        foreach (var ch in s.Trim())
-        {
-            char c = char.ToLowerInvariant(ch);
-            c = c switch
-            {
-                'ç' => 'c', 'ğ' => 'g', 'ı' => 'i', 'İ' => 'i', 'ö' => 'o', 'ş' => 's', 'ü' => 'u',
-                'â' => 'a', 'î' => 'i', 'û' => 'u', _ => c
-            };
-            // 'I' küçük harfte 'i' olur; 'İ' yukarıda ele alındı.
-            sb.Append(c);
-        }
-        return sb.ToString();
-    }
+    private static string Fold(string s) => EventGrouping.Fold(s.Trim());
 
     public void Dispose()
     {

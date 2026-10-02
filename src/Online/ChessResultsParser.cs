@@ -36,7 +36,8 @@ public static class ChessResultsParser
         return result;
     }
 
-    // ---- 2) Etkinlik üst bilgisi: ad, yer, hakem, tarih, tur sayısı, kategoriler ----
+    // ---- 2) Etkinlik üst bilgisi: ad, tarih, tur sayısı, kategoriler ----
+    // Yer/hakem/zaman kontrolü bilinçli olarak okunmaz: notasyon kağıdına basılmıyorlar.
     public static EventInfo ParseEventInfo(string html, int tnr)
     {
         var doc = Parser.ParseDocument(html);
@@ -45,15 +46,12 @@ public static class ChessResultsParser
                           ?? doc.QuerySelector("title")?.TextContent
                           ?? $"Turnuva {tnr}");
 
-        var location = InfoField(doc, "Yer", "Ort", "Location", "Şehir");
-        var arbiter = InfoField(doc, "Hakem", "Baş Hakem", "Arbiter");
         var dates = InfoField(doc, "Tarih", "Date");
-        var timeControl = InfoField(doc, "Tempo", "Süre", "Zaman", "Zaman kontrolü", "Time control", "Time-Control");
 
-        int maxRound = ParseMaxRound(doc);
+        var (maxRound, currentRound) = ParseRounds(doc);
         var categories = ParseCategories(doc, tnr, name);
 
-        return new EventInfo(tnr, name, location, arbiter, dates, timeControl, maxRound, categories);
+        return new EventInfo(tnr, name, dates, maxRound, currentRound, categories);
     }
 
     // ---- 3) Eşleştirme tablosu -> Tournament ----
@@ -88,10 +86,7 @@ public static class ChessResultsParser
             Name: info.Name,
             RoundNo: round,
             Pairings: pairings,
-            Location: info.Location,
-            Date: info.Dates,
-            TimeControl: info.TimeControl,
-            Arbiter: info.Arbiter);
+            Date: info.Dates);
     }
 
     // ---- kategori navigasyonu ----
@@ -125,9 +120,11 @@ public static class ChessResultsParser
             }
         }
 
-        // Hiç kategori bulunamadıysa (tek gruplu turnuva) mevcut etkinliği ekle.
+        // Hiç kategori bulunamadıysa (tek gruplu turnuva) mevcut etkinliği ekle. Ad olarak
+        // turnuva adının tamamı değil yalnızca kategori eki ("… AÇIK KATEGORİSİ" → "AÇIK") kullanılır;
+        // ek yoksa boş kalır (kağıttaki Kategori kutusuna turnuva adı basılmasın).
         if (cats.Count == 0)
-            cats.Add(new CategoryRef(tnr, eventName, IsCurrent: true));
+            cats.Add(new CategoryRef(tnr, EventGrouping.CategoryFromEventName(eventName), IsCurrent: true));
 
         // Mevcut işaretli yoksa, tnr eşleşeni mevcut say.
         if (!cats.Any(c => c.IsCurrent))
@@ -136,17 +133,38 @@ public static class ChessResultsParser
         return cats;
     }
 
-    private static int ParseMaxRound(IDocument doc)
+    /// <summary>Tur sayısı bilinmediğinde gösterilecek makul üst sınır.</summary>
+    public const int UnknownMaxRound = 11;
+
+    /// <summary>
+    /// Toplam tur sayısı ve eşlenmiş son tur. chess-results menüsünde eşlenmiş turlar
+    /// "Tur1, Tur2, Tur3/7" diye link olarak listelenir; "/7" son eşlenmiş turun yanındadır.
+    /// Sayfadaki program metni ("6. Tur 16.30") tur sayısı sanılmasın diye yalnızca bu
+    /// bitişik yazımlı ("Tur3") link metinlerine bakılır.
+    /// </summary>
+    private static (int Max, int Current) ParseRounds(IDocument doc)
     {
+        int max = 0, current = 0;
+        foreach (var a in doc.QuerySelectorAll("a[href]"))
+        {
+            var m = Regex.Match(Clean(a.TextContent), @"^(?:Tur|Rd\.|Rnd\.?|Round)\s?(\d{1,2})(?:\s*/\s*(\d{1,2}))?$",
+                RegexOptions.IgnoreCase);
+            if (!m.Success) continue;
+            int r = int.Parse(m.Groups[1].Value);
+            current = Math.Max(current, r);
+            max = Math.Max(max, r);
+            if (m.Groups[2].Success) max = Math.Max(max, int.Parse(m.Groups[2].Value));
+        }
+
+        // Görüntülenen tur link olmayabilir; "Tur5/5" düz metin olarak da geçer.
         var text = doc.Body?.TextContent ?? "";
-        int max = 0;
-        // "Tur5/5" -> toplam tur; ya da tek tek "Tur1..TurN".
-        foreach (Match m in Regex.Matches(text, @"\bTur\s*(\d+)\s*/\s*(\d+)"))
-            if (int.TryParse(m.Groups[2].Value, out var tot)) max = Math.Max(max, tot);
-        if (max == 0)
-            foreach (Match m in Regex.Matches(text, @"\bTur\s*(\d+)\b"))
-                if (int.TryParse(m.Groups[1].Value, out var r)) max = Math.Max(max, r);
-        return max == 0 ? 11 : max; // bilinmiyorsa makul üst sınır
+        foreach (Match m in Regex.Matches(text, @"\bTur(\d{1,2})/(\d{1,2})\b"))
+        {
+            current = Math.Max(current, int.Parse(m.Groups[1].Value));
+            max = Math.Max(max, int.Parse(m.Groups[2].Value));
+        }
+
+        return (max == 0 ? UnknownMaxRound : max, current);
     }
 
     // ---- yardımcılar ----

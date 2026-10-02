@@ -10,8 +10,5 @@ internal static class ParserUtil
             Name: config.Tournament.Name,
             RoundNo: config.Tournament.LastRound,
             Pairings: pairings,
-            Location: config.Tournament.Location,
-            Date: config.Tournament.Date,
-            TimeControl: config.Tournament.TimeControl,
-            Arbiter: config.Tournament.Arbiter);
+            Date: config.Tournament.Date);
 }

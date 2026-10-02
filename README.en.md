@@ -10,25 +10,29 @@ Chess Scoresheet Printer is a Windows desktop tool for placing tournament pairin
 The application is used at tournaments run by two provincial organizations of the Turkish Chess Federation. It is an independent project and is not an official application of the federation.
 
 <p align="center">
-  <img src="docs/images/main-window.png" alt="Chess Scoresheet Printer main window" width="500">
+  <img src="docs/images/main-window.png" alt="Chess Scoresheet Printer main window" width="760">
 </p>
 
 ## Main functions
 
-- Search tournaments and retrieve pairings from Chess-Results
-- Import JSON, CSV, TXT, XLSX and TUNX files
+- Search tournaments and retrieve pairings from Chess-Results (byes and unpaired players are recognised)
+- Import JSON, CSV, TXT and XLSX files
+- Choose the boards to print by ticking them in a list
 - Batch-print by round or category
 - Create print templates for pre-printed scoresheets
 - Adjust field positions and text sizes
+- Printer alignment offset (mm) with an alignment test page
 - Configure excluded boards, copy count and page size
-- Print preview and PDF output
+- Print preview with a faded scoresheet background, and PDF output
 
 ## Usage
 
-1. Select a Chess-Results tournament or open a pairing file.
-2. Select the category and round.
-3. Choose the appropriate scoresheet template.
-4. Review the print preview, then print directly or create a PDF.
+1. Select a Chess-Results tournament (by province, search or link/number) or open a pairing file.
+2. Select the category and round. Pairings load into the list on the right automatically; the default round is the latest round with published pairings.
+3. Untick boards that should not be printed and set the number of copies.
+4. Press **Print** (Ctrl+P) to open the preview. The pre-printed sheet is shown faded in the preview but is never printed. Choose a printer and print; the next category is then loaded automatically.
+
+If the text is offset from the boxes on the pre-printed sheet, correct it in millimetres under **Settings → Printer alignment** and check it with the **alignment test** page; the template itself does not need to change. Venue, arbiter and time-control details are intentionally not printed.
 
 The template editor allows tournament, date, category, round, board and player fields to be positioned separately.
 

@@ -66,12 +66,9 @@ public sealed class JsonParser : IPairingParser
 
         var name = GetString(root, "name", "tournament", "turnuva", "ad") ?? config.Tournament.Name;
         var round = GetInt(root, "roundNo", "round", "tur", "rnd") ?? config.Tournament.LastRound;
-        var loc = GetString(root, "location", "yer", "city") ?? config.Tournament.Location;
         var date = GetString(root, "date", "tarih") ?? config.Tournament.Date;
-        var tc = GetString(root, "timeControl", "tempo", "zaman") ?? config.Tournament.TimeControl;
-        var arb = GetString(root, "arbiter", "hakem") ?? config.Tournament.Arbiter;
 
-        return new Tournament(name, round, pairings, loc, date, tc, arb);
+        return new Tournament(name, round, pairings, date);
     }
 
     // --- Düz dizi (satırlar) ---
@@ -130,10 +127,11 @@ public sealed class JsonParser : IPairingParser
         return null;
     }
 
+    // Tam eşleşme: "Bayram Kaya", "BAYTAR, ÇAĞAN" gibi gerçek adlar BAY sayılmamalı.
     private static bool IsByeName(string? name)
     {
         var n = (name ?? "").Trim().ToLowerInvariant();
-        return n.Length == 0 || n is "bay" or "bye" or "-" || n.Contains("bye") || n.Contains("bay");
+        return n.Length == 0 || n is "bay" or "bye" or "-" or "(bye)" or "spielfrei";
     }
 
     private static int? NullIfZero(int? v) => v is null or 0 ? null : v;

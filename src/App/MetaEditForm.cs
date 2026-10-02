@@ -3,7 +3,7 @@ using NotasyonOtomasyonu.Core;
 namespace NotasyonOtomasyonu.App;
 
 /// <summary>
-/// Turnuva üst bilgisini (ad, zaman kontrolü, hakem, yer, tarih) elle düzenleme ekranı.
+/// Turnuva üst bilgisini (ad, tarih) elle düzenleme ekranı.
 /// Kaydedince değerler config'e yazılır ve kalıcı olur; çağıran ManualOverride'ı işaretler.
 /// </summary>
 public sealed class MetaEditForm : Form
@@ -29,7 +29,7 @@ public sealed class MetaEditForm : Form
 
         Controls.Add(new Label
         {
-            Text = "Tarih: turnuva günlerinden seçin (varsayılan bugün). Listede yoksa elle yazabilirsiniz.\nZaman kontrolü/hakem ⚙ Ayarlar'da.",
+            Text = "Tarih: turnuva günlerinden seçin (varsayılan bugün). Listede yoksa elle yazabilirsiniz.",
             AutoSize = false, Size = new System.Drawing.Size(412, 40), Location = new System.Drawing.Point(16, y),
             ForeColor = System.Drawing.Color.Gray
         });

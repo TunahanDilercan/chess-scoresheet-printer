@@ -98,9 +98,6 @@ public sealed class AppConfig
 public sealed class TournamentConfig
 {
     public string Name { get; set; } = "Turnuva Adı";
-    public string? Location { get; set; }
-    public string TimeControl { get; set; } = "90 dk + 30 sn";
-    public string? Arbiter { get; set; }
     /// <summary>Notasyona basılan TEK tarih (örn. "14.06.2026").</summary>
     public string? Date { get; set; }
     /// <summary>Turnuvanın ham tarih ifadesi/aralığı (tarih seçimi listesi için).</summary>
@@ -109,7 +106,7 @@ public sealed class TournamentConfig
     public int LastRound { get; set; } = 1;
 
     /// <summary>
-    /// Kullanıcı ad/zaman/hakem bilgisini elle değiştirdi mi? true ise senkronda çekilen
+    /// Kullanıcı ad/tarih bilgisini elle değiştirdi mi? true ise senkronda çekilen
     /// veriyle ezilmez. Farklı turnuva seçilince false'a döner (çekilen veri kullanılsın).
     /// </summary>
     public bool ManualOverride { get; set; }
@@ -156,6 +153,13 @@ public sealed class LayoutConfig
 
     /// <summary>Sayfa boyutu: "A4" veya "A5". Çıktılar genelde A5.</summary>
     public string PageSize { get; set; } = "A5";
+
+    /// <summary>
+    /// Yazıcı kaydırma düzeltmesi (mm). Her yazıcı hazır kağıdı biraz farklı konumda çeker;
+    /// tüm yazılar bu kadar sağa (+X) / aşağı (+Y) kaydırılarak basılır. Şablonu bozmadan hizalar.
+    /// </summary>
+    public double PrintOffsetXmm { get; set; }
+    public double PrintOffsetYmm { get; set; }
 
     /// <summary>
     /// Basılmayacak (hariç tutulacak) masa numaraları. "3,7,12-15" gibi. Boş = hepsini bas.

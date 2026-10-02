@@ -32,19 +32,18 @@ public record Pairing(
     Player White,
     Player? Black,       // null = BAY (bye)
     string? Result = null, // genelde boş
-    string? Category = null) // ait olduğu kategori (kısa: "A", "8 Yaş") — notasyona basmak için
+    string? Category = null, // ait olduğu kategori (kısa: "A", "8 Yaş") — notasyona basmak için
+    int? Round = null)   // tur no; kategoriler farklı turdaysa (toplu baskı) masaya özgü tur
 {
     public bool IsBye => Black is null;
 }
 
 /// <summary>
 /// Bir turun tüm bilgisi. Pairings her zaman masa no'ya göre artan sırada tutulur.
+/// Yer/hakem/zaman kontrolü bilinçli olarak tutulmaz: kağıtta bu alanlar boş kalır.
 /// </summary>
 public record Tournament(
     string Name,
     int RoundNo,
     IReadOnlyList<Pairing> Pairings,
-    string? Location = null,
-    string? Date = null,
-    string? TimeControl = null,
-    string? Arbiter = null);
+    string? Date = null);

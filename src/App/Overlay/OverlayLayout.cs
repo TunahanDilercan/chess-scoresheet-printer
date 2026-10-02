@@ -12,6 +12,9 @@ public readonly record struct PlacedText(RectangleF RectPt, string Text, float F
 /// </summary>
 public static class OverlayLayout
 {
+    /// <summary>Alan kutusunun sol/sağ kenarından yazıya kadar boşluk (punto ≈ 0,7 mm).</summary>
+    public const float TextInsetPt = 2f;
+
     /// <summary>Sayfadaki kağıt bölgeleri (perPage'e göre dikey bölünür), sayfa boyutuna göre.</summary>
     public static List<RectangleF> SheetRects(int perPage, string pageSize = "A4")
     {
@@ -37,11 +40,14 @@ public static class OverlayLayout
                 (float)f.W * sheet.Width,
                 (float)f.H * sheet.Height);
 
+            // Yatayda küçük iç boşluk: yazı, hazır kağıttaki kutu çizgisine yapışmasın.
+            var inner = RectangleF.Inflate(rect, -Math.Min(TextInsetPt, rect.Width / 4f), 0);
+
             var value = Resolve(f, t, p);
-            var fit = TextFitter.Fit(value, rect.Width, rect.Height,
+            var fit = TextFitter.Fit(value, inner.Width, inner.Height,
                 (float)f.FontSize, (float)f.MinFontSize, f.Bold, f.Overflow);
 
-            list.Add(new PlacedText(rect, fit.Text, fit.FontPt, f.Bold, f.Align));
+            list.Add(new PlacedText(inner, fit.Text, fit.FontPt, f.Bold, f.Align));
         }
         return list;
     }
@@ -52,11 +58,8 @@ public static class OverlayLayout
         FieldKind.FreeText => f.StaticText ?? "",
         FieldKind.TournamentName => t.Name ?? "",
         FieldKind.Category => p.Category ?? "",
-        FieldKind.Location => t.Location ?? "",
         FieldKind.Date => t.Date ?? "",
-        FieldKind.RoundNo => t.RoundNo.ToString(),
-        FieldKind.TimeControl => t.TimeControl ?? "",
-        FieldKind.Arbiter => t.Arbiter ?? "",
+        FieldKind.RoundNo => (p.Round ?? t.RoundNo).ToString(),
         FieldKind.BoardNo => p.Board.ToString(),
         FieldKind.WhiteName => p.White.Name,
         FieldKind.WhiteTitle => p.White.Title ?? "",
@@ -66,7 +69,7 @@ public static class OverlayLayout
         FieldKind.BlackTitle => p.Black?.Title ?? "",
         FieldKind.BlackRating => p.Black?.Rating?.ToString() ?? "",
         FieldKind.BlackStartNo => p.Black?.StartNo?.ToString() ?? "",
-        _ => ""
+        _ => "" // Yer/zaman kontrolü/hakem: bilinçli olarak boş
     };
 
     /// <summary>Tasarımcı önizlemesi için örnek veri (uzun isimlerle sığdırma testi).</summary>
@@ -76,14 +79,12 @@ public static class OverlayLayout
             Name: "Örnek Açık Satranç Turnuvası",
             RoundNo: 3,
             Pairings: Array.Empty<Pairing>(),
-            Location: "İstanbul",
-            Date: "2026-06-14",
-            TimeControl: "90 dk + 30 sn",
-            Arbiter: "FA Örnek Hakem");
+            Date: "14.06.2026");
+        // chess-results ile aynı "SOYAD, AD" biçimi
         var p = new Pairing(
             Board: 7,
-            White: new Player(12, "Abdurrahman Hacımüftüoğlu", "FM", 2345),
-            Black: new Player(3, "Ayşe Nur Çetinkaya", null, 2110),
+            White: new Player(12, "HACIMÜFTÜOĞLU, ABDURRAHMAN", "FM", 2345),
+            Black: new Player(3, "ÇETİNKAYA, AYŞE NUR", null, 2110),
             Category: "A");
         return (t, p);
     }

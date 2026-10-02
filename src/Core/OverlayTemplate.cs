@@ -1,16 +1,20 @@
 namespace NotasyonOtomasyonu.Core;
 
-/// <summary>Bir overlay alanına hangi verinin yazılacağı.</summary>
+/// <summary>
+/// Bir overlay alanına hangi verinin yazılacağı. Değerler config.json'a sayı olarak yazıldığından
+/// sıra değiştirilmemeli. Location/TimeControl/Arbiter artık kullanılmıyor (her zaman boş basılır);
+/// eski şablonlar bozulmasın diye yerlerinde duruyorlar.
+/// </summary>
 public enum FieldKind
 {
     FreeText,        // sabit metin (StaticText)
     TournamentName,
     Category,
-    Location,
+    Location,        // kullanılmıyor
     Date,
     RoundNo,
-    TimeControl,
-    Arbiter,
+    TimeControl,     // kullanılmıyor
+    Arbiter,         // kullanılmıyor
     BoardNo,
     WhiteName,
     WhiteTitle,
@@ -20,6 +24,12 @@ public enum FieldKind
     BlackTitle,
     BlackRating,
     BlackStartNo
+}
+
+public static class FieldKinds
+{
+    /// <summary>Kağıda artık basılmayan (her zaman boş kalan) alan türleri.</summary>
+    public static bool IsRetired(FieldKind k) => k is FieldKind.Location or FieldKind.TimeControl or FieldKind.Arbiter;
 }
 
 public enum HAlign { Left, Center, Right }

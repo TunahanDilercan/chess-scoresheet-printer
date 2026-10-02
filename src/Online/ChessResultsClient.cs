@@ -27,8 +27,22 @@ public sealed class ChessResultsClient : IDisposable
         _http.DefaultRequestHeaders.AcceptLanguage.ParseAdd("tr,en;q=0.8");
     }
 
-    public Task<string> FetchAsync(string url, CancellationToken ct = default)
-        => _http.GetStringAsync(url, ct);
+    /// <summary>
+    /// Sayfayı indirir. chess-results yükte s1/s2/s3 sunucularına yönlendirir; bu sırada
+    /// görülen geçici bağlantı hatalarında bir kez daha dener.
+    /// </summary>
+    public async Task<string> FetchAsync(string url, CancellationToken ct = default)
+    {
+        try
+        {
+            return await _http.GetStringAsync(url, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException)
+        {
+            await Task.Delay(1500, ct).ConfigureAwait(false);
+            return await _http.GetStringAsync(url, ct).ConfigureAwait(false);
+        }
+    }
 
     // ---- URL kurucular (lan=8 = Türkçe) ----
     public static string FederationUrl(string fed = "TUR") => $"{BaseHost}/fed.aspx?lan=8&fed={fed}";

@@ -8,14 +8,14 @@ public record CategoryRef(int Tnr, string Name, bool IsCurrent);
 
 /// <summary>
 /// Bir chess-results etkinlik (tnr) sayfasından çıkarılan üst bilgi:
-/// ad, yer, hakem, tarih, tur sayısı ve tüm kategoriler.
+/// ad, tarih, tur sayısı, eşlenmiş son tur ve tüm kategoriler.
 /// </summary>
+/// <param name="MaxRound">Toplam tur sayısı (bilinmiyorsa makul bir üst sınır).</param>
+/// <param name="CurrentRound">Eşleştirmesi yayımlanmış son tur; henüz hiç tur yoksa 0.</param>
 public record EventInfo(
     int Tnr,
     string Name,
-    string? Location,
-    string? Arbiter,
     string? Dates,
-    string? TimeControl,
     int MaxRound,
+    int CurrentRound,
     IReadOnlyList<CategoryRef> Categories);

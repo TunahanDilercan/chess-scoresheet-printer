@@ -24,6 +24,8 @@ public sealed class TemplateDesignerForm : Form
     private readonly ComboBox _cboPerPage = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly CheckBox _chkPrintBg = new() { Text = "Arka planı da yazdır (düz kağıt testi)", AutoSize = true };
     private readonly ComboBox _cboAddKind = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private static readonly FieldKind[] AddableKinds =
+        Enum.GetValues<FieldKind>().Where(k => !FieldKinds.IsRetired(k)).ToArray();
     private readonly TextBox _txtStatic = new();
     private readonly NumericUpDown _numFont = new() { Minimum = 5, Maximum = 48, DecimalPlaces = 0 };
     private readonly NumericUpDown _numMin = new() { Minimum = 4, Maximum = 24 };
@@ -90,9 +92,10 @@ public sealed class TemplateDesignerForm : Form
         _chkPrintBg.Location = new Point(x, y); _chkPrintBg.CheckedChanged += (_, _) => { if (!_loading) _tpl.PrintBackground = _chkPrintBg.Checked; }; Controls.Add(_chkPrintBg); y += 28;
 
         y += 6; Header("Alan ekle");
-        foreach (FieldKind k in Enum.GetValues<FieldKind>())
+        // Yer/zaman kontrolü/hakem artık basılmadığından listede yok.
+        foreach (var k in AddableKinds)
             _cboAddKind.Items.Add(OverlayLayout.DisplayName(k));
-        _cboAddKind.SelectedIndex = (int)FieldKind.WhiteName;
+        _cboAddKind.SelectedIndex = Array.IndexOf(AddableKinds, FieldKind.WhiteName);
         _cboAddKind.SetBounds(x, y, w - 70, 25);
         var btnAdd = new Button { Text = "Ekle" };
         btnAdd.SetBounds(x + w - 64, y - 1, 64, 27); btnAdd.Click += AddField_Click;
@@ -226,7 +229,7 @@ public sealed class TemplateDesignerForm : Form
     // ----------------- Olaylar -----------------
     private void AddField_Click(object? sender, EventArgs e)
     {
-        var kind = (FieldKind)_cboAddKind.SelectedIndex;
+        var kind = AddableKinds[_cboAddKind.SelectedIndex];
         var f = new OverlayField
         {
             Kind = kind,

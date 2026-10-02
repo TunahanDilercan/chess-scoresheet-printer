@@ -23,10 +23,12 @@ public static class OverlayPdfRenderer
         var pages = Chunk(t.Pairings, perPage);
         bool a5 = NotasyonOtomasyonu.Core.PageGeometry.IsA5(pageSize);
 
-        byte[]? bg = null;
+        // Tek Image nesnesi: PDF'e bir kez gömülür, her sayfada yeniden kullanılır
+        // (byte[] ile her sayfaya ayrı kopya gömülüyor, 25 kağıt ≈ 30 MB oluyordu).
+        QuestPDF.Infrastructure.Image? bg = null;
         if (tpl.PrintBackground && !string.IsNullOrWhiteSpace(tpl.BackgroundImagePath)
             && File.Exists(tpl.BackgroundImagePath))
-            bg = File.ReadAllBytes(tpl.BackgroundImagePath);
+            bg = QuestPDF.Infrastructure.Image.FromFile(tpl.BackgroundImagePath);
 
         Document.Create(doc =>
         {
@@ -46,16 +48,19 @@ public static class OverlayPdfRenderer
                         {
                             var sheet = sheets[i];
 
+                            // Mutlak konum: Unconstrained + Translate. (Padding+Width sayfayı bir
+                            // kıl payı aşınca QuestPDF içeriği SESSİZCE atıyordu → arka plan hiç
+                            // çıkmıyor, kenara yakın alanlar kayboluyordu.)
                             if (bg is not null)
-                                layers.Layer().PaddingLeft(sheet.X).PaddingTop(sheet.Y)
+                                layers.Layer().Unconstrained().TranslateX(sheet.X).TranslateY(sheet.Y)
                                       .Width(sheet.Width).Height(sheet.Height)
-                                      .Image(bg).FitArea();
+                                      .Image(bg).FitUnproportionally(); // GDI baskısı gibi kağıda gerdir
 
                             foreach (var placed in OverlayLayout.Place(tpl, t, pagePairings[i], sheet))
                             {
                                 if (string.IsNullOrEmpty(placed.Text)) continue;
-                                var box = layers.Layer()
-                                    .PaddingLeft(placed.RectPt.X).PaddingTop(placed.RectPt.Y)
+                                var box = layers.Layer().Unconstrained()
+                                    .TranslateX(placed.RectPt.X).TranslateY(placed.RectPt.Y)
                                     .Width(placed.RectPt.Width).Height(placed.RectPt.Height)
                                     .AlignMiddle();
 

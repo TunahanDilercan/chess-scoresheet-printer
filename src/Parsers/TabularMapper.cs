@@ -80,8 +80,9 @@ public sealed class TabularMapper
         var n = (name ?? string.Empty).Trim();
         if (n.Length == 0) return true;
         var low = n.ToLowerInvariant();
+        // Tam eşleşme (+ "BAY (1 puan)" gibi parantezli not); "Bayram Kaya" BAY sayılmaz.
         return low is "bay" or "bye" or "-" or "(bye)" or "spielfrei" or "boş"
-            || low.Contains("bye") || low.Contains("bay (");
+            || low.StartsWith("bay (") || low.StartsWith("bye (");
     }
 
     private static string CleanName(string? s)

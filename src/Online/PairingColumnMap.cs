@@ -50,6 +50,10 @@ internal sealed class PairingColumnMap
         var whiteName = Cell(_wName).Trim();
         if (whiteName.Length == 0) return null; // boş/ayraç satırı
 
+        var blackName = Cell(_bName).Trim();
+        // "eşlendirilmeyenler" (not paired): oyuncu bu tur oynamıyor → kağıt yok.
+        if (IsNotPaired(blackName)) return null;
+
         int board = ParseInt(Cell(_board)) ?? fallbackBoard;
 
         var white = new Player(
@@ -57,7 +61,6 @@ internal sealed class PairingColumnMap
             Name: whiteName,
             Rating: ParseRating(Cell(_wRtg)));
 
-        var blackName = Cell(_bName).Trim();
         Player? black = IsBye(blackName)
             ? null
             : new Player(StartNo: ParseInt(Cell(_bNo)), Name: blackName, Rating: ParseRating(Cell(_bRtg)));
@@ -104,12 +107,23 @@ internal sealed class PairingColumnMap
     }
 
     // ---- değer çözücüler ----
-    private static bool IsBye(string name)
+    // chess-results BAY'ı dile göre tek kelimeyle yazar (Türkçe sayfada "Tur").
+    // Gerçek oyuncu adları "SOYAD, AD" biçiminde olduğundan TAM eşleşme yeterli ve güvenli;
+    // "BAYTAR, ÇAĞAN" gibi adların BAY sanılmaması için içerik (Contains) araması yapılmaz.
+    private static readonly HashSet<string> ByeWords = new(StringComparer.OrdinalIgnoreCase)
     {
-        if (name.Length == 0) return true;
-        var n = name.ToLowerInvariant();
-        return n is "bay" or "bye" or "-" || n.Contains("bye") || n.Contains("spielfrei")
-            || n.Contains("(=)") || n.Contains("bay ");
+        "tur", "bay", "bye", "-", "(=)", "spielfrei", "libre", "exempt"
+    };
+
+    private static bool IsBye(string name)
+        => name.Length == 0 || ByeWords.Contains(name.Trim());
+
+    /// <summary>"eşlendirilmeyenler" / "not paired" / "nicht ausgelost": oyuncu bu tur eşlenmedi.</summary>
+    private static bool IsNotPaired(string name)
+    {
+        var n = name.Trim().ToLowerInvariant();
+        return n.StartsWith("eşlendirilmeyen") || n.StartsWith("eşlenmeyen") ||
+               n is "not paired" or "nicht ausgelost" or "non apparié" or "no emparejado";
     }
 
     private static int? ParseInt(string s)
