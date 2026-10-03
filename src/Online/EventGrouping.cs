@@ -112,7 +112,7 @@ public static class EventGrouping
     }
 
     /// <summary>Türkçe harfleri ASCII'ye indirip küçültür (kültürden bağımsız karşılaştırma için).</summary>
-    internal static string Fold(string s)
+    public static string Fold(string s)
     {
         var sb = new StringBuilder(s.Length);
         foreach (var ch in s)

@@ -17,15 +17,18 @@ public readonly record struct FitResult(string Text, float FontPt);
 /// </summary>
 public static class TextFitter
 {
-    private static readonly PrivateFontCollection Fonts = LoadFonts();
-    private static readonly FontFamily Family = ResolveFamily();
+    // Kalın yüz AYRI koleksiyonda: ikisi aynı koleksiyondayken GDI+ kalın dosyayı kullanmayıp
+    // normal yüzü yapay kalınlaştırıyordu (PDF'teki gerçek kalından dar ve ince çıkıyordu).
+    private static readonly PrivateFontCollection Fonts = LoadFonts(EmbeddedFonts.Regular());
+    private static readonly PrivateFontCollection BoldFonts = LoadFonts(EmbeddedFonts.Bold());
+    private static readonly FontFamily Family = ResolveFamily(Fonts);
+    private static readonly FontFamily BoldFamily = ResolveFamily(BoldFonts);
     private static readonly Bitmap MeasureBmp = new(2, 2);
 
-    private static PrivateFontCollection LoadFonts()
+    private static PrivateFontCollection LoadFonts(byte[] data)
     {
         var pfc = new PrivateFontCollection();
-        AddFont(pfc, EmbeddedFonts.Regular());
-        AddFont(pfc, EmbeddedFonts.Bold());
+        AddFont(pfc, data);
         return pfc;
     }
 
@@ -37,12 +40,13 @@ public static class TextFitter
         pfc.AddMemoryFont(ptr, data.Length);
     }
 
-    private static FontFamily ResolveFamily()
-        => Fonts.Families.FirstOrDefault(f => f.Name == EmbeddedFonts.FamilyName) ?? Fonts.Families[0];
+    private static FontFamily ResolveFamily(PrivateFontCollection pfc)
+        => pfc.Families.FirstOrDefault(f => f.Name == EmbeddedFonts.FamilyName) ?? pfc.Families[0];
 
     /// <summary>İstenen punto + kalınlıkta Font üretir (ölçüm/çizim için, birim = punto).</summary>
     public static Font CreateFont(float pt, bool bold)
-        => new(Family, pt, bold ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Point);
+        => bold ? new(BoldFamily, pt, BoldFamily.IsStyleAvailable(FontStyle.Bold) ? FontStyle.Bold : FontStyle.Regular, GraphicsUnit.Point)
+                : new(Family, pt, FontStyle.Regular, GraphicsUnit.Point);
 
     /// <summary>Tek satır metin genişliğini PUNTO cinsinden ölçer.</summary>
     public static float MeasureWidth(string text, float pt, bool bold)

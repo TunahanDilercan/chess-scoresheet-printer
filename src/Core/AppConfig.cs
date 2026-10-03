@@ -34,6 +34,15 @@ public sealed class AppConfig
     /// </summary>
     public int TemplateSetVersion { get; set; }
 
+    /// <summary>Yönerge/rapor: kullanıcının yüklediği .docx şablonları (exe yanındaki reports klasöründe).</summary>
+    public List<string> ReportTemplates { get; set; } = new();
+
+    /// <summary>Yönerge/rapor sihirbazında verilen cevaplar (telefon, e-posta…); sonraki raporda önerilir.</summary>
+    public Dictionary<string, string> ReportAnswers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Kategori masa kartları: afiş/logo ve kategori renkleri (kategori tnr → "#RRGGBB").</summary>
+    public CardConfig Cards { get; set; } = new();
+
     /// <summary>Pairing'in sistemine göre basılacak şablon (eşleme yoksa etkin şablon).</summary>
     public OverlayTemplate TemplateFor(TournamentSystem system)
     {
@@ -86,6 +95,8 @@ public sealed class AppConfig
     {
         try
         {
+            // Kalıcı seçimler sınırsız büyümesin: en eski kayıtları at.
+            while (Online.Selections.Count > 400) Online.Selections.Remove(Online.Selections.Keys.First());
             var json = JsonSerializer.Serialize(this, JsonOpts);
             File.WriteAllText(path, json);
         }
@@ -117,6 +128,35 @@ public sealed class AppConfig
         ["blackClub"]        = new() { "Kulüp2", "Club2", "BlackClub" },
         ["result"]           = new() { "Sonuç", "Result", "Res.", "Res" }
     };
+}
+
+/// <summary>Kategori masa kartları ayarları (kalıcı).</summary>
+public sealed class CardConfig
+{
+    /// <summary>Kartın üst bölümüne basılacak turnuva afişi/logosu (boş = turnuva adı yazılır).</summary>
+    public string? LogoPath { get; set; }
+
+    /// <summary>Kategori tnr → renk ("#RRGGBB"). Atanan renk kalıcıdır; aynı kategori hep aynı renkte basılır.</summary>
+    public Dictionary<string, string> CategoryColors { get; set; } = new();
+
+    /// <summary>Yazıcıda birbirinden net ayrılan temel renkler (otomatik atama sırası).</summary>
+    public static readonly string[] Palette =
+    {
+        "#D32F2F", "#1565C0", "#2E7D32", "#F9A825", "#6A1B9A", "#EF6C00",
+        "#212121", "#00838F", "#AD1457", "#5D4037", "#827717", "#283593"
+    };
+
+    /// <summary>Kategorinin rengi: kayıtlıysa o; değilse bu etkinlikte kullanılmamış ilk palet rengi atanır.</summary>
+    public string ColorFor(int categoryTnr, IEnumerable<int> eventCategoryTnrs)
+    {
+        var key = categoryTnr.ToString();
+        if (CategoryColors.TryGetValue(key, out var c)) return c;
+        var used = eventCategoryTnrs.Select(t => CategoryColors.GetValueOrDefault(t.ToString()))
+                                    .Where(x => x is not null).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var pick = Palette.FirstOrDefault(p => !used.Contains(p)) ?? Palette[CategoryColors.Count % Palette.Length];
+        CategoryColors[key] = pick;
+        return pick;
+    }
 }
 
 public sealed class TournamentConfig
@@ -160,6 +200,12 @@ public sealed class OnlineConfig
 
     /// <summary>Son kullanılan veri kaynağı: "Dosya" veya "Online".</summary>
     public string Source { get; set; } = "Online";
+
+    /// <summary>
+    /// "kategoriTnr:tur" → işareti KALDIRILMIŞ masalar. Seçimler baskıdan ve program kapanıp
+    /// açıldıktan sonra da korunur (en son 400 kategori/tur tutulur).
+    /// </summary>
+    public Dictionary<string, List<int>> Selections { get; set; } = new();
 }
 
 public sealed class LayoutConfig

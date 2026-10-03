@@ -25,7 +25,11 @@ public enum FieldKind
     BlackRating,
     BlackStartNo,
     WhiteTeam,       // takım turnuvası: beyazın takımı (bireyselde boş)
-    BlackTeam        // takım turnuvası: siyahın takımı (bireyselde boş)
+    BlackTeam,       // takım turnuvası: siyahın takımı (bireyselde boş)
+    // Kağıtta ". . . / . . . / 20 . . ." kılavuzlu tarih kutusu için üç parça:
+    DateDay,         // "03"
+    DateMonth,       // "10"
+    DateYear2        // "26" (kağıtta "20" önceden basılı)
 }
 
 public static class FieldKinds

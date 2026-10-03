@@ -10,7 +10,6 @@ namespace NotasyonOtomasyonu.App;
 public sealed class ExclusionsForm : Form
 {
     private readonly AppConfig _cfg;
-    private readonly CheckBox _excludeByes = new() { Text = "Eşlenmeyen (BAY) masalarını basma" };
     private readonly TextBox _boards = new();
     private readonly Label _preview = new();
     private readonly IReadOnlyList<int> _available;
@@ -38,8 +37,13 @@ public sealed class ExclusionsForm : Form
         });
         y += 30;
 
-        _excludeByes.SetBounds(16, y, 420, 24);
-        Controls.Add(_excludeByes);
+        // BAY masaları her zaman varsayılan olarak basılmaz; listede işaretlenirse basılır.
+        Controls.Add(new Label
+        {
+            Text = "BAY masaları varsayılan olarak basılmaz; gerekirse ana ekrandaki listede işaretleyin.",
+            AutoSize = false, Size = new System.Drawing.Size(428, 24),
+            Location = new System.Drawing.Point(16, y), ForeColor = System.Drawing.Color.FromArgb(95, 122, 70)
+        });
         y += 34;
 
         Controls.Add(new Label
@@ -65,7 +69,6 @@ public sealed class ExclusionsForm : Form
         AcceptButton = ok; CancelButton = cancel;
 
         // mevcut değerleri yükle
-        _excludeByes.Checked = !_cfg.Layout.PrintByeSheets;
         _boards.Text = _cfg.Layout.ExcludedBoards;
         UpdatePreview();
     }
@@ -91,7 +94,6 @@ public sealed class ExclusionsForm : Form
 
     private void WriteBack()
     {
-        _cfg.Layout.PrintByeSheets = !_excludeByes.Checked;
         _cfg.Layout.ExcludedBoards = (_boards.Text ?? "").Trim();
     }
 }

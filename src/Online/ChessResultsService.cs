@@ -140,6 +140,16 @@ public sealed class ChessResultsService : IDisposable
         return ChessResultsParser.ParsePairings(html, tnr, round, system);
     }
 
+    /// <summary>Rapor/yönerge için bilgi tablosunun tamamı (turdet=ALL: tam hakem listesi).</summary>
+    public async Task<Dictionary<string, string>> GetInfoTableAsync(int tnr, CancellationToken ct = default)
+        => ChessResultsParser.ParseInfoTable(
+            await _client.FetchAsync(ChessResultsClient.EventUrl(tnr).Replace("turdet=YES", "turdet=ALL"), ct).ConfigureAwait(false));
+
+    /// <summary>Tur tarih/saat programı (art=14).</summary>
+    public async Task<List<(int Round, DateTime? Date, string Time)>> GetScheduleAsync(int tnr, CancellationToken ct = default)
+        => ChessResultsParser.ParseSchedule(
+            await _client.FetchAsync(ChessResultsClient.ScheduleUrl(tnr), ct).ConfigureAwait(false));
+
     /// <summary>Türkçe karakterleri ASCII'ye indirip küçük harfe çevirir (arama için).</summary>
     private static string Fold(string s) => EventGrouping.Fold(s.Trim());
 

@@ -71,8 +71,28 @@ public static class OverlayLayout
         FieldKind.BlackStartNo => p.Black?.StartNo?.ToString() ?? "",
         FieldKind.WhiteTeam => p.WhiteTeam ?? "",   // bireysel turnuvada boş kalır
         FieldKind.BlackTeam => p.IsBye ? "" : (p.BlackTeam ?? ""),
+        FieldKind.DateDay => DatePart(t.Date, 0),
+        FieldKind.DateMonth => DatePart(t.Date, 1),
+        FieldKind.DateYear2 => DatePart(t.Date, 2),
         _ => "" // Yer/zaman kontrolü/hakem: bilinçli olarak boş
     };
+
+    /// <summary>
+    /// Tarihin parçası: 0 gün ("03"), 1 ay ("10"), 2 yılın son iki hanesi ("26").
+    /// Kağıttaki ". . . / . . . / 20 . . ." kılavuzuna ayrı ayrı yazmak için.
+    /// </summary>
+    public static string DatePart(string? date, int part)
+    {
+        var days = TournamentDates.Parse(date);
+        if (days.Count == 0) return "";
+        var d = days[0];
+        return part switch
+        {
+            0 => d.Day.ToString("00"),
+            1 => d.Month.ToString("00"),
+            _ => (d.Year % 100).ToString("00")
+        };
+    }
 
     /// <summary>Tasarımcı önizlemesi için örnek veri (uzun isimlerle sığdırma testi).</summary>
     public static (Tournament, Pairing) Sample()
@@ -116,6 +136,9 @@ public static class OverlayLayout
         FieldKind.BlackStartNo => "Siyah SNo",
         FieldKind.WhiteTeam => "Beyaz takım",
         FieldKind.BlackTeam => "Siyah takım",
+        FieldKind.DateDay => "Tarih: gün",
+        FieldKind.DateMonth => "Tarih: ay",
+        FieldKind.DateYear2 => "Tarih: yıl (son 2)",
         _ => k.ToString()
     };
 }

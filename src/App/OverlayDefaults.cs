@@ -13,10 +13,11 @@ public static class OverlayDefaults
 {
     public const string DefaultName = "Ana Örnek 2";
     public const string LegacyName = "Ana Örnek";
+    public const string TsfName = "TSF Resmi Form (ortalı)";
     private const string ResourceName = "NotasyonOtomasyonu.App.AnaOrnek.png";
 
-    /// <summary>Bu sürümün şablon seti; config'teki değer küçükse yeni varsayılan bir kez eklenir.</summary>
-    public const int CurrentTemplateSetVersion = 2;
+    /// <summary>Bu sürümün şablon seti; config'teki değer küçükse eksik yerleşik şablonlar bir kez eklenir.</summary>
+    public const int CurrentTemplateSetVersion = 3;
 
     /// <summary>
     /// Açılışta çağrılır. Kütüphane boşsa iki yerleşik şablonu ekler ("Ana Örnek 2" etkin).
@@ -37,7 +38,7 @@ public static class OverlayDefaults
             else cfg.Templates.Add(BuildLegacy(bgPath));
         }
 
-        if (cfg.TemplateSetVersion < CurrentTemplateSetVersion)
+        if (cfg.TemplateSetVersion < 2)
         {
             var def = cfg.Templates.FirstOrDefault(t => t.Name == DefaultName);
             if (def is null)
@@ -47,14 +48,17 @@ public static class OverlayDefaults
             }
             cfg.Overlay = def.DeepClone();               // yeni yerleşim varsayılan
             cfg.Layout.CopiesPerBoard = LayoutConfig.DefaultCopies;
-            cfg.TemplateSetVersion = CurrentTemplateSetVersion;
         }
+        if (cfg.TemplateSetVersion < 3 && cfg.Templates.All(t => t.Name != TsfName))
+            cfg.Templates.Add(BuildTsf(bgPath));         // 3. seçenek; etkin şablonu değiştirmez
+        if (cfg.TemplateSetVersion < CurrentTemplateSetVersion)
+            cfg.TemplateSetVersion = CurrentTemplateSetVersion;
 
         // Yerleşik şablonların arka plan yolu kırıksa (taşınmış exe) gömülü görseli geri bağla.
         if (bgPath is not null)
         {
             foreach (var t in cfg.Templates.Append(cfg.Overlay))
-                if (t.Name is DefaultName or LegacyName &&
+                if (t.Name is DefaultName or LegacyName or TsfName &&
                     (string.IsNullOrWhiteSpace(t.BackgroundImagePath) || !File.Exists(t.BackgroundImagePath)))
                     t.BackgroundImagePath = bgPath;
         }
@@ -104,13 +108,57 @@ public static class OverlayDefaults
         Fields = LegacyFields()
     };
 
+    /// <summary>TSF resmi formuna fotoğraftan ölçülerek ortalanmış yerleşim.</summary>
+    public static OverlayTemplate BuildTsf(string? backgroundPath) => new()
+    {
+        Name = TsfName,
+        BackgroundImagePath = backgroundPath,
+        PrintBackground = false,
+        PerPage = 1,
+        Fields = TsfFields()
+    };
+
     /// <summary>Adına göre yerleşik şablonu yeniden kurar (sıfırlama); yerleşik değilse null.</summary>
     public static OverlayTemplate? BuildBuiltIn(string name, string? backgroundPath) => name switch
     {
         DefaultName => BuildDefault(backgroundPath),
         LegacyName => BuildLegacy(backgroundPath),
+        TsfName => BuildTsf(backgroundPath),
         _ => null
     };
+
+    /// <summary>
+    /// Türkiye Satranç Federasyonu resmi notasyon formu (mavi başlıklı). Değerler, bu formun basılmış
+    /// iki fotoğrafından ölçüldü: hamle tablosuna göre perspektif düzeltildi, basılı yazıların bilinen
+    /// konumlarından kağıda eşlendi (hata ≈0,25 pt) ve her alan kendi kutusunun içine ORTALANDI.
+    /// Tarih, kağıttaki ". . . / . . . / 20 . . ." kılavuzuna üç parça yazılır (yılın yalnız son iki hanesi).
+    /// Not: arka plan görseli (önizleme) bu formun değil Ana Örnek'in; kutular birkaç pt farklı görünebilir.
+    /// </summary>
+    private static List<OverlayField> TsfFields() => new()
+    {
+        C(FieldKind.TournamentName, 0.517488, 0.123677, 0.415410, 0.028621, 11, false),
+        C(FieldKind.Category,       0.445174, 0.157994, 0.171090, 0.029258, 12, true),
+        C(FieldKind.RoundNo,        0.683297, 0.158238, 0.124953, 0.028945, 12, true),
+        C(FieldKind.BoardNo,        0.857484, 0.158913, 0.075257, 0.028601, 20, true),
+        C(FieldKind.WhiteName,      0.167772, 0.193770, 0.448068, 0.029088, 12, false),
+        C(FieldKind.WhiteRating,    0.682681, 0.193442, 0.123867, 0.028852, 12, false),
+        C(FieldKind.WhiteTeam,      0.167725, 0.224875, 0.447564, 0.029168, 9, false, OverflowMode.ShrinkThenEllipsis),
+        C(FieldKind.BlackName,      0.165095, 0.261425, 0.449754, 0.029095, 12, false),
+        C(FieldKind.BlackRating,    0.681652, 0.260524, 0.124281, 0.028843, 12, false),
+        C(FieldKind.BlackTeam,      0.165442, 0.292536, 0.448798, 0.028053, 9, false, OverflowMode.ShrinkThenEllipsis),
+        // Tarih: noktalı bölümlerin ortasına, rakam tabanı noktaların 1,5 pt üstünde
+        C(FieldKind.DateDay,        0.186833, 0.157208, 0.052440, 0.020159, 10, false, OverflowMode.ShrinkThenEllipsis),
+        C(FieldKind.DateMonth,      0.225682, 0.157208, 0.052440, 0.020159, 10, false, OverflowMode.ShrinkThenEllipsis),
+        C(FieldKind.DateYear2,      0.283850, 0.157208, 0.052440, 0.020159, 10, false, OverflowMode.ShrinkThenEllipsis),
+    };
+
+    private static OverlayField C(FieldKind kind, double x, double y, double w, double h,
+                                  double font, bool bold, OverflowMode overflow = OverflowMode.ShrinkThenAbbreviate)
+    {
+        var f = F(kind, x, y, w, h, font, bold, overflow);
+        f.Align = HAlign.Center;
+        return f;
+    }
 
     /// <summary>
     /// Sahada (Isparta, Ekim 2026) hazır kağıda göre ayarlanmış yerleşim: yazılar kutuların

@@ -41,6 +41,7 @@ public partial class MainForm : Form
     public MainForm()
     {
         InitializeComponent();
+        InitToolButtons();
         LoadBranding();
         var baseDir = AppContext.BaseDirectory;
         _configPath = Path.Combine(baseDir, "config.json");
@@ -48,6 +49,12 @@ public partial class MainForm : Form
         Directory.CreateDirectory(_outputDir);
 
         _config = AppConfig.Load(_configPath);
+        foreach (var (k, boards) in _config.Online.Selections) // kalıcı masa seçimleri
+        {
+            var parts = k.Split(':');
+            if (parts.Length == 2 && int.TryParse(parts[0], out var c) && int.TryParse(parts[1], out var r))
+                _unchecked[(c, r)] = boards.ToHashSet();
+        }
         OverlayDefaults.EnsureDefaults(_config, baseDir); // Ana Örnek varsayılan şablonu hazırla
         ApplyConfigToUi();
 
@@ -57,7 +64,7 @@ public partial class MainForm : Form
         PositionHeader();
         // Yazı tipi ölçeklemesi (DPI) dikeyde büyütünce alttan çapalı günlük kutusu pencereden
         // taşıyordu; yüksekliği her boyut değişiminde pencereye göre hesapla.
-        Load += (_, _) => FitLog();
+        Load += (_, _) => { CaptureLayout(); RelayoutLeft(); };
         Resize += (_, _) => FitLog();
 
         var tip = new ToolTip();
@@ -141,7 +148,8 @@ public partial class MainForm : Form
         btnSettings.Top = (pnlHeader.Height - btnSettings.Height) / 2;
         btnSettings.Left = pnlHeader.ClientSize.Width - btnSettings.Width - margin;
         btnSettings.BringToFront();
-        lblTitle.Width = Math.Max(80, btnSettings.Left - lblTitle.Left - 8);
+        int right = PositionToolButtons(btnSettings.Left);
+        lblTitle.Width = Math.Max(80, right - lblTitle.Left - 8);
     }
 
     /// <summary>Gömülü ikon ve başlık logosunu yükler (tek dosya exe'de de çalışır).</summary>
@@ -307,10 +315,10 @@ public partial class MainForm : Form
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         _config.Save(_configPath);
         _unchecked.Clear();            // seçimler yeni hariç tutma kuralına göre yeniden kurulsun
+        _config.Online.Selections.Clear();
         ShowPairings(_gridTournament); // varsayılan işaretler yeni hariç tutmaya göre
         var ex = BoardRange.Parse(_config.Layout.ExcludedBoards);
         var parts = new List<string>();
-        if (!_config.Layout.PrintByeSheets) parts.Add("BAY hariç");
         if (ex.Count > 0) parts.Add($"{ex.Count} masa hariç");
         SetStatus(parts.Count > 0 ? "Hariç tutma kaydedildi: " + string.Join(", ", parts) + "." : "Hariç tutma temizlendi.", ok: true);
     }
@@ -326,6 +334,7 @@ public partial class MainForm : Form
         grpOnline.Visible = rbOnline.Checked;
         grpFile.Visible = !rbOnline.Checked;
         grpQuick.Visible = rbOnline.Checked;
+        RelayoutLeft();
         ShowPairings(rbOnline.Checked ? _syncedTournament : _fileTournament);
     }
 
@@ -531,12 +540,14 @@ public partial class MainForm : Form
         if (buttons.Count > 0) buttons[Math.Min(sel, buttons.Count - 1)].Checked = true;
         _loading = false;
 
-        BuildQuickButtons(cats); // "A Yazdır / B Yazdır …" kısayolları
+        BuildQuickButtons(cats); // kategori · son tur kısayolları
+        RelayoutLeft();
     }
 
     /// <summary>
-    /// Her kategori için hızlı erişim düğmesi: o kategorinin EN SON eşlenmiş turunu gösterir
-    /// ("7 Yaş · T2", başka kategoride "A · T3"); tıklayınca o kategori + tur listeye yüklenir.
+    /// Her kategori için TEK TIKLA BASKI düğmesi: o kategorinin EN SON eşlenmiş turunu gösterir
+    /// ("7 Yaş · T2", başka kategoride "A · T3") ve tıklanınca o turun işaretli masalarını basar
+    /// (BAY, kullanıcı listede özellikle işaretlemedikçe basılmaz). Arayüzdeki seçim değişmez.
     /// </summary>
     private void BuildQuickButtons(IReadOnlyList<CategoryRef> cats)
     {
@@ -548,26 +559,28 @@ public partial class MainForm : Form
                 Text = QuickText(c),
                 Tag = c,
                 AutoSize = true,
-                MinimumSize = new System.Drawing.Size(40, 30),
-                Margin = new Padding(2),
-                Padding = new Padding(6, 2, 6, 2),
+                MinimumSize = new System.Drawing.Size(70, 36),
+                Margin = new Padding(3),
+                Padding = new Padding(10, 3, 10, 3),
                 FlatStyle = FlatStyle.Flat,
-                Font = new System.Drawing.Font("Segoe UI", 8.5F)
+                BackColor = ThGreen,
+                Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold)
             };
             b.Click += quickCategory_Click;
-            StyleButton(b); // hover/pressed cila
+            StyleButton(b); // birincil (yeşil) stil + hover/pressed
             _quickTip.SetToolTip(b, QuickTip(c));
             flowQuick.Controls.Add(b);
         }
         btnPrintAll.Enabled = cats.Count > 0;
+        RelayoutLeft();
     }
 
     private readonly ToolTip _quickTip = new();
 
     private string QuickText(CategoryRef c)
     {
-        if (!_roundCache.TryGetValue(c.Tnr, out var r)) return $"{ButtonText(c)} · …";
-        return r.Current > 0 ? $"{ButtonText(c)} · T{r.Current}" : $"{ButtonText(c)} · —";
+        if (!_roundCache.TryGetValue(c.Tnr, out var r)) return $"🖨 {ButtonText(c)} · …";
+        return r.Current > 0 ? $"🖨 {ButtonText(c)} · T{r.Current}" : $"{ButtonText(c)} · —";
     }
 
     private string QuickTip(CategoryRef c)
@@ -575,7 +588,7 @@ public partial class MainForm : Form
         if (!_roundCache.TryGetValue(c.Tnr, out var r)) return $"{c.Name} — tur bilgisi alınıyor…";
         var sys = r.System == TournamentSystem.Unknown ? "" : $" • {r.System.DisplayName()}";
         return r.Current > 0
-            ? $"{c.Name}{sys} — son eşlenen tur {r.Current}/{r.Max}. Tıkla: bu tur listeye gelsin."
+            ? $"{c.Name}{sys} — son eşlenen tur {r.Current}/{r.Max}. Tek tık: bu turun işaretli masalarını yazdır (BAY hariç)."
             : $"{c.Name}{sys} — henüz eşleştirme yok.";
     }
 
@@ -585,6 +598,7 @@ public partial class MainForm : Form
         if (b is null) return;
         b.Text = QuickText(c);
         _quickTip.SetToolTip(b, QuickTip(c));
+        RelayoutLeft(); // yazı uzadıysa satır sayısı değişebilir
     }
 
     // Kategori değişince: o kategorinin turlarını kur ve son eşlenmiş turu KENDİLİĞİNDEN çek.
@@ -662,6 +676,7 @@ public partial class MainForm : Form
         var buttons = flowRounds.Controls.OfType<RadioButton>().ToList();
         if (buttons.Count > 0) buttons[Math.Clamp(currentRound, 1, buttons.Count) - 1].Checked = true;
         _loading = false;
+        RelayoutLeft();
     }
 
     private static RadioButton MakeToggle(string text, object tag) => new()
@@ -697,18 +712,39 @@ public partial class MainForm : Form
         return (int)numRound.Value;
     }
 
-    private void AdvanceCategory()
-    {
-        var buttons = flowCategories.Controls.OfType<RadioButton>().ToList();
-        if (buttons.Count < 2) return;
-        int cur = buttons.FindIndex(b => b.Checked);
-        int next = (cur + 1) % buttons.Count;
-        Log($"→ Sıradaki kategori: {ButtonText((CategoryRef)buttons[next].Tag!)}");
-        buttons[next].Checked = true; // category_CheckedChanged turu kurar ve eşleştirmeleri çeker
-    }
-
     // ================= Senkron =================
-    private async void btnSync_Click(object? sender, EventArgs e) => await SyncPairingsAsync(showWarnings: true);
+    private async void btnSync_Click(object? sender, EventArgs e) => await RefreshAllAsync();
+
+    /// <summary>
+    /// F5 / 🔄: önbelleği atıp TÜM kategorilerin tur bilgisini yeniden çeker; kısayollar en güncel
+    /// turu hemen gösterir. Kullanıcı en son turdaysa ve yeni tur yayımlandıysa yeni tura geçilir;
+    /// başka bir tura bakıyorsa o tur korunur. Ardından seçili tur yeniden çekilir.
+    /// </summary>
+    private async Task RefreshAllAsync()
+    {
+        var cats = CurrentCategories();
+        var sel = SelectedCategory();
+        if (sel is null || _eventTnr is null) { await SyncPairingsAsync(showWarnings: true); return; }
+
+        int selRound = SelectedRound();
+        int prevLatest = _roundCache.TryGetValue(sel.Tnr, out var pr) ? pr.Current : selRound;
+        foreach (var c in cats) _roundCache.Remove(c.Tnr);
+        foreach (var c in cats) UpdateQuickButton(c); // "…" — yenileniyor
+
+        SetStatus("Turlar yenileniyor…", ok: true);
+        int latest = await UpdateRoundsForCategoryAsync(sel.Tnr); // yeni tur düğmeleri, son tur seçili
+        if (latest > 0 && selRound != prevLatest && selRound <= latest)
+        {
+            // Kullanıcı eski bir tura bakıyordu: o tur kalsın.
+            _loading = true;
+            var rb = flowRounds.Controls.OfType<RadioButton>().FirstOrDefault(r => r.Tag is int v && v == selRound);
+            if (rb is not null) rb.Checked = true;
+            _loading = false;
+        }
+        await SyncPairingsAsync(showWarnings: true);
+        await PrefetchCategoryRoundsAsync(cats, _eventTnr.Value);
+        Log($"🔄 Yenilendi: {string.Join(", ", cats.Select(QuickText).Select(t => t.Replace("🖨 ", "")))}");
+    }
 
     /// <summary>
     /// Seçili kategori+turun eşleştirmelerini çeker. <paramref name="showWarnings"/> false ise
@@ -775,23 +811,36 @@ public partial class MainForm : Form
         finally { if (seq == _syncSeq) SetBusy(false); }
     }
 
-    // ================= Hızlı erişim (kısayollar) =================
+    // ================= Hızlı baskı (kısayollar) =================
     /// <summary>
-    /// Kategori kısayolu: o kategoriyi ve EN SON eşlenmiş turunu seçip listeye yükler (doğrudan
-    /// basmaz: hangi masaların basılacağı listeden seçilir, sonra Yazdır).
+    /// Kategori kısayolu: o kategorinin EN SON eşlenmiş turunu tek tıkla basar. Masalar listede o
+    /// kategori/tur için yapılmış seçime uyar; seçim yapılmadıysa BAY hariç hepsi basılır.
+    /// Ekrandaki kategori/tur/liste seçimi değişmez.
     /// </summary>
     private async void quickCategory_Click(object? sender, EventArgs e)
     {
         if (sender is not Button { Tag: CategoryRef cat }) return;
-        var rb = flowCategories.Controls.OfType<RadioButton>().FirstOrDefault(r => r.Tag is CategoryRef c && c.Tnr == cat.Tnr);
-        if (rb is null) return;
-        if (rb.Checked)
+        SetBusy(true);
+        try
         {
-            // Zaten seçili: yalnız son tura atla ve çek.
-            var current = await UpdateRoundsForCategoryAsync(cat.Tnr);
-            if (current > 0) await SyncPairingsAsync(showWarnings: false);
+            UpdateConfigFromUi();
+            if (!_roundCache.TryGetValue(cat.Tnr, out var r))
+            {
+                var info = await _online.GetEventAsync(cat.Tnr);
+                r = (info.MaxRound, info.CurrentRound, info.System);
+                _roundCache[cat.Tnr] = r;
+                UpdateQuickButton(cat);
+            }
+            if (r.Current <= 0) { SetStatus($"{ButtonText(cat)}: henüz eşleştirme yayımlanmamış.", ok: false); return; }
+
+            var t = await FetchCategoryAsync(cat, r.Current);
+            if (t.Pairings.Count == 0) { SetStatus($"{ButtonText(cat)} • {r.Current}. tur: basılacak masa yok.", ok: false); return; }
+            SetStatus($"{ButtonText(cat)} • {r.Current}. tur: {t.Pairings.Count} masa yazdırılıyor…", ok: true);
+            PrintTournament(t, _config.Layout.CopiesPerBoard);
         }
-        else rb.Checked = true; // category_CheckedChanged: turları kurar, son turu seçer, çeker
+        catch (UserMessageException ex) { Fail("Kısayol", ex.Message); }
+        catch (Exception ex) { Fail("Kısayol baskısı başarısız", FriendlyNet(ex)); }
+        finally { SetBusy(false); }
     }
 
     private async void btnPrintAll_Click(object? sender, EventArgs e)
@@ -833,10 +882,13 @@ public partial class MainForm : Form
     private List<CategoryRef> CurrentCategories() =>
         flowCategories.Controls.OfType<RadioButton>().Select(r => r.Tag).OfType<CategoryRef>().ToList();
 
-    /// <summary>Bir kategorinin (son turunun) eşleştirmelerini çekip normalize+hariç tutma+meta uygular.</summary>
-    private async Task<Tournament> FetchCategoryAsync(CategoryRef cat)
+    /// <summary>
+    /// Bir kategorinin turunu (verilmezse seçili tur, kategori o tura gelmediyse son tur) çekip
+    /// normalize + kullanıcı seçimi (yoksa varsayılan: BAY ve hariç tutulanlar basılmaz) + meta uygular.
+    /// </summary>
+    private async Task<Tournament> FetchCategoryAsync(CategoryRef cat, int? forceRound = null)
     {
-        int round = await ResolveRoundForCategoryAsync(cat.Tnr);
+        int round = forceRound ?? await ResolveRoundForCategoryAsync(cat.Tnr);
         var raw = await _online.GetPairingsAsync(cat.Tnr, round, SystemOf(cat.Tnr));
         var t = Validation.Normalize(raw, keepByeSheets: true);
         t = StampCategory(t, EventGrouping.ShortCategory(cat.Name)); // her kağıt kendi kategorisini taşısın
@@ -923,10 +975,9 @@ public partial class MainForm : Form
         {
             UpdateConfigFromUi();
             var baseT = BuildTournament();
-            bool printed = PrintTournament(baseT, _config.Layout.CopiesPerBoard);
+            PrintTournament(baseT, _config.Layout.CopiesPerBoard);
+            // Baskıdan sonra kategori/tur/masa seçimleri OLDUĞU GİBİ kalır (sıfırlanmaz, ilerlemez).
             _config.Save(_configPath);
-            // Yalnızca gerçekten basıldıysa sıradaki kategoriye geç (önizlemeyi kapatmak baskı değildir).
-            if (printed && rbOnline.Checked) AdvanceCategory();
         }
         catch (UserMessageException ex) { Fail("Yazdırılamadı", ex.Message); }
         catch (ParseException ex) { Fail("Veri okunamadı", ex.Message); }
@@ -1002,10 +1053,12 @@ public partial class MainForm : Form
     private static string WithTeam(string name, string? team)
         => string.IsNullOrWhiteSpace(team) ? name : $"{name}  ({team})";
 
-    /// <summary>Varsayılan işaret: "Hariç Tut"ta değilse ve (BAY ise) BAY kağıdı açıksa basılır.</summary>
+    /// <summary>
+    /// Varsayılan işaret: BAY masası HİÇBİR ZAMAN varsayılan olarak basılmaz (kullanıcı listede
+    /// işaretlerse basılır); diğer masalar "Hariç Tut"ta değilse basılır.
+    /// </summary>
     private bool DefaultChecked(Pairing p)
-        => !BoardRange.Parse(_config.Layout.ExcludedBoards).Contains(p.Board) &&
-           (!p.IsBye || _config.Layout.PrintByeSheets);
+        => !p.IsBye && !BoardRange.Parse(_config.Layout.ExcludedBoards).Contains(p.Board);
 
     /// <summary>Bu kategori/turda masa basılacak mı: kullanıcı seçimi varsa o, yoksa varsayılan.</summary>
     private bool IsChecked((int Cat, int Round) key, Pairing p)
@@ -1030,6 +1083,7 @@ public partial class MainForm : Form
             foreach (DataGridViewRow r in dgvPairings.Rows)
                 if (r.Cells[0].Value is not true && r.Tag is Pairing p) off.Add(p.Board);
             _unchecked[key] = off;
+            _config.Online.Selections[$"{key.Cat}:{key.Round}"] = off.OrderBy(x => x).ToList();
         }
         int copies = (int)numCopies.Value;
         int sheets = n * copies;

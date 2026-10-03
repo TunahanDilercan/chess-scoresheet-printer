@@ -1,7 +1,7 @@
-namespace NotasyonOtomasyonu.App;
+namespace NotasyonOtomasyonu.Core;
 
 /// <summary>Türkiye'nin 81 ili (alfabetik). İl seçimi turnuva adında geçen ile göre filtreler.</summary>
-internal static class Provinces
+public static class Provinces
 {
     public const string All = "(Tüm iller)";
 

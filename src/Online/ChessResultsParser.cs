@@ -292,6 +292,42 @@ public static class ChessResultsParser
     private static int? ParseRating(string s)
         => int.TryParse(new string(s.Trim().TakeWhile(char.IsDigit).ToArray()), out var n) && n > 0 ? n : null;
 
+    // ---- 5) Rapor/yönerge için: bilgi tablosunun tamamı ve tur programı ----
+    /// <summary>
+    /// Bilgi tablosundaki tüm "etiket → değer" satırları (Turnuva direktoru, Başhakem, Hakem, Yer,
+    /// Zaman kontrolü, Tur Sayısı …). Tam hakem listesi için sayfa turdet=ALL ile alınmalıdır.
+    /// </summary>
+    public static Dictionary<string, string> ParseInfoTable(string html)
+    {
+        var doc = Parser.ParseDocument(html);
+        var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var tr in doc.QuerySelectorAll("tr"))
+        {
+            var cells = tr.Children.Where(c => c.TagName == "TD").ToList();
+            if (cells.Count != 2) continue;
+            var label = Clean(cells[0].TextContent);
+            var value = Clean(cells[1].TextContent);
+            if (label.Length is > 0 and < 40 && !char.IsDigit(label[0]) && value.Length > 0)
+                result.TryAdd(label, value);
+        }
+        return result;
+    }
+
+    /// <summary>Tur tarihleri sayfası (art=14): tur no, tarih ("2026/10/03"), saat ("10.00").</summary>
+    public static List<(int Round, DateTime? Date, string Time)> ParseSchedule(string html)
+    {
+        var doc = Parser.ParseDocument(html);
+        var list = new List<(int, DateTime?, string)>();
+        foreach (var tr in doc.QuerySelectorAll("tr.CRng1, tr.CRng2"))
+        {
+            var cells = RowCells(tr);
+            if (cells.Count < 3 || !int.TryParse(cells[0], out var rd)) continue;
+            var days = TournamentDates.Parse(cells[1]);
+            list.Add((rd, days.Count > 0 ? days[0] : null, cells[2]));
+        }
+        return list;
+    }
+
     // ---- kategori navigasyonu ----
     private static IReadOnlyList<CategoryRef> ParseCategories(IDocument doc, int tnr, string eventName)
     {

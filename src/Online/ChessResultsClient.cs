@@ -25,6 +25,9 @@ public sealed class ChessResultsClient : IDisposable
         _http.DefaultRequestHeaders.UserAgent.ParseAdd(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36");
         _http.DefaultRequestHeaders.AcceptLanguage.ParseAdd("tr,en;q=0.8");
+        // Yenilemede (F5) ara sunucu/önbellekten eski tur bilgisi gelmesin.
+        _http.DefaultRequestHeaders.CacheControl = new System.Net.Http.Headers.CacheControlHeaderValue { NoCache = true };
+        _http.DefaultRequestHeaders.Pragma.ParseAdd("no-cache");
     }
 
     /// <summary>
@@ -75,6 +78,10 @@ public sealed class ChessResultsClient : IDisposable
     /// <summary>Takım turnuvası: maç bazlı masa eşleştirmeleri (art=3), "1.1, 1.2 …".</summary>
     public static string TeamBoardsUrl(int tnr, int round)
         => $"{BaseHost}/tnr{tnr}.aspx?lan=8&art=3&rd={round}&turdet=YES";
+
+    /// <summary>Tur tarihleri ve saatleri (art=14).</summary>
+    public static string ScheduleUrl(int tnr)
+        => $"{BaseHost}/tnr{tnr}.aspx?lan=8&art=14&turdet=YES";
 
     /// <summary>Etkinlik genel sayfası (başlangıç sıralaması) — kategori/tur bilgisi içerir.</summary>
     public static string EventUrl(int tnr)

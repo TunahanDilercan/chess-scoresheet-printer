@@ -11,8 +11,8 @@
     <Product>Chess Scoresheet Printer</Product>
     <Authors>Tunahan Dilercan</Authors>
     <Description>Satranç turnuvaları için hazır notasyon kâğıdı yazdırma aracı.</Description>
-    <Version>1.2.0</Version>
-    <FileVersion>1.2.0.0</FileVersion>
+    <Version>1.3.0</Version>
+    <FileVersion>1.3.0.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
@@ -29,6 +29,10 @@
     <!-- Varsayılan hazır kağıt şablonu (kullanıcının ana örneği). -->
     <EmbeddedResource Include="..\..\assets\AnaOrnek.png">
       <LogicalName>NotasyonOtomasyonu.App.AnaOrnek.png</LogicalName>
+    </EmbeddedResource>
+    <!-- Gömülü yönerge/rapor şablonu ({{ALAN}} işaretli .docx). -->
+    <EmbeddedResource Include="..\..\assets\turnuva_yonergesi_sablon.docx">
+      <LogicalName>NotasyonOtomasyonu.App.turnuva_yonergesi_sablon.docx</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 

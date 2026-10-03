@@ -18,7 +18,10 @@ Uygulama, iki TSF il temsilciliğinde yürütülen turnuvalarda kullanılmaktad�
 - Chess-Results üzerinden turnuva arama ve eşleştirme alma (BAY ve eşlenmeyen oyuncular ayrıştırılır)
 - Kategori bazlı sistem desteği: İsviçre, Berger (döner) ve takım turnuvaları; sistem kategorinin "Turnuva Tipi" bilgisinden okunur
 - Takım maçlarında "1.2" gibi masa numarası ve takım adları (kâğıttaki Kulüp kutularına)
-- Her kategorinin son turunu gösteren hızlı erişim düğmeleri
+- Her kategorinin son turunu gösteren, tek tıkla o turu basan hızlı erişim düğmeleri (F5 hepsini yeniler)
+- BAY masası varsayılan olarak basılmaz; yalnızca listede elle işaretlenirse basılır
+- Turnuva yönergesi/raporu: gömülü şablon veya kendi .docx şablonunuz chess-results verisiyle doldurulur, eksikler adım adım sorulur; PDF, yazıcı veya Word çıktısı
+- Kategori masa kartları (A4): üstte turnuva afişi, altta kategori renginde büyük kategori adı; adet kategorideki masa sayısı kadar önerilir
 - JSON, CSV, TXT ve XLSX dosyalarını içe aktarma
 - Basılacak masaları listeden işaretleyerek seçme (seçim her kategori ve tur için ayrı hatırlanır)
 - Tur ve kategoriye göre toplu yazdırma
@@ -31,9 +34,13 @@ Uygulama, iki TSF il temsilciliğinde yürütülen turnuvalarda kullanılmaktad�
 ## Kullanım
 
 1. Chess-Results üzerinden bir turnuva seçin veya eşleştirme dosyasını açın. İl seçildiğinde o ilin en son eklenen turnuvası kendiliğinden açılır; arama ve link/no ile de getirilebilir.
-2. Kategori ve turu seçin ya da hızlı erişim düğmesine basın (ör. "7 Yaş · T2"). Eşleştirmeler sağdaki listeye kendiliğinden gelir; varsayılan tur, eşleştirmesi yayımlanmış son turdur (Berger'de sonucu girilmemiş ilk tur).
-3. Listede basılmayacak masaların işaretini kaldırın ve nüsha sayısını belirleyin (varsayılan 4). "Tüm Kategoriler" de her kategoride yaptığınız seçime uyar.
-4. **Yazdır** (Ctrl+P) ile önizlemeyi açın. Önizlemede hazır kâğıt soluk görünür ama basılmaz. Yazıcıyı seçip basın; ardından sıradaki kategori kendiliğinden yüklenir.
+2. Kategori ve turu seçin. Eşleştirmeler sağdaki listeye kendiliğinden gelir; varsayılan tur, eşleştirmesi yayımlanmış son turdur (Berger'de sonucu girilmemiş ilk tur). Hızlı erişim düğmesi (ör. "🖨 7 Yaş · T2") o kategorinin son turunu doğrudan baskıya gönderir. Yeni tur yayımlanınca F5 ile tüm düğmeler güncellenir.
+3. Listede basılmayacak masaların işaretini kaldırın ve nüsha sayısını belirleyin (varsayılan 4). Seçimler hatırlanır; "Tüm Kategoriler" ve hızlı erişim düğmeleri de bu seçime uyar.
+4. **Yazdır** (Ctrl+P) ile önizlemeyi açın. Önizlemede hazır kâğıt soluk görünür ama basılmaz. Yazıcıyı seçip basın; baskıdan sonra seçimler ve filtreler olduğu gibi kalır.
+
+Başlıktaki **📄 Yönerge / Rapor** düğmesi turnuva bilgilerini (tarih, yer, sistem, düşünme süresi, kategoriler, direktör, başhakem, tur programı) chess-results'tan alıp yönerge şablonunu doldurur. Bulunamayan bilgiler (son başvuru, telefon …) adım adım sorulur; iletişim bilgileri bir sonraki rapor için hatırlanır. Kendi .docx şablonunuzu yükleyebilirsiniz: `{{IL}}`, `{{YER}}` gibi işaretler ya da "İLİ | …" biçimindeki etiketli tablo hücreleri doldurulur. PDF'e dönüştürme ve yazdırma için Microsoft Word gerekir; Word yoksa belge .docx olarak kaydedilir.
+
+**🏷 Masa Kartları** her kategori için A4 kart basar. Her kategoriye ayrı bir renk atanır ve hatırlanır; renk tablodan değiştirilebilir.
 
 Yazılar hazır kâğıttaki kutulara göre kayıksa **Ayarlar → Yazıcı hizalama** bölümünden milimetre cinsinden düzeltin ve **Hizalama testi** ile tek kâğıt basarak kontrol edin; şablonu değiştirmeniz gerekmez. Turnuva yeri, hakem ve zaman kontrolü bilgileri bilinçli olarak kâğıda basılmaz.
 

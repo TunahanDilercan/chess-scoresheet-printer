@@ -20,6 +20,7 @@
   <ItemGroup>
     <!-- Offline parser testleri için kaydedilmiş chess-results HTML örnekleri -->
     <None Include="TestData\*.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\assets\turnuva_yonergesi_sablon.docx" Link="TestData\turnuva_yonergesi_sablon.docx" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

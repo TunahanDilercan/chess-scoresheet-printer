@@ -163,7 +163,8 @@ public sealed class TemplatesForm : Form
     private void ResetDefault(object? sender, EventArgs e)
     {
         // Seçili şablon yerleşikse onu, değilse varsayılanı ("Ana Örnek 2") sıfırla.
-        var name = Selected?.Name is OverlayDefaults.LegacyName ? OverlayDefaults.LegacyName : OverlayDefaults.DefaultName;
+        var name = Selected?.Name is OverlayDefaults.LegacyName or OverlayDefaults.TsfName
+            ? Selected!.Name : OverlayDefaults.DefaultName;
         if (MessageBox.Show($"“{name}” şablonu ilk haline sıfırlansın mı? (Bu şablondaki değişiklikler kaybolur.)",
             "Sıfırla", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
