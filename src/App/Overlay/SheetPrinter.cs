@@ -11,28 +11,29 @@ namespace NotasyonOtomasyonu.App.Overlay;
 /// </summary>
 public sealed class SheetPrinter
 {
-    private readonly OverlayTemplate _tpl;
     private readonly Tournament _t;
-    private readonly int _perPage;
     private readonly string _pageSize;
     private readonly float _offsetXPt, _offsetYPt;
-    private readonly List<List<Pairing>> _pages;
-    private Image? _bg;
-    private bool _bgGhost;   // yalnız önizlemede soluk gösterilen kağıt (baskıya gitmez)
+    private readonly List<SheetPage> _pages;
+    private readonly Dictionary<string, Image?> _bgs = new();   // şablon görseli (yol → resim)
+    private bool _preview;     // önizleme geçişi mi (soluk kağıt gösterilir, baskıya gitmez)
     private int _pageIndex;
 
     /// <param name="offsetXmm">Yazıcının kağıdı kaydırmasını düzeltmek için tüm yazıları sağa (+) / sola (−) kaydırma.</param>
     /// <param name="offsetYmm">Aşağı (+) / yukarı (−) kaydırma.</param>
     public SheetPrinter(OverlayTemplate tpl, Tournament t, string pageSize = "A4",
                         double offsetXmm = 0, double offsetYmm = 0)
+        : this(_ => tpl, t, pageSize, offsetXmm, offsetYmm) { }
+
+    /// <param name="templateFor">Her kağıdın şablonu (ör. sisteme göre: Berger/takım farklı kağıt).</param>
+    public SheetPrinter(Func<Pairing, OverlayTemplate> templateFor, Tournament t, string pageSize = "A4",
+                        double offsetXmm = 0, double offsetYmm = 0)
     {
-        _tpl = tpl;
         _t = t;
         _pageSize = pageSize;
         _offsetXPt = (float)(offsetXmm / 25.4 * 72.0);
         _offsetYPt = (float)(offsetYmm / 25.4 * 72.0);
-        _perPage = tpl.PerPage is 1 or 2 ? tpl.PerPage : 1;
-        _pages = Chunk(t.Pairings, _perPage);
+        _pages = SheetPages.Build(t.Pairings, templateFor);
     }
 
     /// <summary>Basılacak sayfa (yaprak) sayısı.</summary>
@@ -154,12 +155,15 @@ public sealed class SheetPrinter
         {
             _pageIndex = 0;
             // Önizlemede kağıt görseli her zaman (soluk) gösterilir ki yazıların kutulara oturduğu
-            // görülsün; gerçek baskıda yalnız "arka planı da bas" açıksa çizilir.
-            bool preview = (s as PrintDocument)?.PrintController?.IsPreview == true;
-            _bgGhost = preview && !_tpl.PrintBackground;
-            if ((_tpl.PrintBackground || preview) && TryLoadBg(out var img)) _bg = img;
+            // görülsün; gerçek baskıda yalnız şablonda "arka planı da bas" açıksa çizilir.
+            _preview = (s as PrintDocument)?.PrintController?.IsPreview == true;
         };
-        doc.EndPrint += (_, _) => { _bg?.Dispose(); _bg = null; _pageIndex = 0; };
+        doc.EndPrint += (_, _) =>
+        {
+            foreach (var img in _bgs.Values) img?.Dispose();
+            _bgs.Clear();
+            _pageIndex = 0;
+        };
         doc.PrintPage += OnPrintPage;
         return doc;
     }
@@ -179,20 +183,25 @@ public sealed class SheetPrinter
         float hy = preview ? 0 : e.PageSettings.HardMarginY / 100f * 72f;
         g.TranslateTransform(-hx, -hy);
 
-        var sheets = OverlayLayout.SheetRects(_perPage, _pageSize);
-        var pairings = _pageIndex < _pages.Count ? _pages[_pageIndex] : new List<Pairing>();
-
-        for (int i = 0; i < pairings.Count && i < sheets.Count; i++)
+        if (_pageIndex < _pages.Count)
         {
-            var sheet = sheets[i];
-            if (_bg is not null) DrawBackground(g, _bg, sheet, _bgGhost);
+            var page = _pages[_pageIndex];
+            var tpl = page.Template;
+            var sheets = OverlayLayout.SheetRects(tpl.PerPage is 1 or 2 ? tpl.PerPage : 1, _pageSize);
+            var bg = tpl.PrintBackground || _preview ? Background(tpl) : null;
 
-            // Yazıcı kaydırma düzeltmesi yalnızca yazılara uygulanır (arka plan = kağıdın kendisi).
-            var state = g.Save();
-            g.TranslateTransform(_offsetXPt, _offsetYPt);
-            foreach (var placed in OverlayLayout.Place(_tpl, _t, pairings[i], sheet))
-                DrawPlaced(g, placed);
-            g.Restore(state);
+            for (int i = 0; i < page.Pairings.Count && i < sheets.Count; i++)
+            {
+                var sheet = sheets[i];
+                if (bg is not null) DrawBackground(g, bg, sheet, ghost: _preview && !tpl.PrintBackground);
+
+                // Yazıcı kaydırma düzeltmesi yalnızca yazılara uygulanır (arka plan = kağıdın kendisi).
+                var state = g.Save();
+                g.TranslateTransform(_offsetXPt, _offsetYPt);
+                foreach (var placed in OverlayLayout.Place(tpl, _t, page.Pairings[i], sheet))
+                    DrawPlaced(g, placed);
+                g.Restore(state);
+            }
         }
 
         _pageIndex++;
@@ -227,13 +236,16 @@ public sealed class SheetPrinter
         g.DrawString(p.Text, font, Brushes.Black, p.RectPt, fmt);
     }
 
-    private bool TryLoadBg(out Image? img)
+    /// <summary>Şablonun kağıt görseli (geçiş boyunca bir kez yüklenir; yoksa null).</summary>
+    private Image? Background(OverlayTemplate tpl)
     {
-        img = null;
-        var path = _tpl.BackgroundImagePath;
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return false;
-        try { img = Image.FromFile(path); return true; }
-        catch { return false; }
+        var path = tpl.BackgroundImagePath;
+        if (string.IsNullOrWhiteSpace(path)) return null;
+        if (_bgs.TryGetValue(path, out var cached)) return cached;
+        Image? img = null;
+        try { if (File.Exists(path)) img = Image.FromFile(path); } catch { img = null; }
+        _bgs[path] = img;
+        return img;
     }
 
     private PaperSize? FindPaper(PrintDocument doc)
@@ -246,14 +258,5 @@ public sealed class SheetPrinter
         }
         catch (InvalidPrinterException) { /* yazıcı yok/erişilemiyor */ }
         return null;
-    }
-
-    private static List<List<Pairing>> Chunk(IReadOnlyList<Pairing> items, int size)
-    {
-        var result = new List<List<Pairing>>();
-        for (int i = 0; i < items.Count; i += size)
-            result.Add(items.Skip(i).Take(size).ToList());
-        if (result.Count == 0) result.Add(new List<Pairing>());
-        return result;
     }
 }

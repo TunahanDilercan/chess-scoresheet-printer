@@ -23,7 +23,9 @@ public enum FieldKind
     BlackName,
     BlackTitle,
     BlackRating,
-    BlackStartNo
+    BlackStartNo,
+    WhiteTeam,       // takım turnuvası: beyazın takımı (bireyselde boş)
+    BlackTeam        // takım turnuvası: siyahın takımı (bireyselde boş)
 }
 
 public static class FieldKinds

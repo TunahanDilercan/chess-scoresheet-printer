@@ -162,12 +162,14 @@ public sealed class TemplatesForm : Form
 
     private void ResetDefault(object? sender, EventArgs e)
     {
-        if (MessageBox.Show("Ana Örnek şablonu varsayılan haline sıfırlansın mı? (Bu şablondaki değişiklikler kaybolur.)",
+        // Seçili şablon yerleşikse onu, değilse varsayılanı ("Ana Örnek 2") sıfırla.
+        var name = Selected?.Name is OverlayDefaults.LegacyName ? OverlayDefaults.LegacyName : OverlayDefaults.DefaultName;
+        if (MessageBox.Show($"“{name}” şablonu ilk haline sıfırlansın mı? (Bu şablondaki değişiklikler kaybolur.)",
             "Sıfırla", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) != DialogResult.Yes) return;
 
         var bg = OverlayDefaults.ExtractBackground(AppContext.BaseDirectory);
-        var def = OverlayDefaults.BuildAnaOrnek(bg);
-        int i = _cfg.Templates.FindIndex(t => t.Name == OverlayDefaults.DefaultName);
+        var def = OverlayDefaults.BuildBuiltIn(name, bg)!;
+        int i = _cfg.Templates.FindIndex(t => t.Name == name);
         if (i >= 0) _cfg.Templates[i] = def; else _cfg.Templates.Add(def);
         _cfg.Overlay = def.DeepClone();
         RefreshList(def.Name);

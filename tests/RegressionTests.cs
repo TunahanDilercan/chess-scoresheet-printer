@@ -45,7 +45,7 @@ public class RegressionTests
     {
         var info = ChessResultsParser.ParseEventInfo(Load("event_not_started.html"), tnr: 1509183);
         Assert.Equal(0, info.CurrentRound);
-        Assert.Equal(ChessResultsParser.UnknownMaxRound, info.MaxRound);
+        Assert.Equal(6, info.MaxRound); // "Tur Sayısı" satırından; programdaki saatlerden 17 değil
         Assert.Equal(4, info.Categories.Count);
     }
 

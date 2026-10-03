@@ -16,8 +16,11 @@ The application is used at tournaments run by two provincial organizations of th
 ## Main functions
 
 - Search tournaments and retrieve pairings from Chess-Results (byes and unpaired players are recognised)
+- Per-category system support: Swiss, round robin (Berger) and team tournaments, read from each category's "tournament type"
+- Team matches: board numbers such as "1.2" and team names (printed in the Club boxes)
+- Quick-access buttons showing each category's latest round
 - Import JSON, CSV, TXT and XLSX files
-- Choose the boards to print by ticking them in a list
+- Choose the boards to print by ticking them in a list (remembered separately for each category and round)
 - Batch-print by round or category
 - Create print templates for pre-printed scoresheets
 - Adjust field positions and text sizes
@@ -27,14 +30,14 @@ The application is used at tournaments run by two provincial organizations of th
 
 ## Usage
 
-1. Select a Chess-Results tournament (by province, search or link/number) or open a pairing file.
-2. Select the category and round. Pairings load into the list on the right automatically; the default round is the latest round with published pairings.
-3. Untick boards that should not be printed and set the number of copies.
+1. Select a Chess-Results tournament or open a pairing file. Choosing a province opens its most recently added tournament automatically; search and link/number also work.
+2. Select the category and round, or press a quick-access button (e.g. "7 Yaş · T2"). Pairings load into the list on the right automatically; the default round is the latest round with published pairings (for round robins, the first round without results).
+3. Untick boards that should not be printed and set the number of copies (default 4). "All categories" respects the selection made in each category.
 4. Press **Print** (Ctrl+P) to open the preview. The pre-printed sheet is shown faded in the preview but is never printed. Choose a printer and print; the next category is then loaded automatically.
 
 If the text is offset from the boxes on the pre-printed sheet, correct it in millimetres under **Settings → Printer alignment** and check it with the **alignment test** page; the template itself does not need to change. Venue, arbiter and time-control details are intentionally not printed.
 
-The template editor allows tournament, date, category, round, board and player fields to be positioned separately.
+The template editor allows tournament, date, category, round, board, player and team fields to be positioned separately. The default template is "Ana Örnek 2"; the previous layout remains available as "Ana Örnek". **Settings → Template by system** lets Swiss, round-robin and team categories use different templates.
 
 <p align="center">
   <img src="docs/images/template-designer.png" alt="Pre-printed scoresheet template designer" width="720">

@@ -1,6 +1,43 @@
 namespace NotasyonOtomasyonu.Core;
 
 /// <summary>
+/// Kategorinin oynandığı sistem. chess-results'ta kategori sayfasındaki "Turnuva Tipi" satırından okunur.
+/// Sistem; eşleştirmenin nasıl okunacağını (tur bölümleri, takım maçları) ve hangi şablonun
+/// kullanılacağını belirler.
+/// </summary>
+public enum TournamentSystem
+{
+    Unknown,
+    Swiss,          // İsviçre sistemi: her tur ayrı sayfada eşlenir
+    RoundRobin,     // Döner (Berger): tüm turlar baştan bellidir, tek sayfada listelenir
+    TeamSwiss,      // Takımlar için İsviçre sistemi
+    TeamRoundRobin  // Takımlar için döner turnuva
+}
+
+public static class TournamentSystems
+{
+    public static bool IsTeam(this TournamentSystem s) => s is TournamentSystem.TeamSwiss or TournamentSystem.TeamRoundRobin;
+    public static bool IsRoundRobin(this TournamentSystem s) => s is TournamentSystem.RoundRobin or TournamentSystem.TeamRoundRobin;
+
+    /// <summary>Şablon eşlemesinde kullanılan sade grup: Swiss / RoundRobin / Team.</summary>
+    public static string TemplateKey(this TournamentSystem s) => s switch
+    {
+        TournamentSystem.RoundRobin => "RoundRobin",
+        TournamentSystem.TeamSwiss or TournamentSystem.TeamRoundRobin => "Team",
+        _ => "Swiss"
+    };
+
+    public static string DisplayName(this TournamentSystem s) => s switch
+    {
+        TournamentSystem.Swiss => "İsviçre",
+        TournamentSystem.RoundRobin => "Berger (döner)",
+        TournamentSystem.TeamSwiss => "Takım (İsviçre)",
+        TournamentSystem.TeamRoundRobin => "Takım (döner)",
+        _ => "Bilinmiyor"
+    };
+}
+
+/// <summary>
 /// Tek bir oyuncu. Eksik alanlar (rating, unvan, kulüp) null/0 olabilir; render bunları boş bırakır.
 /// </summary>
 public record Player(
@@ -26,16 +63,25 @@ public record Player(
 
 /// <summary>
 /// Bir masadaki eşleştirme. <see cref="Black"/> null ise oyuncu BAY almıştır.
+/// <see cref="Board"/> bir tur içinde masayı TEKİL olarak tanımlar (seçim/hariç tutma buna göre);
+/// takım turnuvasında kağıda basılan masa "3.2" gibi <see cref="BoardLabel"/>'dır.
 /// </summary>
 public record Pairing(
-    int Board,           // Masa no
+    int Board,           // Masa no (tur içinde tekil)
     Player White,
     Player? Black,       // null = BAY (bye)
     string? Result = null, // genelde boş
     string? Category = null, // ait olduğu kategori (kısa: "A", "8 Yaş") — notasyona basmak için
-    int? Round = null)   // tur no; kategoriler farklı turdaysa (toplu baskı) masaya özgü tur
+    int? Round = null,   // tur no; kategoriler farklı turdaysa (toplu baskı) masaya özgü tur
+    string? BoardLabel = null,  // takım: "maç.masa" (ör. "3.2"); bireysel: null → Board basılır
+    string? WhiteTeam = null,   // takım: beyaz oyuncunun takımı
+    string? BlackTeam = null,   // takım: siyah oyuncunun takımı
+    TournamentSystem System = TournamentSystem.Unknown) // şablon seçimi için
 {
     public bool IsBye => Black is null;
+
+    /// <summary>Kağıda/listeye yazılan masa: takımda "3.2", bireyselde "7".</summary>
+    public string BoardText => string.IsNullOrWhiteSpace(BoardLabel) ? Board.ToString() : BoardLabel!;
 }
 
 /// <summary>
@@ -46,4 +92,5 @@ public record Tournament(
     string Name,
     int RoundNo,
     IReadOnlyList<Pairing> Pairings,
-    string? Date = null);
+    string? Date = null,
+    TournamentSystem System = TournamentSystem.Unknown);

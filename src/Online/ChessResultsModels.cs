@@ -12,10 +12,12 @@ public record CategoryRef(int Tnr, string Name, bool IsCurrent);
 /// </summary>
 /// <param name="MaxRound">Toplam tur sayısı (bilinmiyorsa makul bir üst sınır).</param>
 /// <param name="CurrentRound">Eşleştirmesi yayımlanmış son tur; henüz hiç tur yoksa 0.</param>
+/// <param name="System">Kategorinin sistemi ("Turnuva Tipi"): İsviçre, Berger, takım…</param>
 public record EventInfo(
     int Tnr,
     string Name,
     string? Dates,
     int MaxRound,
     int CurrentRound,
-    IReadOnlyList<CategoryRef> Categories);
+    IReadOnlyList<CategoryRef> Categories,
+    NotasyonOtomasyonu.Core.TournamentSystem System = NotasyonOtomasyonu.Core.TournamentSystem.Unknown);

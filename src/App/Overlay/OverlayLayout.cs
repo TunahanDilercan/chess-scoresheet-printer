@@ -60,7 +60,7 @@ public static class OverlayLayout
         FieldKind.Category => p.Category ?? "",
         FieldKind.Date => t.Date ?? "",
         FieldKind.RoundNo => (p.Round ?? t.RoundNo).ToString(),
-        FieldKind.BoardNo => p.Board.ToString(),
+        FieldKind.BoardNo => p.BoardText, // takımda "3.2"
         FieldKind.WhiteName => p.White.Name,
         FieldKind.WhiteTitle => p.White.Title ?? "",
         FieldKind.WhiteRating => p.White.Rating?.ToString() ?? "",
@@ -69,6 +69,8 @@ public static class OverlayLayout
         FieldKind.BlackTitle => p.Black?.Title ?? "",
         FieldKind.BlackRating => p.Black?.Rating?.ToString() ?? "",
         FieldKind.BlackStartNo => p.Black?.StartNo?.ToString() ?? "",
+        FieldKind.WhiteTeam => p.WhiteTeam ?? "",   // bireysel turnuvada boş kalır
+        FieldKind.BlackTeam => p.IsBye ? "" : (p.BlackTeam ?? ""),
         _ => "" // Yer/zaman kontrolü/hakem: bilinçli olarak boş
     };
 
@@ -85,7 +87,10 @@ public static class OverlayLayout
             Board: 7,
             White: new Player(12, "HACIMÜFTÜOĞLU, ABDURRAHMAN", "FM", 2345),
             Black: new Player(3, "ÇETİNKAYA, AYŞE NUR", null, 2110),
-            Category: "A");
+            Category: "A",
+            // Tasarımcıda takım alanlarının yeri görünsün diye örnek takım adları
+            WhiteTeam: "ÖRNEK SATRANÇ SPOR KULÜBÜ",
+            BlackTeam: "DENEME GENÇLİK SPOR KULÜBÜ");
         return (t, p);
     }
 
@@ -109,6 +114,8 @@ public static class OverlayLayout
         FieldKind.BlackTitle => "Siyah unvan",
         FieldKind.BlackRating => "Siyah ELO",
         FieldKind.BlackStartNo => "Siyah SNo",
+        FieldKind.WhiteTeam => "Beyaz takım",
+        FieldKind.BlackTeam => "Siyah takım",
         _ => k.ToString()
     };
 }

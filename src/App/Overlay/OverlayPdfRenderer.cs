@@ -3,37 +3,48 @@ using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using RenderInit = NotasyonOtomasyonu.Render.QuestPdfRenderer;
+using Image = QuestPDF.Infrastructure.Image;
 
 namespace NotasyonOtomasyonu.App.Overlay;
 
 /// <summary>
 /// Overlay şablonunu PDF olarak üretir (önizleme/kayıt). Doğrudan yazdırmayla AYNI
-/// <see cref="OverlayLayout"/> hesabını kullanır; arka planı (varsa) opsiyonel basar.
+/// <see cref="OverlayLayout"/> ve <see cref="SheetPages"/> hesabını kullanır; arka planı
+/// (şablonda açıksa) basar.
 /// </summary>
 public static class OverlayPdfRenderer
 {
     private const string FontName = "DejaVu Sans";
 
     public static void Render(OverlayTemplate tpl, Tournament t, string outputPath, string pageSize = "A4")
+        => Render(_ => tpl, t, outputPath, pageSize);
+
+    /// <param name="templateFor">Her kağıdın şablonu (sisteme göre farklı kağıt olabilir).</param>
+    public static void Render(Func<Pairing, OverlayTemplate> templateFor, Tournament t, string outputPath, string pageSize = "A4")
     {
         RenderInit.EnsureInitialized(); // QuestPDF lisansı + gömülü fontlar
 
-        int perPage = tpl.PerPage is 1 or 2 ? tpl.PerPage : 1;
-        var sheets = OverlayLayout.SheetRects(perPage, pageSize);
-        var pages = Chunk(t.Pairings, perPage);
+        var pages = SheetPages.Build(t.Pairings, templateFor);
         bool a5 = NotasyonOtomasyonu.Core.PageGeometry.IsA5(pageSize);
 
-        // Tek Image nesnesi: PDF'e bir kez gömülür, her sayfada yeniden kullanılır
+        // Görsel başına tek Image nesnesi: PDF'e bir kez gömülür, her sayfada yeniden kullanılır
         // (byte[] ile her sayfaya ayrı kopya gömülüyor, 25 kağıt ≈ 30 MB oluyordu).
-        QuestPDF.Infrastructure.Image? bg = null;
-        if (tpl.PrintBackground && !string.IsNullOrWhiteSpace(tpl.BackgroundImagePath)
-            && File.Exists(tpl.BackgroundImagePath))
-            bg = QuestPDF.Infrastructure.Image.FromFile(tpl.BackgroundImagePath);
+        var images = new Dictionary<string, Image>();
+        Image? Bg(OverlayTemplate tpl)
+        {
+            var path = tpl.BackgroundImagePath;
+            if (!tpl.PrintBackground || string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return null;
+            if (!images.TryGetValue(path, out var img)) images[path] = img = Image.FromFile(path);
+            return img;
+        }
 
         Document.Create(doc =>
         {
-            foreach (var pagePairings in pages)
+            foreach (var pg in pages)
             {
+                var tpl = pg.Template;
+                var sheets = OverlayLayout.SheetRects(tpl.PerPage is 1 or 2 ? tpl.PerPage : 1, pageSize);
+                var bg = Bg(tpl);
                 doc.Page(page =>
                 {
                     page.Size(a5 ? PageSizes.A5 : PageSizes.A4);
@@ -44,7 +55,7 @@ public static class OverlayPdfRenderer
                     {
                         layers.PrimaryLayer().Extend(); // tam sayfa boş tuval
 
-                        for (int i = 0; i < pagePairings.Count && i < sheets.Count; i++)
+                        for (int i = 0; i < pg.Pairings.Count && i < sheets.Count; i++)
                         {
                             var sheet = sheets[i];
 
@@ -56,7 +67,7 @@ public static class OverlayPdfRenderer
                                       .Width(sheet.Width).Height(sheet.Height)
                                       .Image(bg).FitUnproportionally(); // GDI baskısı gibi kağıda gerdir
 
-                            foreach (var placed in OverlayLayout.Place(tpl, t, pagePairings[i], sheet))
+                            foreach (var placed in OverlayLayout.Place(tpl, t, pg.Pairings[i], sheet))
                             {
                                 if (string.IsNullOrEmpty(placed.Text)) continue;
                                 var box = layers.Layer().Unconstrained()
@@ -79,14 +90,5 @@ public static class OverlayPdfRenderer
                 });
             }
         }).GeneratePdf(outputPath);
-    }
-
-    private static List<List<Pairing>> Chunk(IReadOnlyList<Pairing> items, int size)
-    {
-        var result = new List<List<Pairing>>();
-        for (int i = 0; i < items.Count; i += size)
-            result.Add(items.Skip(i).Take(size).ToList());
-        if (result.Count == 0) result.Add(new List<Pairing>());
-        return result;
     }
 }

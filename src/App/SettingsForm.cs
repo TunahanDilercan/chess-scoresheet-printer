@@ -15,6 +15,15 @@ public sealed class SettingsForm : Form
     private readonly ComboBox _pageSize = new() { DropDownStyle = ComboBoxStyle.DropDownList };
     private readonly NumericUpDown _offX = MmBox();
     private readonly NumericUpDown _offY = MmBox();
+    private readonly Dictionary<string, ComboBox> _systemTemplate = new();
+
+    private const string ActiveTemplateItem = "(etkin şablon)";
+    private static readonly (string Key, string Label)[] SystemRows =
+    {
+        ("Swiss", "İsviçre sistemi:"),
+        ("RoundRobin", "Berger (döner):"),
+        ("Team", "Takım turnuvası:"),
+    };
 
     public SettingsForm(AppConfig cfg)
     {
@@ -73,31 +82,57 @@ public sealed class SettingsForm : Form
         };
         btnTemplate.Click += OpenTemplates;
         Controls.Add(btnTemplate);
+        y += 42;
+
+        // ---- Sisteme göre şablon ----
+        Controls.Add(new Label
+        {
+            Text = "Sisteme göre şablon", AutoSize = true, Location = new System.Drawing.Point(16, y),
+            Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold),
+            ForeColor = System.Drawing.Color.FromArgb(95, 122, 70)
+        });
+        y += 24;
+        foreach (var (key, label) in SystemRows)
+        {
+            var cbo = new ComboBox { DropDownStyle = ComboBoxStyle.DropDownList };
+            _systemTemplate[key] = cbo;
+            AddRow(label, cbo, ref y);
+            y -= 4;
+        }
+        Controls.Add(new Label
+        {
+            Text = "Kategorinin sistemi chess-results'taki \"Turnuva Tipi\"nden okunur. Takım maçlarında takım adları " +
+                   "kağıttaki Kulüp kutularına basılır.",
+            AutoSize = false, Size = new System.Drawing.Size(408, 36), Location = new System.Drawing.Point(16, y + 2),
+            ForeColor = System.Drawing.Color.Gray
+        });
         y += 44;
 
         // Credit
         var sep = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new System.Drawing.Point(16, y), Size = new System.Drawing.Size(408, 2) };
         Controls.Add(sep); y += 8;
-        var link = new LinkLabel
+        // İmza: adın kendisi GitHub sayfasına götürür (adres metni gösterilmez).
+        const string author = "Tunahan Dilercan";
+        const string githubUrl = "https://github.com/TunahanDilercan/chess-scoresheet-printer";
+        var version = typeof(SettingsForm).Assembly.GetName().Version;
+        var credit = new LinkLabel
         {
-            Text = "github.com/TunahanDilercan/chess-scoresheet-printer",
-            AutoSize = true,
-            Location = new System.Drawing.Point(16, y + 18)
+            AutoSize = true, Location = new System.Drawing.Point(16, y + 4),
+            ForeColor = System.Drawing.Color.FromArgb(95, 122, 70),
+            LinkColor = System.Drawing.Color.FromArgb(95, 122, 70),
+            ActiveLinkColor = System.Drawing.Color.FromArgb(118, 150, 86),
+            LinkBehavior = LinkBehavior.AlwaysUnderline,
+            Text = $"♞ Geliştiren: {author} — satranç oyuncusu ve hakemi.  (v{version?.ToString(3)})"
         };
-        link.LinkClicked += (_, _) =>
+        credit.LinkArea = new LinkArea(credit.Text.IndexOf(author, StringComparison.Ordinal), author.Length);
+        credit.LinkClicked += (_, _) =>
         {
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("https://github.com/TunahanDilercan/chess-scoresheet-printer") { UseShellExecute = true }); }
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(githubUrl) { UseShellExecute = true }); }
             catch { /* yok say */ }
         };
-        var version = typeof(SettingsForm).Assembly.GetName().Version;
-        Controls.Add(new Label
-        {
-            AutoSize = true, Location = new System.Drawing.Point(16, y),
-            ForeColor = System.Drawing.Color.FromArgb(95, 122, 70),
-            Text = $"♞ Geliştiren: Tunahan Dilercan — satranç oyuncusu ve hakemi.  (v{version?.ToString(3)})"
-        });
-        Controls.Add(link);
-        y += 48;
+        new ToolTip().SetToolTip(credit, "GitHub sayfasını aç");
+        Controls.Add(credit);
+        y += 36;
 
         var ok = new Button { Text = "Kaydet", DialogResult = DialogResult.OK, Size = new System.Drawing.Size(100, 32) };
         var cancel = new Button { Text = "Vazgeç", DialogResult = DialogResult.Cancel, Size = new System.Drawing.Size(100, 32) };
@@ -123,6 +158,21 @@ public sealed class SettingsForm : Form
         using var dlg = new TemplatesForm(_cfg);
         dlg.ShowDialog(this);
         // Etkin şablon değişmiş olabilir; çağıran (MainForm) Kaydet'te config'i yazar.
+        FillSystemCombos(); // şablon eklenmiş/silinmiş olabilir
+    }
+
+    /// <summary>Sistem → şablon listelerini doldurur; mevcut seçimi (ya da config'tekini) korur.</summary>
+    private void FillSystemCombos()
+    {
+        foreach (var (key, cbo) in _systemTemplate)
+        {
+            var current = cbo.SelectedItem as string
+                          ?? (_cfg.TemplateBySystem.TryGetValue(key, out var n) ? n : null);
+            cbo.Items.Clear();
+            cbo.Items.Add(ActiveTemplateItem);
+            foreach (var t in _cfg.Templates) cbo.Items.Add(t.Name);
+            cbo.SelectedItem = current is not null && cbo.Items.Contains(current) ? current : ActiveTemplateItem;
+        }
     }
 
     /// <summary>Örnek verili tek kağıt basar: kutu hizasını ve kaydırma ayarını gerçek kağıtta görmek için.</summary>
@@ -153,6 +203,7 @@ public sealed class SettingsForm : Form
         _pageSize.SelectedIndex = NotasyonOtomasyonu.Core.PageGeometry.IsA5(_cfg.Layout.PageSize) ? 0 : 1;
         _offX.Value = Clamp(_cfg.Layout.PrintOffsetXmm, _offX);
         _offY.Value = Clamp(_cfg.Layout.PrintOffsetYmm, _offY);
+        FillSystemCombos();
     }
 
     private static decimal Clamp(double v, NumericUpDown n)
@@ -164,5 +215,10 @@ public sealed class SettingsForm : Form
         _cfg.Layout.PageSize = _pageSize.SelectedIndex == 0 ? "A5" : "A4";
         _cfg.Layout.PrintOffsetXmm = (double)_offX.Value;
         _cfg.Layout.PrintOffsetYmm = (double)_offY.Value;
+        foreach (var (key, cbo) in _systemTemplate)
+        {
+            if (cbo.SelectedItem is string name && name != ActiveTemplateItem) _cfg.TemplateBySystem[key] = name;
+            else _cfg.TemplateBySystem.Remove(key);
+        }
     }
 }

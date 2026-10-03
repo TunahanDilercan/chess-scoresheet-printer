@@ -26,9 +26,17 @@ public partial class MainForm : Form
     private int _syncSeq;                    // üst üste tıklamada eski çekim sonucunu atmak için
 
     /// <summary>
-    /// Kategori (Tnr) → (toplam tur, eşlenmiş son tur). Her kategori farklı turda olabilir.
+    /// Kategori (Tnr) → (toplam tur, eşlenmiş son tur, sistem). Her kategori farklı turda ve
+    /// farklı sistemde (İsviçre / Berger / takım) olabilir.
     /// </summary>
-    private readonly Dictionary<int, (int Max, int Current)> _roundCache = new();
+    private readonly Dictionary<int, (int Max, int Current, TournamentSystem System)> _roundCache = new();
+
+    /// <summary>
+    /// (kategori, tur) → işareti KALDIRILMIŞ masalar. Seçim her kategori/tur için ayrı tutulur:
+    /// başka kategoriye geçip dönünce kaybolmaz; "Tüm Kategoriler" de bu seçime uyar.
+    /// </summary>
+    private readonly Dictionary<(int Cat, int Round), HashSet<int>> _unchecked = new();
+    private (int Cat, int Round)? _gridKey;  // listede gösterilen kategori/tur (dosya modunda null)
 
     public MainForm()
     {
@@ -161,17 +169,27 @@ public partial class MainForm : Form
     }
 
     /// <summary>
-    /// İlk açılışta: seçili ildeki EN GÜNCEL turnuvayı (en yüksek Tnr ≈ en yeni) bulup
-    /// listeyi doldurur, onu seçer ve otomatik çeker. İl seçili değilse/bulunamazsa
-    /// hatırlanan turnuvaya düşer. Çevrimdışıysa sessizce geçer.
+    /// İlk açılışta: seçili ildeki EN GÜNCEL turnuvayı açar; il yoksa/bulunamazsa hatırlanan
+    /// turnuvaya düşer.
     /// </summary>
     private async Task AutoSelectLatestAsync()
     {
         string? prov = cboProvince.SelectedItem?.ToString();
         bool hasProvince = !string.IsNullOrWhiteSpace(prov) && prov != Provinces.All;
+        if (hasProvince && await SelectLatestInProvinceAsync(prov!)) return;
+
+        // Düşüş: il yoksa veya bulunamadıysa, en son kullanılan turnuvayı dene.
+        if (_config.Online.SelectedTnr is int tnr) await LoadEventAsync(tnr, silent: true);
+    }
+
+    /// <summary>
+    /// İldeki EN GÜNCEL turnuvayı (en yüksek Tnr ≈ en son eklenen) bulur, listeyi doldurur,
+    /// onu seçer ve eşleştirmeleri çeker. Bulduysa true. Çevrimdışıysa sessizce geçer.
+    /// </summary>
+    private async Task<bool> SelectLatestInProvinceAsync(string prov)
+    {
         try
         {
-            if (hasProvince)
             {
                 SetBusy(true);
                 SetStatus($"{prov} ilindeki güncel turnuvalar yükleniyor…", ok: true);
@@ -188,8 +206,9 @@ public partial class MainForm : Form
 
                     var latest = ordered[0];
                     SetStatus($"{prov} — en güncel: {latest.Name}", ok: true);
+                    SetBusy(false);
                     await LoadEventAsync(latest.Tnr, silent: true, preferRememberedCategory: false);
-                    return;
+                    return true;
                 }
                 SetStatus($"{prov} için turnuva bulunamadı. Ara/Getir ile deneyin.", ok: false);
             }
@@ -200,9 +219,7 @@ public partial class MainForm : Form
             Log("Uyarı: " + FriendlyNet(ex));
         }
         finally { SetBusy(false); }
-
-        // Düşüş: il yoksa veya bulunamadıysa, en son kullanılan turnuvayı dene.
-        if (_config.Online.SelectedTnr is int tnr) await LoadEventAsync(tnr, silent: true);
+        return false;
     }
 
     // ================= Config <-> UI =================
@@ -289,6 +306,7 @@ public partial class MainForm : Form
         using var dlg = new ExclusionsForm(_config, boards);
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         _config.Save(_configPath);
+        _unchecked.Clear();            // seçimler yeni hariç tutma kuralına göre yeniden kurulsun
         ShowPairings(_gridTournament); // varsayılan işaretler yeni hariç tutmaya göre
         var ex = BoardRange.Parse(_config.Layout.ExcludedBoards);
         var parts = new List<string>();
@@ -311,10 +329,13 @@ public partial class MainForm : Form
         ShowPairings(rbOnline.Checked ? _syncedTournament : _fileTournament);
     }
 
-    private void cboProvince_SelectedIndexChanged(object? sender, EventArgs e)
+    // İl seçilince o ilin en son eklenen turnuvası kendiliğinden açılır.
+    private async void cboProvince_SelectedIndexChanged(object? sender, EventArgs e)
     {
         if (_loading) return;
-        _config.Online.Province = cboProvince.SelectedItem?.ToString() ?? Provinces.All;
+        var prov = cboProvince.SelectedItem?.ToString() ?? Provinces.All;
+        _config.Online.Province = prov;
+        if (rbOnline.Checked && prov != Provinces.All) await SelectLatestInProvinceAsync(prov);
     }
 
     // ================= Online: arama =================
@@ -387,6 +408,8 @@ public partial class MainForm : Form
     private async Task LoadEventAsync(int tnr, bool silent = false, bool preferRememberedCategory = true)
     {
         int currentRound;
+        bool detailsHidden;
+        IReadOnlyList<CategoryRef> cats;
         SetBusy(true);
         SetStatus("Turnuva bilgisi çekiliyor…", ok: true);
         try
@@ -394,7 +417,11 @@ public partial class MainForm : Form
             var info = await _online.GetEventAsync(tnr);
             bool isNewEvent = _config.Online.SelectedTnr != tnr;
             _eventTnr = tnr;
-            _roundCache[tnr] = (info.MaxRound, info.CurrentRound); // bu etkinliğin kendi turları
+            _roundCache[tnr] = (info.MaxRound, info.CurrentRound, info.System); // bu kategorinin turları
+            // Eski/bitmiş turnuvada chess-results ayrıntıları gizleyebilir (tarih, tip, tur menüsü
+            // yok); o zaman "yayımlanmamış" demek yerine eşleştirmeyi yine de çekmeyi dene.
+            detailsHidden = string.IsNullOrWhiteSpace(info.Dates) && info.System == TournamentSystem.Unknown;
+            cats = info.Categories;
 
             int? preferCat = preferRememberedCategory ? _config.Online.SelectedCategoryTnr : null;
             BuildCategoryButtons(info.Categories, preferCat);
@@ -425,7 +452,10 @@ public partial class MainForm : Form
         }
         finally { SetBusy(false); }
 
-        if (currentRound == 0)
+        // Kısayollar için diğer kategorilerin sistem/son turunu arka planda öğren.
+        _ = PrefetchCategoryRoundsAsync(cats, tnr);
+
+        if (currentRound == 0 && !detailsHidden)
         {
             // Başlamamış turnuva: çekilecek eşleştirme yok, hata gibi göstermeyelim.
             _syncedTournament = null;
@@ -435,9 +465,34 @@ public partial class MainForm : Form
         }
 
         // Turnuva seçilir seçilmez varsayılan kategori+turu OTOMATİK çek (kullanıcı butona basmasın).
-        // Sonradan kategori/tur değiştirilirse "3) Eşleştirmeleri Çek" ile yeniden çekilir.
         await SyncPairingsAsync(showWarnings: false);
     }
+
+    /// <summary>
+    /// Etkinliğin tüm kategorilerinin turlarını/sistemini sırayla öğrenip kısayol düğmelerine
+    /// yazar ("7 Yaş · T2"). Bu arada başka turnuva açılırsa bırakır.
+    /// </summary>
+    private async Task PrefetchCategoryRoundsAsync(IReadOnlyList<CategoryRef> cats, int eventTnr)
+    {
+        foreach (var c in cats)
+        {
+            if (_eventTnr != eventTnr) return;
+            if (!_roundCache.ContainsKey(c.Tnr))
+            {
+                try
+                {
+                    var info = await _online.GetEventAsync(c.Tnr);
+                    _roundCache[c.Tnr] = (info.MaxRound, info.CurrentRound, info.System);
+                }
+                catch { continue; }
+            }
+            if (_eventTnr == eventTnr) UpdateQuickButton(c);
+        }
+    }
+
+    /// <summary>Kategorinin sistemi (önbellekte yoksa bilinmiyor → sayfadan anlaşılır).</summary>
+    private TournamentSystem SystemOf(int catTnr)
+        => _roundCache.TryGetValue(catTnr, out var r) ? r.System : TournamentSystem.Unknown;
 
     /// <summary>Turnuva kutusunda yüklü etkinliği gösterir (listede yoksa ekler); seçim olayı tetiklenmez.</summary>
     private void ShowTournamentInCombo(int tnr, string name)
@@ -479,7 +534,10 @@ public partial class MainForm : Form
         BuildQuickButtons(cats); // "A Yazdır / B Yazdır …" kısayolları
     }
 
-    /// <summary>Her kategori için tek tık "yazdır" kısayolu üretir; "Tüm Kategoriler" butonunu açar.</summary>
+    /// <summary>
+    /// Her kategori için hızlı erişim düğmesi: o kategorinin EN SON eşlenmiş turunu gösterir
+    /// ("7 Yaş · T2", başka kategoride "A · T3"); tıklayınca o kategori + tur listeye yüklenir.
+    /// </summary>
     private void BuildQuickButtons(IReadOnlyList<CategoryRef> cats)
     {
         flowQuick.Controls.Clear();
@@ -487,7 +545,7 @@ public partial class MainForm : Form
         {
             var b = new Button
             {
-                Text = ButtonText(c),
+                Text = QuickText(c),
                 Tag = c,
                 AutoSize = true,
                 MinimumSize = new System.Drawing.Size(40, 30),
@@ -498,11 +556,35 @@ public partial class MainForm : Form
             };
             b.Click += quickCategory_Click;
             StyleButton(b); // hover/pressed cila
-            var tip = new ToolTip();
-            tip.SetToolTip(b, $"{c.Name} — seçili turu yazdır (kategori o tura gelmediyse son turu)");
+            _quickTip.SetToolTip(b, QuickTip(c));
             flowQuick.Controls.Add(b);
         }
         btnPrintAll.Enabled = cats.Count > 0;
+    }
+
+    private readonly ToolTip _quickTip = new();
+
+    private string QuickText(CategoryRef c)
+    {
+        if (!_roundCache.TryGetValue(c.Tnr, out var r)) return $"{ButtonText(c)} · …";
+        return r.Current > 0 ? $"{ButtonText(c)} · T{r.Current}" : $"{ButtonText(c)} · —";
+    }
+
+    private string QuickTip(CategoryRef c)
+    {
+        if (!_roundCache.TryGetValue(c.Tnr, out var r)) return $"{c.Name} — tur bilgisi alınıyor…";
+        var sys = r.System == TournamentSystem.Unknown ? "" : $" • {r.System.DisplayName()}";
+        return r.Current > 0
+            ? $"{c.Name}{sys} — son eşlenen tur {r.Current}/{r.Max}. Tıkla: bu tur listeye gelsin."
+            : $"{c.Name}{sys} — henüz eşleştirme yok.";
+    }
+
+    private void UpdateQuickButton(CategoryRef c)
+    {
+        var b = flowQuick.Controls.OfType<Button>().FirstOrDefault(x => x.Tag is CategoryRef k && k.Tnr == c.Tnr);
+        if (b is null) return;
+        b.Text = QuickText(c);
+        _quickTip.SetToolTip(b, QuickTip(c));
     }
 
     // Kategori değişince: o kategorinin turlarını kur ve son eşlenmiş turu KENDİLİĞİNDEN çek.
@@ -553,8 +635,10 @@ public partial class MainForm : Form
             {
                 SetBusy(true); busied = true;
                 var info = await _online.GetEventAsync(catTnr);
-                rounds = (info.MaxRound, info.CurrentRound);
+                rounds = (info.MaxRound, info.CurrentRound, info.System);
                 _roundCache[catTnr] = rounds;
+                var cat = CurrentCategories().FirstOrDefault(c => c.Tnr == catTnr);
+                if (cat is not null) UpdateQuickButton(cat);
             }
             BuildRoundButtons(rounds.Max, rounds.Current);
             return rounds.Current;
@@ -646,8 +730,14 @@ public partial class MainForm : Form
         SetStatus($"{round}. tur eşleştirmeleri çekiliyor…", ok: true);
         try
         {
-            var t = await _online.GetPairingsAsync(catTnr.Value, round);
+            var t = await _online.GetPairingsAsync(catTnr.Value, round, SystemOf(catTnr.Value));
             if (seq != _syncSeq) return; // bu arada başka kategori/tur seçildi: eski sonucu at
+            // Sistem sayfadan anlaşıldıysa (ör. ayrıntıları gizli takım turnuvası) hatırla.
+            if (t.System != TournamentSystem.Unknown && SystemOf(catTnr.Value) != t.System)
+            {
+                var old = _roundCache.TryGetValue(catTnr.Value, out var r) ? r : (ChessResultsParser.UnknownMaxRound, 0, t.System);
+                _roundCache[catTnr.Value] = (old.Item1, old.Item2, t.System);
+            }
             t = StampCategory(t, EventGrouping.ShortCategory(SelectedCategory()?.Name ?? ""));
             if (t.Pairings.Count == 0)
             {
@@ -685,21 +775,23 @@ public partial class MainForm : Form
         finally { if (seq == _syncSeq) SetBusy(false); }
     }
 
-    // ================= Hızlı yazdır (kısayollar) =================
+    // ================= Hızlı erişim (kısayollar) =================
+    /// <summary>
+    /// Kategori kısayolu: o kategoriyi ve EN SON eşlenmiş turunu seçip listeye yükler (doğrudan
+    /// basmaz: hangi masaların basılacağı listeden seçilir, sonra Yazdır).
+    /// </summary>
     private async void quickCategory_Click(object? sender, EventArgs e)
     {
         if (sender is not Button { Tag: CategoryRef cat }) return;
-        SetBusy(true);
-        try
+        var rb = flowCategories.Controls.OfType<RadioButton>().FirstOrDefault(r => r.Tag is CategoryRef c && c.Tnr == cat.Tnr);
+        if (rb is null) return;
+        if (rb.Checked)
         {
-            UpdateConfigFromUi();
-            var t = await FetchCategoryAsync(cat);
-            if (t.Pairings.Count == 0) { SetStatus($"{cat.Name}: yazdırılacak masa yok.", ok: false); return; }
-            PrintTournament(t, _config.Layout.CopiesPerBoard);
+            // Zaten seçili: yalnız son tura atla ve çek.
+            var current = await UpdateRoundsForCategoryAsync(cat.Tnr);
+            if (current > 0) await SyncPairingsAsync(showWarnings: false);
         }
-        catch (UserMessageException ex) { Fail("Kısayol", ex.Message); }
-        catch (Exception ex) { Fail("Kısayol baskısı başarısız", FriendlyNet(ex)); }
-        finally { SetBusy(false); }
+        else rb.Checked = true; // category_CheckedChanged: turları kurar, son turu seçer, çeker
     }
 
     private async void btnPrintAll_Click(object? sender, EventArgs e)
@@ -745,15 +837,15 @@ public partial class MainForm : Form
     private async Task<Tournament> FetchCategoryAsync(CategoryRef cat)
     {
         int round = await ResolveRoundForCategoryAsync(cat.Tnr);
-        var raw = await _online.GetPairingsAsync(cat.Tnr, round);
-        var t = Validation.Normalize(raw, _config.Layout.PrintByeSheets);
+        var raw = await _online.GetPairingsAsync(cat.Tnr, round, SystemOf(cat.Tnr));
+        var t = Validation.Normalize(raw, keepByeSheets: true);
         t = StampCategory(t, EventGrouping.ShortCategory(cat.Name)); // her kağıt kendi kategorisini taşısın
         // Toplu baskıda kategoriler farklı turda olabilir → her kağıt kendi tur no'sunu taşısın.
         t = t with { Pairings = t.Pairings.Select(p => p with { Round = round }).ToList() };
 
-        var excluded = BoardRange.Parse(_config.Layout.ExcludedBoards);
-        if (excluded.Count > 0)
-            t = t with { Pairings = t.Pairings.Where(p => !excluded.Contains(p.Board)).ToList() };
+        // Listede bu kategori/tur için yapılmış seçim varsa ona, yoksa varsayılan kurala uy.
+        var key = (cat.Tnr, round);
+        t = t with { Pairings = t.Pairings.Where(p => IsChecked(key, p)).ToList() };
 
         return ApplyConfigMeta(t);
     }
@@ -777,7 +869,7 @@ public partial class MainForm : Form
             try
             {
                 var info = await _online.GetEventAsync(catTnr);
-                rounds = (info.MaxRound, info.CurrentRound);
+                rounds = (info.MaxRound, info.CurrentRound, info.System);
                 _roundCache[catTnr] = rounds;
             }
             catch { return Math.Max(1, sel); }
@@ -869,16 +961,19 @@ public partial class MainForm : Form
     private void ShowPairings(Tournament? t)
     {
         _gridTournament = t is null ? null : Validation.Normalize(t, keepByeSheets: true);
+        var catTnr = rbOnline.Checked ? SelectedCategory()?.Tnr ?? _eventTnr : null;
+        _gridKey = _gridTournament is not null && catTnr is int ct ? (ct, _gridTournament.RoundNo) : null;
+        _restoringGrid = true;
         dgvPairings.SuspendLayout();
         dgvPairings.Rows.Clear();
         if (_gridTournament is not null)
         {
-            var excluded = BoardRange.Parse(_config.Layout.ExcludedBoards);
             foreach (var p in _gridTournament.Pairings)
             {
-                bool print = !excluded.Contains(p.Board) && (!p.IsBye || _config.Layout.PrintByeSheets);
-                int i = dgvPairings.Rows.Add(print, p.Board, p.White.Name, p.White.Rating?.ToString() ?? "",
-                    p.IsBye ? "BAY" : p.Black!.Name, p.Black?.Rating?.ToString() ?? "");
+                bool print = _gridKey is { } key ? IsChecked(key, p) : DefaultChecked(p);
+                int i = dgvPairings.Rows.Add(print, p.BoardText, WithTeam(p.White.Name, p.WhiteTeam),
+                    p.White.Rating?.ToString() ?? "",
+                    p.IsBye ? "BAY" : WithTeam(p.Black!.Name, p.BlackTeam), p.Black?.Rating?.ToString() ?? "");
                 var row = dgvPairings.Rows[i];
                 row.Tag = p;
                 if (p.IsBye)
@@ -890,15 +985,31 @@ public partial class MainForm : Form
         }
         dgvPairings.ResumeLayout();
         dgvPairings.ClearSelection();
+        _restoringGrid = false;
 
         var cat = rbOnline.Checked ? SelectedCategory() : null;
+        var sys = _gridTournament?.System is { } s0 && s0 != TournamentSystem.Unknown ? " • " + s0.DisplayName() : "";
         grpPairings.Text = _gridTournament is null
             ? "3) Basılacak masalar"
             : $"3) Basılacak masalar — " +
               (cat is null ? "" : ButtonText(cat) + " • ") +
-              (rbOnline.Checked ? $"{_gridTournament.RoundNo}. tur" : $"{numRound.Value}. tur (dosya)");
+              (rbOnline.Checked ? $"{_gridTournament.RoundNo}. tur" : $"{numRound.Value}. tur (dosya)") + sys;
         UpdateSelectionSummary();
     }
+
+    private bool _restoringGrid; // liste doldurulurken seçim kaydı yazılmasın
+
+    private static string WithTeam(string name, string? team)
+        => string.IsNullOrWhiteSpace(team) ? name : $"{name}  ({team})";
+
+    /// <summary>Varsayılan işaret: "Hariç Tut"ta değilse ve (BAY ise) BAY kağıdı açıksa basılır.</summary>
+    private bool DefaultChecked(Pairing p)
+        => !BoardRange.Parse(_config.Layout.ExcludedBoards).Contains(p.Board) &&
+           (!p.IsBye || _config.Layout.PrintByeSheets);
+
+    /// <summary>Bu kategori/turda masa basılacak mı: kullanıcı seçimi varsa o, yoksa varsayılan.</summary>
+    private bool IsChecked((int Cat, int Round) key, Pairing p)
+        => _unchecked.TryGetValue(key, out var off) ? !off.Contains(p.Board) : DefaultChecked(p);
 
     private HashSet<int> SelectedBoards()
     {
@@ -912,6 +1023,14 @@ public partial class MainForm : Form
     {
         int total = dgvPairings.Rows.Count;
         int n = SelectedBoards().Count;
+        // Seçimi bu kategori/tur için sakla (başka kategoriye geçip dönünce ve toplu baskıda kullanılır).
+        if (!_restoringGrid && _gridKey is { } key && total > 0)
+        {
+            var off = new HashSet<int>();
+            foreach (DataGridViewRow r in dgvPairings.Rows)
+                if (r.Cells[0].Value is not true && r.Tag is Pairing p) off.Add(p.Board);
+            _unchecked[key] = off;
+        }
         int copies = (int)numCopies.Value;
         int sheets = n * copies;
         if (total == 0)
@@ -965,7 +1084,7 @@ public partial class MainForm : Form
         if (!_config.Overlay.IsConfigured)
             throw new UserMessageException("Önce ⚙ Ayarlar'dan hazır kağıt şablonu tasarlayın.");
         SetStatus("Önizleme açılıyor…", ok: true);
-        var printer = new Overlay.SheetPrinter(_config.Overlay, t, _config.Layout.PageSize,
+        var printer = new Overlay.SheetPrinter(p => _config.TemplateFor(p.System), t, _config.Layout.PageSize,
             _config.Layout.PrintOffsetXmm, _config.Layout.PrintOffsetYmm);
         bool printed = printer.PrintWithPreview(this);
         if (printed)
@@ -1032,7 +1151,7 @@ public partial class MainForm : Form
         if (!_config.Overlay.IsConfigured)
             throw new UserMessageException("Önce ⚙ Ayarlar'dan hazır kağıt şablonu tasarlayın.");
         var path = Path.Combine(_outputDir, BuildFileName(t, suffix + "_overlay"));
-        Overlay.OverlayPdfRenderer.Render(_config.Overlay, t, path, _config.Layout.PageSize);
+        Overlay.OverlayPdfRenderer.Render(p => _config.TemplateFor(p.System), t, path, _config.Layout.PageSize);
         return path;
     }
 

@@ -44,12 +44,37 @@ public sealed class ChessResultsClient : IDisposable
         }
     }
 
+    /// <summary>
+    /// chess-results turnuva arama formu (ASP.NET postback): önce sayfayı alıp gizli alanları
+    /// (__VIEWSTATE vb.) okur, sonra verilen alanlarla birlikte geri gönderir.
+    /// </summary>
+    public async Task<string> PostSearchAsync(IDictionary<string, string> fields, CancellationToken ct = default)
+    {
+        const string url = BaseHost + "/TurnierSuche.aspx?lan=8";
+        using var get = await _http.GetAsync(url, ct).ConfigureAwait(false);
+        get.EnsureSuccessStatusCode();
+        var page = await get.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+        var form = new Dictionary<string, string>();
+        foreach (Match m in Regex.Matches(page, "<input type=\"hidden\" name=\"([^\"]+)\"[^>]*value=\"([^\"]*)\""))
+            form[m.Groups[1].Value] = WebUtility.HtmlDecode(m.Groups[2].Value);
+        foreach (var (k, v) in fields) form[k] = v;
+        // Yönlendirme sonrası (s1/s2…) aynı sunucuya gönder.
+        var target = get.RequestMessage?.RequestUri?.ToString() ?? url;
+        using var post = await _http.PostAsync(target, new FormUrlEncodedContent(form), ct).ConfigureAwait(false);
+        post.EnsureSuccessStatusCode();
+        return await post.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+    }
+
     // ---- URL kurucular (lan=8 = Türkçe) ----
     public static string FederationUrl(string fed = "TUR") => $"{BaseHost}/fed.aspx?lan=8&fed={fed}";
 
     /// <summary>Belirli tur eşleştirmeleri (art=2 = eşleştirme listesi).</summary>
     public static string PairingsUrl(int tnr, int round)
         => $"{BaseHost}/tnr{tnr}.aspx?lan=8&art=2&rd={round}&turdet=YES";
+
+    /// <summary>Takım turnuvası: maç bazlı masa eşleştirmeleri (art=3), "1.1, 1.2 …".</summary>
+    public static string TeamBoardsUrl(int tnr, int round)
+        => $"{BaseHost}/tnr{tnr}.aspx?lan=8&art=3&rd={round}&turdet=YES";
 
     /// <summary>Etkinlik genel sayfası (başlangıç sıralaması) — kategori/tur bilgisi içerir.</summary>
     public static string EventUrl(int tnr)

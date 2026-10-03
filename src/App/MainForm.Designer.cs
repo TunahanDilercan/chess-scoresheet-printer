@@ -266,7 +266,7 @@ partial class MainForm
         btnExclude.Click += btnExclude_Click;
 
         // Hızlı yazdır (kısayollar) — kategori başına tek tık + tüm kategoriler.
-        grpQuick.Text = "🖨 Hızlı Yazdır — bir kategorinin tamamı";
+        grpQuick.Text = "⚡ Hızlı erişim — kategori · son tur";
         grpQuick.Location = new System.Drawing.Point(18, 358);
         grpQuick.Size = new System.Drawing.Size(528, 70);
         grpQuick.Anchor = leftAnchor;

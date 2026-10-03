@@ -22,6 +22,30 @@ public sealed class AppConfig
     public List<OverlayTemplate> Templates { get; set; } = new();
 
     /// <summary>
+    /// Sisteme göre şablon: "Swiss" / "RoundRobin" / "Team" → şablon adı. Boş/eksik ise etkin
+    /// şablon (<see cref="Overlay"/>) kullanılır. Böylece aynı turnuvada Berger kategorisi ya da
+    /// takım maçları farklı kağıda basılabilir.
+    /// </summary>
+    public Dictionary<string, string> TemplateBySystem { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Yerleşik şablon setinin sürümü. Yeni sürümde eklenen varsayılan şablon mevcut config'e
+    /// bir kez eklenip etkin yapılır (bkz. OverlayDefaults.EnsureDefaults).
+    /// </summary>
+    public int TemplateSetVersion { get; set; }
+
+    /// <summary>Pairing'in sistemine göre basılacak şablon (eşleme yoksa etkin şablon).</summary>
+    public OverlayTemplate TemplateFor(TournamentSystem system)
+    {
+        if (TemplateBySystem.TryGetValue(system.TemplateKey(), out var name) && !string.IsNullOrWhiteSpace(name))
+        {
+            var t = Templates.FirstOrDefault(x => string.Equals(x.Name, name, StringComparison.OrdinalIgnoreCase));
+            if (t is not null && t.IsConfigured) return t;
+        }
+        return Overlay;
+    }
+
+    /// <summary>
     /// CSV/XLSX sütun başlığı eşlemesi. Her hedef alan için olası başlık adları (büyük/küçük harf duyarsız).
     /// Sürüme/dile göre değişen Swiss-Manager başlıklarını tek modele bağlar.
     /// </summary>
@@ -148,8 +172,10 @@ public sealed class LayoutConfig
     /// <summary>BAY masaları için kağıt basılsın mı?</summary>
     public bool PrintByeSheets { get; set; } = true;
 
-    /// <summary>Her masa için nüsha sayısı (iki oyuncuya da aynı notasyon → varsayılan 2).</summary>
-    public int CopiesPerBoard { get; set; } = 2;
+    /// <summary>Her masa için nüsha sayısı (varsayılan 4: iki oyuncuya ikişer).</summary>
+    public int CopiesPerBoard { get; set; } = DefaultCopies;
+
+    public const int DefaultCopies = 4;
 
     /// <summary>Sayfa boyutu: "A4" veya "A5". Çıktılar genelde A5.</summary>
     public string PageSize { get; set; } = "A5";

@@ -16,8 +16,11 @@ Uygulama, iki TSF il temsilciliğinde yürütülen turnuvalarda kullanılmaktad�
 ## Temel işlevler
 
 - Chess-Results üzerinden turnuva arama ve eşleştirme alma (BAY ve eşlenmeyen oyuncular ayrıştırılır)
+- Kategori bazlı sistem desteği: İsviçre, Berger (döner) ve takım turnuvaları; sistem kategorinin "Turnuva Tipi" bilgisinden okunur
+- Takım maçlarında "1.2" gibi masa numarası ve takım adları (kâğıttaki Kulüp kutularına)
+- Her kategorinin son turunu gösteren hızlı erişim düğmeleri
 - JSON, CSV, TXT ve XLSX dosyalarını içe aktarma
-- Basılacak masaları listeden işaretleyerek seçme
+- Basılacak masaları listeden işaretleyerek seçme (seçim her kategori ve tur için ayrı hatırlanır)
 - Tur ve kategoriye göre toplu yazdırma
 - Hazır notasyon kâğıtları için baskı şablonları oluşturma
 - Alan konumlarını ve metin boyutlarını düzenleme
@@ -27,14 +30,14 @@ Uygulama, iki TSF il temsilciliğinde yürütülen turnuvalarda kullanılmaktad�
 
 ## Kullanım
 
-1. Chess-Results üzerinden bir turnuva seçin (il, arama ya da link/no ile) veya eşleştirme dosyasını açın.
-2. Kategori ve turu seçin. Eşleştirmeler sağdaki listeye kendiliğinden gelir; varsayılan tur, eşleştirmesi yayımlanmış son turdur.
-3. Listede basılmayacak masaların işaretini kaldırın ve nüsha sayısını belirleyin.
+1. Chess-Results üzerinden bir turnuva seçin veya eşleştirme dosyasını açın. İl seçildiğinde o ilin en son eklenen turnuvası kendiliğinden açılır; arama ve link/no ile de getirilebilir.
+2. Kategori ve turu seçin ya da hızlı erişim düğmesine basın (ör. "7 Yaş · T2"). Eşleştirmeler sağdaki listeye kendiliğinden gelir; varsayılan tur, eşleştirmesi yayımlanmış son turdur (Berger'de sonucu girilmemiş ilk tur).
+3. Listede basılmayacak masaların işaretini kaldırın ve nüsha sayısını belirleyin (varsayılan 4). "Tüm Kategoriler" de her kategoride yaptığınız seçime uyar.
 4. **Yazdır** (Ctrl+P) ile önizlemeyi açın. Önizlemede hazır kâğıt soluk görünür ama basılmaz. Yazıcıyı seçip basın; ardından sıradaki kategori kendiliğinden yüklenir.
 
 Yazılar hazır kâğıttaki kutulara göre kayıksa **Ayarlar → Yazıcı hizalama** bölümünden milimetre cinsinden düzeltin ve **Hizalama testi** ile tek kâğıt basarak kontrol edin; şablonu değiştirmeniz gerekmez. Turnuva yeri, hakem ve zaman kontrolü bilgileri bilinçli olarak kâğıda basılmaz.
 
-Şablon düzenleyicisinde turnuva, tarih, kategori, tur, masa ve oyuncu alanlarının konumu ayrı ayrı ayarlanabilir.
+Şablon düzenleyicisinde turnuva, tarih, kategori, tur, masa, oyuncu ve takım alanlarının konumu ayrı ayrı ayarlanabilir. Varsayılan şablon "Ana Örnek 2"dir; önceki yerleşim "Ana Örnek" adıyla durur. **Ayarlar → Sisteme göre şablon** ile İsviçre, Berger ve takım kategorileri için farklı şablon seçilebilir.
 
 <p align="center">
   <img src="docs/images/template-designer.png" alt="Hazır kâğıt şablonu tasarımcısı" width="720">

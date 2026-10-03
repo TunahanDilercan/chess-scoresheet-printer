@@ -36,58 +36,261 @@ public static class ChessResultsParser
         return result;
     }
 
-    // ---- 2) Etkinlik üst bilgisi: ad, tarih, tur sayısı, kategoriler ----
+    // ---- 2) Etkinlik üst bilgisi: ad, tarih, sistem, tur sayısı, kategoriler ----
     // Yer/hakem/zaman kontrolü bilinçli olarak okunmaz: notasyon kağıdına basılmıyorlar.
-    public static EventInfo ParseEventInfo(string html, int tnr)
-    {
-        var doc = Parser.ParseDocument(html);
+    public static EventInfo ParseEventInfo(string html, int tnr) => ParseEventInfo(Parser.ParseDocument(html), tnr);
 
+    private static EventInfo ParseEventInfo(IDocument doc, int tnr)
+    {
         var name = Clean(doc.QuerySelector("h2")?.TextContent
                           ?? doc.QuerySelector("title")?.TextContent
                           ?? $"Turnuva {tnr}");
 
         var dates = InfoField(doc, "Tarih", "Date");
+        var system = ParseSystem(InfoField(doc, "Turnuva Tipi", "Tournament type", "Turnierart"));
 
         var (maxRound, currentRound) = ParseRounds(doc);
+        // "Tur Sayısı" satırı turnuva başlamadan da toplam turu verir (menüde henüz tur yokken).
+        if (int.TryParse(InfoField(doc, "Tur Sayısı", "Number of rounds", "Rundenanzahl"), out var declared) &&
+            declared is > 0 and < 100 && (maxRound == UnknownMaxRound || declared > maxRound))
+            maxRound = Math.Max(declared, currentRound);
         var categories = ParseCategories(doc, tnr, name);
 
-        return new EventInfo(tnr, name, dates, maxRound, currentRound, categories);
+        return new EventInfo(tnr, name, dates, maxRound, currentRound, categories, system);
+    }
+
+    /// <summary>"Turnuva Tipi" metnini sisteme çevirir (Türkçe/İngilizce/Almanca sayfa metinleri).</summary>
+    public static TournamentSystem ParseSystem(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return TournamentSystem.Unknown;
+        var t = EventGrouping.Fold(text);
+        bool team = t.Contains("takim") || t.Contains("team") || t.Contains("mannschaft");
+        bool rr = t.Contains("doner") || t.Contains("round robin") || t.Contains("round-robin") ||
+                  t.Contains("rundenturnier") || t.Contains("berger");
+        if (team) return rr ? TournamentSystem.TeamRoundRobin : TournamentSystem.TeamSwiss;
+        if (rr) return TournamentSystem.RoundRobin;
+        if (t.Contains("isvicre") || t.Contains("swiss") || t.Contains("schweizer")) return TournamentSystem.Swiss;
+        return TournamentSystem.Unknown;
     }
 
     // ---- 3) Eşleştirme tablosu -> Tournament ----
-    /// <summary>Eşleştirme sayfasını okuyup tam Tournament üretir (üst bilgi + masalar).</summary>
-    public static Tournament ParsePairings(string html, int tnr, int round)
+    /// <summary>
+    /// Eşleştirme sayfasını okuyup YALNIZCA istenen turun masalarını üretir. Döner (Berger)
+    /// turnuvada chess-results tüm turları tek sayfada "1. Tur", "2. Tur" … bölümleriyle verir;
+    /// bölümler ayrılmazsa turlar karışır (aynı masa no her turda tekrarlanır).
+    /// </summary>
+    public static Tournament ParsePairings(string html, int tnr, int round,
+                                           TournamentSystem system = TournamentSystem.Unknown)
     {
         var doc = Parser.ParseDocument(html);
-        var info = ParseEventInfo(html, tnr); // aynı sayfada üst bilgi de var
+        var info = ParseEventInfo(doc, tnr); // aynı sayfada üst bilgi de var
+        if (system == TournamentSystem.Unknown) system = info.System;
 
-        // Veri satırları chess-results'ta CRng1/CRng2 sınıflarıyla işaretli.
-        var dataRows = doc.QuerySelectorAll("tr.CRng1, tr.CRng2").ToList();
-        var table = dataRows.FirstOrDefault()?.Closest("table");
-        if (table is null)
+        if (system.IsTeam() || IsTeamBoardPage(doc))
+            return ParseTeamBoards(doc, info, round, system.IsTeam() ? system : TournamentSystem.TeamSwiss);
+
+        var sections = ReadSections(doc);
+        if (sections.Count == 0)
             throw new InvalidOperationException(
                 "Eşleştirme tablosu bulunamadı. Tur numarası geçerli mi? (Henüz oluşturulmamış olabilir.)");
 
-        var headers = FindHeaderCells(table);
-        var map = new PairingColumnMap(headers);
+        // Bölüm başlığı varsa yalnızca istenen tur; yoksa (eski/tek bölümlü sayfa) hepsi.
+        var chosen = sections.Any(s => s.Round is not null)
+            ? sections.Where(s => s.Round == round).ToList()
+            : sections;
+        if (chosen.Count == 0)
+            throw new InvalidOperationException($"{round}. tur bu sayfada yok (henüz eşlenmemiş olabilir).");
 
-        var pairings = new List<Pairing>();
-        int fallback = 0;
-        foreach (var row in dataRows)
-        {
-            fallback++;
-            var cells = RowCells(row);
-            if (cells.Count == 0) continue;
-            var pairing = map.MapRow(cells, fallback);
-            if (pairing is not null) pairings.Add(pairing);
-        }
-
+        var pairings = chosen.SelectMany(s => s.Pairings).Select(p => p with { System = system }).ToList();
         return new Tournament(
             Name: info.Name,
             RoundNo: round,
             Pairings: pairings,
-            Date: info.Dates);
+            Date: info.Dates,
+            System: system);
     }
+
+    /// <summary>Döner turnuva sayfasındaki tüm turlar: (tur no, masalar). Tur bilgisini çözmek için.</summary>
+    public static IReadOnlyList<RoundSection> ParseRoundSections(string html)
+        => ReadSections(Parser.ParseDocument(html));
+
+    /// <summary>Bir sayfadaki tek tur bölümü.</summary>
+    public sealed record RoundSection(int? Round, IReadOnlyList<Pairing> Pairings);
+
+    private static readonly Regex SectionTitle = new(
+        @"^\s*(?:(\d{1,2})\s*\.\s*(?:Tur|Runde|Round|Rd)\b|(?:Tur|Runde|Round|Rd\.?)\s*(\d{1,2})\b)",
+        RegexOptions.IgnoreCase);
+
+    /// <summary>
+    /// Veri satırlarını sayfa sırasıyla okuyup "N. Tur" başlıklarına göre bölümlere ayırır.
+    /// Masa no bölüm içinde tekildir; satır numarası yedek masa no olarak kullanılır.
+    /// </summary>
+    private static List<RoundSection> ReadSections(IDocument doc)
+    {
+        var tables = doc.QuerySelectorAll("tr.CRng1, tr.CRng2")
+            .Select(r => r.Closest("table")).Where(t => t is not null).Distinct().ToList();
+        var result = new List<RoundSection>();
+        foreach (var table in tables)
+        {
+            var map = new PairingColumnMap(FindHeaderCells(table!));
+            int? round = null;
+            var current = new List<Pairing>();
+            int fallback = 0;
+            void Flush()
+            {
+                if (current.Count > 0) result.Add(new RoundSection(round, current));
+                current = new List<Pairing>();
+                fallback = 0;
+            }
+            foreach (var row in DirectRows(table!))
+            {
+                if (!row.ClassList.Contains("CRng1") && !row.ClassList.Contains("CRng2"))
+                {
+                    var m = SectionTitle.Match(Clean(row.TextContent));
+                    if ((row.ClassName ?? "").StartsWith("CRg") && m.Success)
+                    {
+                        Flush();
+                        round = int.Parse(m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value);
+                    }
+                    continue;
+                }
+                fallback++;
+                var cells = RowCells(row);
+                if (cells.Count == 0) continue;
+                var pairing = map.MapRow(cells, fallback);
+                if (pairing is not null) current.Add(pairing);
+            }
+            Flush();
+        }
+        return result;
+    }
+
+    /// <summary>Tablonun kendi satırları (hücre içindeki iç içe tabloların satırları hariç).</summary>
+    private static IEnumerable<IElement> DirectRows(IElement table)
+        => table is AngleSharp.Html.Dom.IHtmlTableElement t
+            ? t.Rows
+            : table.QuerySelectorAll("tr").Where(r => r.Closest("table") == table);
+
+    // ---- 4) Takım turnuvası: maç bazlı masa eşleştirmeleri (art=3) ----
+    private static readonly Regex TeamBoardLabel = new(@"^\d{1,3}\.\d{1,2}$");
+
+    /// <summary>Sayfada "1.1, 1.2 …" etiketli masa satırları var mı? (takım masa eşleştirmesi)</summary>
+    private static bool IsTeamBoardPage(IDocument doc)
+        => doc.QuerySelectorAll("tr.CRng1, tr.CRng2").Take(20)
+              .Any(r => r.Children.FirstOrDefault() is { } c && TeamBoardLabel.IsMatch(Clean(c.TextContent)));
+
+    /// <summary>Takım maç listesi sayfası mı (art=2: "Takım | Takım | Sonuç")? O zaman masa sayfası çekilmeli.</summary>
+    public static bool IsTeamMatchList(string html)
+    {
+        var doc = Parser.ParseDocument(html);
+        foreach (var tr in doc.QuerySelectorAll("tr.CRng1b, tr.CRg1b, tr.CRng1, tr.CRng2").Take(10))
+        {
+            var cells = RowCells(tr).Select(EventGrouping.Fold).ToList();
+            if (cells.Count(c => c is "takim" or "team" or "mannschaft") >= 2) return true;
+        }
+        return false;
+    }
+
+    /// <summary>
+    /// Takım masa sayfası: her maç başlığında ev sahibi / deplasman takımı, altında "maç.masa"
+    /// satırları. Kimin beyaz olduğu hücredeki renk işaretinden (FarbewT/FarbesT) okunur;
+    /// işaret yoksa takım satrancı kuralı: ilk takım tek numaralı masalarda beyaz.
+    /// </summary>
+    private static Tournament ParseTeamBoards(IDocument doc, EventInfo info, int round, TournamentSystem system)
+    {
+        var pairings = new List<Pairing>();
+        var foundRounds = new HashSet<int>();
+        foreach (var table in doc.QuerySelectorAll("tr.CRng1, tr.CRng2")
+                     .Select(r => r.Closest("table")).Where(t => t is not null).Distinct())
+        {
+            int? sectionRound = null;
+            string home = "", away = "";
+            foreach (var row in DirectRows(table!))
+            {
+                var cells = row.Children.Where(c => c.TagName is "TD" or "TH").ToList();
+                var texts = cells.Select(c => Clean(c.TextContent)).ToList();
+                if (texts.Count == 0) continue;
+
+                var title = SectionTitle.Match(texts[0]);
+                if ((row.ClassName ?? "").StartsWith("CRg") && title.Success)
+                {
+                    sectionRound = int.Parse(title.Groups[1].Success ? title.Groups[1].Value : title.Groups[2].Value);
+                    foundRounds.Add(sectionRound.Value);
+                    continue;
+                }
+                if (sectionRound is int sr && sr != round) continue;
+
+                int dash = texts.IndexOf("-");
+                if (dash < 3 || dash + 2 >= texts.Count) continue;
+
+                if (!TeamBoardLabel.IsMatch(texts[0]))
+                {
+                    // Maç başlığı: Masa | no | EV SAHİBİ | Rtg | - | no | DEPLASMAN | Rtg | skor
+                    home = texts[dash - 2];
+                    away = texts[dash + 2];
+                    continue;
+                }
+
+                var label = texts[0];
+                string homeName = texts[dash - 2], awayName = texts[dash + 2];
+                if (homeName.Length == 0 || awayName.Length == 0) continue; // boş masa: oyun yok
+
+                var homePlayer = new Player(null, homeName, NullIfEmpty(texts[dash - 3]), ParseRating(texts[dash - 1]));
+                var awayPlayer = new Player(null, awayName, NullIfEmpty(texts[dash + 1]),
+                    dash + 3 < texts.Count ? ParseRating(texts[dash + 3]) : null);
+
+                bool homeWhite = ColorOf(cells[dash - 2]) switch
+                {
+                    'w' => true,
+                    's' => false,
+                    _ => ColorOf(cells[dash + 2]) switch
+                    {
+                        'w' => false,
+                        's' => true,
+                        _ => int.Parse(label[(label.IndexOf('.') + 1)..]) % 2 == 1
+                    }
+                };
+
+                // Sonuç ev sahibi–deplasman sırasıyla yazılır; beyaz–siyah sırasına çevir.
+                var result = NullIfEmpty(texts[^1]);
+                if (!homeWhite && result is not null)
+                {
+                    var parts = result.Split('-', 2);
+                    if (parts.Length == 2) result = $"{parts[1].Trim()} - {parts[0].Trim()}";
+                }
+
+                pairings.Add(new Pairing(
+                    Board: pairings.Count + 1,
+                    White: homeWhite ? homePlayer : awayPlayer,
+                    Black: homeWhite ? awayPlayer : homePlayer,
+                    Result: result,
+                    BoardLabel: label,
+                    WhiteTeam: homeWhite ? home : away,
+                    BlackTeam: homeWhite ? away : home,
+                    System: system));
+            }
+        }
+
+        if (pairings.Count == 0)
+            throw new InvalidOperationException(foundRounds.Count > 0 && !foundRounds.Contains(round)
+                ? $"{round}. tur bu sayfada yok (henüz eşlenmemiş olabilir)."
+                : "Takım masa eşleştirmesi bulunamadı. Tur henüz eşlenmemiş olabilir.");
+
+        return new Tournament(info.Name, round, pairings, info.Dates, system);
+    }
+
+    /// <summary>Hücredeki renk işareti: 'w' beyaz, 's' siyah (Almanca weiß/schwarz), yoksa '?'.</summary>
+    private static char ColorOf(IElement cell)
+    {
+        var cls = cell.QuerySelector("div[class^=Farbe]")?.ClassName ?? "";
+        return cls.StartsWith("Farbew", StringComparison.OrdinalIgnoreCase) ? 'w'
+             : cls.StartsWith("Farbes", StringComparison.OrdinalIgnoreCase) ? 's' : '?';
+    }
+
+    private static string? NullIfEmpty(string s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
+
+    private static int? ParseRating(string s)
+        => int.TryParse(new string(s.Trim().TakeWhile(char.IsDigit).ToArray()), out var n) && n > 0 ? n : null;
 
     // ---- kategori navigasyonu ----
     private static IReadOnlyList<CategoryRef> ParseCategories(IDocument doc, int tnr, string eventName)
