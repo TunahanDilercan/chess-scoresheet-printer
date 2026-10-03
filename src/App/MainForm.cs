@@ -82,6 +82,7 @@ public partial class MainForm : Form
         ShowPairings(null);
 
         ApplyTheme(); // genel görsel cila (hover/flat, başlıklar, palet)
+        ComboKeySearch.AttachAll(this); // il/turnuva listelerinde harfle seçim (I → Iğdır, Isparta …)
         UpdatePrintButtonsForSilent();
 
         // İlk açılışta: hatırlanan turnuva varsa otomatik yükle + eşleştirmeleri çek.
@@ -238,8 +239,9 @@ public partial class MainForm : Form
 
         cboProvince.Items.Clear();
         cboProvince.Items.AddRange(Provinces.List);
-        cboProvince.SelectedItem = cboProvince.Items.Contains(_config.Online.Province)
-            ? _config.Online.Province : Provinces.All;
+        // Açılışta yalnız Ayarlar'daki varsayılan il seçili gelir; varsayılan yoksa boş.
+        if (HasDefaultProvince) cboProvince.SelectedItem = _config.Online.Province;
+        else cboProvince.SelectedIndex = -1;
 
         // Eski config'te ada kategori eki sızmış olabilir → temizle (kalıcı düzelir).
         _config.Tournament.Name = EventGrouping.BaseName(_config.Tournament.Name);
@@ -276,7 +278,6 @@ public partial class MainForm : Form
     {
         // Ad/zaman config'te tutulur (oto-doldurulur ya da Düzenle ile); burada UI'dan okunmaz.
         _config.Online.CityFilter = txtSearch.Text.Trim();
-        _config.Online.Province = cboProvince.SelectedItem?.ToString() ?? Provinces.All;
         _config.Online.Source = rbFile.Checked ? "Dosya" : "Online";
         if (rbFile.Checked) _config.Tournament.LastRound = (int)numRound.Value;
     }
@@ -340,13 +341,22 @@ public partial class MainForm : Form
     }
 
     // İl seçilince o ilin en son eklenen turnuvası kendiliğinden açılır.
+    // Ana ekrandaki seçim varsayılanı değiştirmez (varsayılan il Ayarlar'dandır). Klavyeyle illerde hızlı
+    // gezinirken her harfte arama başlamasın: seçim yarım saniye sabit kalınca yüklenir.
+    private int _provinceSeq;
     private async void cboProvince_SelectedIndexChanged(object? sender, EventArgs e)
     {
         if (_loading) return;
+        int seq = ++_provinceSeq;
+        await Task.Delay(500);
+        if (seq != _provinceSeq) return;
         var prov = cboProvince.SelectedItem?.ToString() ?? Provinces.All;
-        _config.Online.Province = prov;
         if (rbOnline.Checked && prov != Provinces.All) await SelectLatestInProvinceAsync(prov);
     }
+
+    /// <summary>Ayarlar'da varsayılan il seçilmiş mi.</summary>
+    private bool HasDefaultProvince => !string.IsNullOrWhiteSpace(_config.Online.Province) && _config.Online.Province != Provinces.All
+                                       && Provinces.List.Contains(_config.Online.Province);
 
     // ================= Online: arama =================
     private async void btnSearch_Click(object? sender, EventArgs e)
@@ -1219,7 +1229,7 @@ public partial class MainForm : Form
         {
             Overlay.PrintRouter.Config = _config.Printing;
             UpdatePrintButtonsForSilent();
-            if (cboProvince.Items.Contains(_config.Online.Province) && !Equals(cboProvince.SelectedItem, _config.Online.Province))
+            if (HasDefaultProvince && !Equals(cboProvince.SelectedItem, _config.Online.Province))
                 cboProvince.SelectedItem = _config.Online.Province; // Ayarlar'da değişen varsayılan il
             _config.Save(_configPath);
             UpdateInfoLabel();

@@ -224,6 +224,10 @@ public sealed class OnlineConfig
     public string CityFilter { get; set; } = "";
 
     /// <summary>Seçili il (filtre). "(Tüm iller)" = filtre yok.</summary>
+    /// <summary>
+    /// Varsayılan il (Ayarlar → Bölge). Program açılınca ana ekranda bu il seçili gelir ve en güncel
+    /// turnuvası açılır; "(Tüm iller)" = seçilmedi (ana ekranda il kutusu boş gelir).
+    /// </summary>
     public string Province { get; set; } = "(Tüm iller)";
 
     // Son seçili turnuva (etkinlik) ve kategori

@@ -37,7 +37,7 @@ The application is used at tournaments run by two provincial organizations of th
 
 ## Usage
 
-1. Select a Chess-Results tournament or open a pairing file. Choosing a province opens its most recently added tournament automatically; search and link/number also work.
+1. Select a Chess-Results tournament or open a pairing file. Choosing a province opens its most recently added tournament automatically; search and link/number also work. If **Settings → Default province** is set, it is selected when the program starts. In the province list, typing a letter jumps to the first province starting with it and pressing it again moves to the next.
 2. Select the category and round. Pairings load into the list on the right automatically; the default round is the latest round with published pairings (for round robins, the first round without results). A quick-access button (e.g. "🖨 7 Yaş · T2") sends that category's latest round straight to printing. Press F5 after a new round is published to refresh every button.
 3. Untick boards that should not be printed and set the number of copies (default 4). Selections are remembered, and "All categories" and the quick-access buttons respect them.
 4. Press **Print** (Ctrl+P) to open the preview. The pre-printed sheet is shown faded in the preview but is never printed. Choose a printer and print; selections and filters stay as they were.

@@ -26,6 +26,7 @@ public sealed class SettingsForm : Form
     private readonly NumericUpDown _copies = new() { Minimum = 1, Maximum = 20, Value = 1 };
     private readonly ToggleSwitch _silent = new() { Text = "Sessiz yazdırma (pencere açmadan doğrudan bas)" };
     private const string DefaultPrinterItem = "(Windows varsayılan yazıcısı)";
+    private const string NoProvinceItem = "(seçilmedi)";
     private const string AutoTrayItem = "(otomatik)";
 
     private const string ActiveTemplateItem = "(etkin şablon)";
@@ -159,6 +160,7 @@ public sealed class SettingsForm : Form
         ClientSize = new System.Drawing.Size(880, y + 46);
 
         LoadFrom();
+        ComboKeySearch.AttachAll(this); // harfle seçim (I → Iğdır, Isparta …)
     }
 
     // ================= Sağ sütun =================
@@ -190,7 +192,9 @@ public sealed class SettingsForm : Form
     {
         int y = 16;
         Controls.Add(Section("Bölge", y)); y += 24;
-        _province.Items.AddRange(Provinces.List);
+        // "(seçilmedi)": varsayılan il yok → ana ekranda il kutusu boş gelir
+        _province.Items.Add(NoProvinceItem);
+        _province.Items.AddRange(Provinces.List.Skip(1).ToArray());
         RightRow("Varsayılan il:", _province, ref y);
         RightRow("TSF il sitesi:", _tsfSite, ref y);
         var open = new LinkLabel { Text = "Siteyi aç", AutoSize = true, Location = new System.Drawing.Point(RX + 134, y - 6) };
@@ -288,7 +292,7 @@ public sealed class SettingsForm : Form
         _offX.Value = Clamp(_cfg.Layout.PrintOffsetXmm, _offX);
         _offY.Value = Clamp(_cfg.Layout.PrintOffsetYmm, _offY);
 
-        _province.SelectedItem = _province.Items.Contains(_cfg.Online.Province) ? _cfg.Online.Province : Provinces.All;
+        _province.SelectedItem = _province.Items.Contains(_cfg.Online.Province) ? _cfg.Online.Province : NoProvinceItem;
         _tsfSite.Text = TsfSites.SiteFor(_province.SelectedItem as string, _cfg.TsfSites) ?? "";
         _printer.Items.Clear();
         _printer.Items.Add(DefaultPrinterItem);
@@ -311,8 +315,9 @@ public sealed class SettingsForm : Form
         _cfg.Layout.PrintOffsetXmm = (double)_offX.Value;
         _cfg.Layout.PrintOffsetYmm = (double)_offY.Value;
 
-        if (_province.SelectedItem is string prov)
+        if (_province.SelectedItem is string sel)
         {
+            var prov = sel == NoProvinceItem ? Provinces.All : sel;
             _cfg.Online.Province = prov;
             // TSF sitesi elle değiştirildiyse il için kaydedilir; gömülü adrese dönüldüyse kayıt silinir.
             var url = _tsfSite.Text.Trim().TrimEnd('/');
