@@ -123,12 +123,12 @@ public partial class MainForm
 
     private readonly ToolTip _printTip = new();
 
-    /// <summary>Sessiz yazdırma açık/kapalıya göre yazdır düğmelerinin açıklaması.</summary>
+    /// <summary>"Doğrudan yazdır" açık/kapalıya göre yazdır düğmelerinin açıklaması.</summary>
     private void UpdatePrintButtonsForSilent()
     {
         bool silent = Overlay.PrintRouter.IsSilent;
         _printTip.SetToolTip(btnPrint, silent
-            ? $"Sessiz yazdırma açık: önizleme açılmadan doğrudan “{Overlay.PrintRouter.TargetName}” yazıcısına gönderilir (Ctrl+P)."
+            ? $"Doğrudan yazdır açık: önizleme açılmadan “{Overlay.PrintRouter.TargetName}” yazıcısına gönderilir (Ctrl+P)."
             : "Önizleme açılır; oradan yazıcı seçip basılır (Ctrl+P).");
         UpdateSelectionSummary();
     }

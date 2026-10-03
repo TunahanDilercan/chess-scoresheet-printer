@@ -1,4 +1,3 @@
-using System.IO.Compression;
 using System.Globalization;
 using NotasyonOtomasyonu.Core;
 using NotasyonOtomasyonu.Online;
@@ -49,8 +48,6 @@ public sealed class CardsForm : Form
     private readonly RadioButton _rbLandscape = new() { Text = "Yatay", AutoSize = true };
     private readonly RadioButton _rbPortrait = new() { Text = "Dikey", AutoSize = true };
     private readonly CheckBox _chkFullWidth = new() { Text = "Afişi tam genişliğe yay (kenardan kenara)", AutoSize = true };
-    private readonly Button _btnAddFont = new() { Text = "+", Width = 30, Height = 27 };
-    private readonly LinkLabel _lnkSatoshi = new() { Text = "Satoshi'yi indir ve ekle (Fontshare)", AutoSize = true };
     private readonly RadioButton _rbTextColored = new() { Text = "Yazı renkli / beyaz zemin", AutoSize = true };
     private readonly RadioButton _rbFilled = new() { Text = "Zemin renkli / beyaz yazı", AutoSize = true };
 
@@ -68,9 +65,6 @@ public sealed class CardsForm : Form
 
         // Kalıcı seçimler önizleme çizilmeden ÖNCE yüklenir: aksi hâlde ilk çizim yön/stil seçilmemişken
         // (ikisi de kapalı → dikey) yapılıyordu ve yön ancak seçim değiştirilince düzeliyordu.
-        // Kullanıcının eklediği yazı tipleri (exe yanındaki fonts klasöründen)
-        foreach (var f in Cfg.UserFonts.ToList())
-            if (!File.Exists(f) || CardFonts.RegisterUserFont(f) is null) Cfg.UserFonts.Remove(f);
         FillFonts(Cfg.FontName);
         _chkFullWidth.Checked = Cfg.LogoFullWidth;
         (Cfg.Landscape ? _rbLandscape : _rbPortrait).Checked = true;
@@ -86,8 +80,6 @@ public sealed class CardsForm : Form
         _rbLandscape.CheckedChanged += (_, _) => { Cfg.Landscape = _rbLandscape.Checked; _ctx.SaveConfig(); UpdatePreview(); };
         _rbFilled.CheckedChanged += (_, _) => { Cfg.FilledBand = _rbFilled.Checked; _ctx.SaveConfig(); UpdatePreview(); };
         _chkFullWidth.CheckedChanged += (_, _) => { Cfg.LogoFullWidth = _chkFullWidth.Checked; _ctx.SaveConfig(); UpdatePreview(); };
-        _btnAddFont.Click += (_, _) => AddFont();
-        _lnkSatoshi.LinkClicked += async (_, _) => await DownloadSatoshiAsync();
         _btnLogo.Click += (_, _) => ChooseLogo();
         _btnCrop.Click += (_, _) => CropLogo();
         _btnLogoClear.Click += (_, _) => { Cfg.LogoPath = null; Cfg.LogoSourcePath = null; _ctx.SaveConfig(); LoadLogo(); UpdatePreview(); };
@@ -126,11 +118,7 @@ public sealed class CardsForm : Form
         var fontRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 4, 0, 0) };
         fontRow.Controls.Add(new Label { Text = "Yazı tipi:", AutoSize = true, Margin = new Padding(0, 7, 6, 0) });
         fontRow.Controls.Add(_cboFont);
-        _btnAddFont.Margin = new Padding(4, 1, 0, 0);
-        fontRow.Controls.Add(_btnAddFont);
         left.Controls.Add(fontRow);
-        _lnkSatoshi.Margin = new Padding(66, 0, 0, 2);
-        left.Controls.Add(_lnkSatoshi);
         var orientRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 2, 0, 0) };
         orientRow.Controls.Add(new Label { Text = "Kağıt yönü:", AutoSize = true, Margin = new Padding(0, 5, 6, 0) });
         orientRow.Controls.AddRange(new Control[] { _rbLandscape, _rbPortrait });
@@ -207,8 +195,7 @@ public sealed class CardsForm : Form
         bottom.Controls.Add(bl);
         bottom.Controls.Add(br);
 
-        foreach (var b in new[] { _btnLogo, _btnCrop, _btnLogoClear, _btnPdf, _btnPrint, _btnAll, _btnNone, _btnAddFont }) Style(b);
-        new ToolTip().SetToolTip(_btnAddFont, "Kendi indirdiğiniz yazı tipini (.ttf) ekleyin — ör. Fontshare'den Satoshi. Font yalnız bu bilgisayarda kalır.");
+        foreach (var b in new[] { _btnLogo, _btnCrop, _btnLogoClear, _btnPdf, _btnPrint, _btnAll, _btnNone }) Style(b);
         _btnPrint.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
 
         Controls.Add(gridPanel);
@@ -237,7 +224,7 @@ public sealed class CardsForm : Form
         bool silent = Overlay.PrintRouter.IsSilent;
         _btnPrint.Text = silent ? "🖨 Yazdır" : "🖨 Önizle ve Yazdır";
         new ToolTip().SetToolTip(_btnPrint, silent
-            ? $"Sessiz yazdırma açık: doğrudan “{Overlay.PrintRouter.TargetName}” yazıcısına gönderilir (Ayarlar → Yazıcı)."
+            ? $"Doğrudan yazdır açık: önizlemesiz “{Overlay.PrintRouter.TargetName}” yazıcısına gönderilir (Ayarlar → Yazıcı)."
             : "Önizleme açılır; oradan yazıcıya gönderilir.");
     }
 
@@ -395,94 +382,6 @@ public sealed class CardsForm : Form
         _cboFont.SelectedItem = select is not null && _cboFont.Items.Contains(select) ? select : CardFonts.Default;
     }
 
-    /// <summary>
-    /// Kullanıcının indirdiği yazı tipini ekler (exe yanındaki fonts klasörüne kopyalanır). Fontshare
-    /// fontları (Satoshi vb.) lisansları gereği programla dağıtılmaz; her kullanıcı kendi kopyasını ekler.
-    /// </summary>
-    private void AddFont()
-    {
-        using var dlg = new OpenFileDialog
-        {
-            Title = "Yazı tipi ekle (ör. Satoshi-Bold.ttf)",
-            Filter = "TrueType yazı tipi (*.ttf)|*.ttf|Tüm yazı tipleri (*.ttf;*.otf)|*.ttf;*.otf"
-        };
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
-        var dir = Path.Combine(_ctx.BaseDir, "fonts");
-        Directory.CreateDirectory(dir);
-        var dest = Path.Combine(dir, Path.GetFileName(dlg.FileName));
-        try
-        {
-            if (!string.Equals(Path.GetFullPath(dlg.FileName), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
-                File.Copy(dlg.FileName, dest, overwrite: true);
-        }
-        catch (IOException) { dest = dlg.FileName; } // kullanımda: yerinden kullan
-        var family = CardFonts.RegisterUserFont(dest);
-        if (family is null)
-        {
-            MessageBox.Show(this,
-                "Bu yazı tipi okunamadı.\n\nWindows'un çizim motoru bazı .otf (CFF) dosyalarını desteklemez; aynı fontun .ttf sürümünü seçin " +
-                "(Satoshi paketinde: Fonts\\WEB\\fonts\\Satoshi-Bold.ttf).", "Yazı tipi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-        if (!Cfg.UserFonts.Contains(dest, StringComparer.OrdinalIgnoreCase)) Cfg.UserFonts.Add(dest);
-        Cfg.FontName = family;
-        _ctx.SaveConfig();
-        FillFonts(family);
-        UpdatePreview();
-        _lblStatus.Text = $"\"{family}\" yazı tipi eklendi.";
-    }
-
-    /// <summary>
-    /// Satoshi'yi Fontshare'in resmi sunucusundan bu bilgisayara indirip ekler. Lisansı (ITF Free Font
-    /// License) fontun programla dağıtılmasına izin vermediği için exe'de gömülü değildir; her kullanıcı
-    /// kendi kopyasını resmi kaynaktan alır. Lisans metni fontun yanına kaydedilir.
-    /// </summary>
-    private async Task DownloadSatoshiAsync()
-    {
-        if (CardFonts.Names.Contains("Satoshi")) { FillFonts("Satoshi"); Cfg.FontName = "Satoshi"; _ctx.SaveConfig(); UpdatePreview(); return; }
-        if (MessageBox.Show(this,
-                "Satoshi yazı tipi Fontshare'den (Indian Type Foundry) indirilecek ve yalnız bu bilgisayarda kullanılacak.\n\n" +
-                "Font ücretsizdir ancak ITF Free Font License kapsamındadır: kişisel ve ticari kullanım serbest; font dosyasının " +
-                "başkalarına dağıtılması yasaktır. Lisans metni fontun yanına kaydedilir.\n\nDevam edilsin mi?",
-                "Satoshi", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes) return;
-        _lblStatus.Text = "Satoshi indiriliyor…";
-        UseWaitCursor = true;
-        try
-        {
-            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
-            http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) ChessScoresheetPrinter");
-            var zipBytes = await http.GetByteArrayAsync("https://api.fontshare.com/v2/fonts/download/satoshi");
-            var dir = Path.Combine(_ctx.BaseDir, "fonts");
-            Directory.CreateDirectory(dir);
-            string? ttf = null;
-            using (var zip = new System.IO.Compression.ZipArchive(new MemoryStream(zipBytes)))
-            {
-                // Kalın statik TTF (GDI+ değişken fontların yalnız varsayılan kesimini çizer)
-                var entry = zip.Entries.FirstOrDefault(e => e.FullName.EndsWith("/Satoshi-Bold.ttf", StringComparison.OrdinalIgnoreCase))
-                            ?? zip.Entries.FirstOrDefault(e => e.FullName.EndsWith("Satoshi-Bold.otf", StringComparison.OrdinalIgnoreCase));
-                if (entry is null) throw new InvalidDataException("Pakette Satoshi-Bold bulunamadı.");
-                ttf = Path.Combine(dir, Path.GetFileName(entry.FullName));
-                entry.ExtractToFile(ttf, overwrite: true);
-                var lic = zip.Entries.FirstOrDefault(e => e.FullName.EndsWith("FFL.txt", StringComparison.OrdinalIgnoreCase));
-                lic?.ExtractToFile(Path.Combine(dir, "Satoshi-Lisans-FFL.txt"), overwrite: true);
-            }
-            var family = CardFonts.RegisterUserFont(ttf) ?? throw new InvalidDataException("Font yüklenemedi.");
-            if (!Cfg.UserFonts.Contains(ttf, StringComparer.OrdinalIgnoreCase)) Cfg.UserFonts.Add(ttf);
-            Cfg.FontName = family;
-            _ctx.SaveConfig();
-            FillFonts(family);
-            UpdatePreview();
-            _lblStatus.Text = "Satoshi eklendi ve seçildi.";
-        }
-        catch (Exception ex)
-        {
-            _lblStatus.Text = "Satoshi indirilemedi.";
-            MessageBox.Show(this, "Satoshi indirilemedi: " + (ex is HttpRequestException or TaskCanceledException ? "internet bağlantısını kontrol edin." : ex.Message) +
-                                  "\n\nFontshare.com'dan elle indirip \"+\" ile de ekleyebilirsiniz.", "Satoshi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-        finally { UseWaitCursor = false; }
-    }
-
     private static Bitmap? LoadBitmap(string path)
     {
         try { using var fs = File.OpenRead(path); using var img = Image.FromStream(fs); return new Bitmap(img); } // dosyayı kilitlemeden
@@ -514,8 +413,11 @@ public sealed class CardsForm : Form
             g.PageUnit = GraphicsUnit.Point;         // yazı puntoları baskıdakiyle aynı ölçülsün
             float k = scale * 72f / bmp.HorizontalResolution; // Point biriminde 1 pt = dpi/72 px → scale px olsun
             g.ScaleTransform(k, k);
+            // Önizleme de baskıdaki ortak puntoyu kullanır (seçili tüm kategorilerin sığdığı en büyük)
+            var names = Selected().Select(c => c.Category).Append(name);
+            var pt = CardPrinter.CommonBandPt(layout, names, _cboFont.SelectedItem as string);
             CardPrinter.Draw(g, layout, new CardSpec(name, color, 1), _picLogo.Image,
-                             EventGrouping.BaseName(_ctx.EventName), _cboFont.SelectedItem as string, _rbFilled.Checked, _chkFullWidth.Checked);
+                             EventGrouping.BaseName(_ctx.EventName), _cboFont.SelectedItem as string, _rbFilled.Checked, _chkFullWidth.Checked, pt);
             using var pen = new Pen(Color.FromArgb(200, 200, 200), 1f / k);
             g.DrawRectangle(pen, 0, 0, layout.PageW, layout.PageH); // beyaz zeminde kart kenarı görünsün
         }

@@ -84,7 +84,7 @@ public sealed class ReportForm : Form
 
     private readonly Button _btnNext = new() { Text = "▶ Sonraki eksik", AutoSize = true, Height = 40 };
     private readonly Button _btnDocx = new() { Text = "Word (.docx) kaydet", AutoSize = true, Height = 40 };
-    private readonly Button _btnPrint = new() { Text = "👁 Önizle ve Yazdır", Width = 190, Height = 40 };
+    private readonly Button _btnPrint = new() { Text = PrintRouter.IsSilent ? "🖨 Yazdır (doğrudan)" : "👁 Önizle ve Yazdır", Width = 190, Height = 40 };
     private readonly Button _btnPdf = new() { Text = "📄 PDF Olarak Kaydet", Width = 220, Height = 40, BackColor = Green, ForeColor = Color.White };
 
     public ReportForm(ReportContext ctx)
@@ -956,12 +956,23 @@ public sealed class ReportForm : Form
         List<Bitmap>? pages = null;
         List<SizeF>? sizes = null;
         string? pdf = null;
-        await RunExport("Önizleme hazırlanıyor (Word belgeyi PDF'e çeviriyor)…", async () =>
+        bool direct = PrintRouter.IsSilent;
+        await RunExport(direct ? $"Yazdırılıyor (Word belgeyi PDF'e çeviriyor) → {PrintRouter.TargetName}…"
+                               : "Önizleme hazırlanıyor (Word belgeyi PDF'e çeviriyor)…", async () =>
         {
             var docx = WriteTempDocx(bytes);
             pdf = Path.Combine(Path.GetTempPath(), $"rapor_onizleme_{Guid.NewGuid():N}.pdf");
             await WordExport.ToPdfAsync(docx, pdf);
             sizes = await PdfPages.SizesAsync(pdf);
+            if (direct)
+            {
+                // Doğrudan yazdır açık: önizleme açılmadan yazıcıya
+                if (await ReportPreviewForm.PrintPdfAsync(this, pdf, sizes, SelectedTemplate.Label))
+                    _lblStatus.Text = $"Yazıcıya gönderildi: {PrintRouter.TargetName}";
+                try { File.Delete(pdf); } catch { }
+                pdf = null;
+                return;
+            }
             pages = await PdfPages.RenderAsync(pdf, 110);
         });
         if (pages is null || sizes is null || pdf is null) return;

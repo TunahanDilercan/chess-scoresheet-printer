@@ -56,7 +56,7 @@ public partial class MainForm : Form
                 _unchecked[(c, r)] = boards.ToHashSet();
         }
         OverlayDefaults.EnsureDefaults(_config, baseDir); // Ana Örnek varsayılan şablonu hazırla
-        Overlay.PrintRouter.Config = _config.Printing;     // hedef yazıcı / tepsi / sessiz yazdırma
+        Overlay.PrintRouter.Config = _config.Printing;     // hedef yazıcı / tepsi / yazıcı tercihleri / doğrudan yazdır
         ApplyConfigToUi();
 
         // Başlık çubuğundaki "⚙ Ayarlar" butonunu her boyutta sağ üste sabitle

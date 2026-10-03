@@ -75,14 +75,42 @@ public sealed class CardLayout
     {
         var words = (text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (words.Length == 0) return (new List<string>(), maxPt);
-        float spacing = CardFonts.LineSpacing(font);
-        for (float pt = maxPt; pt >= minPt; pt -= Math.Max(1f, pt * 0.04f))
-        {
-            var lines = Wrap(words, box.Width, pt, font);
-            if (lines is null || lines.Count > maxLines) continue;
-            if (lines.Count * pt * spacing <= box.Height) return (lines, pt);
-        }
-        return (Wrap(words, float.MaxValue, minPt, font)!, minPt);
+        for (float pt = maxPt; pt >= minPt; pt -= Math.Max(0.5f, pt * 0.03f))
+            if (TryWrap(words, box, pt, font, maxLines) is { } lines) return (lines, pt);
+        // En küçük puntoda bile sığmıyorsa: kutuya sığacak kadar daha da küçült (taşmasın)
+        for (float pt = minPt; pt >= 4; pt -= 0.5f)
+            if (TryWrap(words, box, pt, font, maxLines + 2) is { } lines) return (lines, pt);
+        return (Wrap(words, float.MaxValue, 4, font)!, 4);
+    }
+
+    /// <summary>
+    /// Ortak punto: tüm metinlerin kutuya sığdığı en büyük punto (her kartta kategori adı aynı büyüklükte
+    /// olsun; uzun bir ad diğerlerini de o boyuta indirir).
+    /// </summary>
+    public static float CommonPt(IEnumerable<string> texts, RectangleF box, float maxPt, string? font, float minPt = 12, int maxLines = 3)
+    {
+        float pt = maxPt;
+        foreach (var t in texts.Where(t => !string.IsNullOrWhiteSpace(t)).Distinct())
+            pt = Math.Min(pt, Fit(t, box, maxPt, font, minPt, maxLines).Pt);
+        return pt;
+    }
+
+    /// <summary>Metni verilen puntoda satırlara böler; o puntoda sığmıyorsa kendi en büyük puntosuna düşer.</summary>
+    public static (List<string> Lines, float Pt) FitAt(string text, RectangleF box, float pt, string? font, int maxLines = 3)
+    {
+        var words = (text ?? "").Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0) return (new List<string>(), pt);
+        return TryWrap(words, box, pt, font, maxLines) is { } lines ? (lines, pt) : Fit(text, box, pt, font, 4, maxLines);
+    }
+
+    /// <summary>Ölçüm ile çizim arasındaki küçük farklara karşı genişlik/yükseklikte pay bırakılır.</summary>
+    private const float Safety = 0.95f;
+
+    private static List<string>? TryWrap(string[] words, RectangleF box, float pt, string? font, int maxLines)
+    {
+        var lines = Wrap(words, box.Width * Safety, pt, font);
+        if (lines is null || lines.Count > maxLines) return null;
+        return lines.Count * pt * CardFonts.LineSpacing(font) <= box.Height * Safety ? lines : null;
     }
 
     private static List<string>? Wrap(string[] words, float width, float pt, string? font)

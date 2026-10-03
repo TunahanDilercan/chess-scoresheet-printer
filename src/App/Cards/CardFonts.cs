@@ -4,51 +4,16 @@ using NotasyonOtomasyonu.App.Overlay;
 namespace NotasyonOtomasyonu.App.Cards;
 
 /// <summary>
-/// Kart ve yaka kartlarında kullanılan yazı tipleri: gömülü olanlar (açık kaynak, SIL OFL; yalnız kalın
-/// kesim ve Latin/Türkçe karakterler — exe'yi büyütmez; "DejaVu Sans" notasyon kağıdıyla aynı font) ve
-/// kullanıcının kendi bilgisayarına indirip eklediği fontlar (ör. Fontshare'den Satoshi; lisansı
-/// yeniden dağıtıma izin vermediği için programla birlikte gelmez).
+/// Kart ve yaka kartlarında kullanılan gömülü yazı tipleri (açık kaynak, SIL OFL; yalnız kalın kesim
+/// ve Latin/Türkçe karakterler — exe'yi büyütmez). "DejaVu Sans" notasyon kağıdıyla aynı fonttur.
 /// </summary>
 public static class CardFonts
 {
     public const string Default = "Montserrat";
     public static readonly string[] Embedded = { "Montserrat", "Oswald", "Inter", "DejaVu Sans" };
 
-    /// <summary>Kullanıcı fontları: aile adı → dosya yolu.</summary>
-    private static readonly Dictionary<string, string> UserFiles = new(StringComparer.OrdinalIgnoreCase);
-
-    /// <summary>Seçilebilir tüm fontlar (gömülü + kullanıcının eklediği).</summary>
-    public static IReadOnlyList<string> Names => Embedded.Concat(UserFiles.Keys.OrderBy(k => k)).ToList();
-
-    /// <summary>
-    /// Kullanıcının font dosyasını (TTF; GDI+ CFF tabanlı OTF'leri çizemez) kaydeder. Aile adını döndürür;
-    /// okunamazsa null.
-    /// </summary>
-    public static string? RegisterUserFont(string path)
-    {
-        try
-        {
-            var pfc = new PrivateFontCollection();
-            pfc.AddFontFile(path);
-            var fam = pfc.Families.FirstOrDefault();
-            if (fam is null) return null;
-            // Gerçekten çizilebiliyor mu (CFF/OTF'de GDI+ boş çizer ya da hata verir)
-            var style = fam.IsStyleAvailable(FontStyle.Bold) ? FontStyle.Bold : FontStyle.Regular;
-            using (var f = new Font(fam, 20, style, GraphicsUnit.Point))
-            using (var g = Graphics.FromImage(MeasureBmp))
-                if (g.MeasureString("ŞĞİçöü", f).Width <= 0) return null;
-            lock (Families)
-            {
-                Keep.Add(pfc);
-                UserFiles[fam.Name] = path;
-                Families[fam.Name] = fam;
-                lock (Widths) Widths.Clear();
-                lock (Spacings) Spacings.Remove(fam.Name);
-            }
-            return fam.Name;
-        }
-        catch { return null; }
-    }
+    /// <summary>Seçilebilir yazı tipleri.</summary>
+    public static IReadOnlyList<string> Names => Embedded;
 
     private static readonly Dictionary<string, FontFamily?> Families = new(StringComparer.OrdinalIgnoreCase);
     private static readonly List<PrivateFontCollection> Keep = new(); // koleksiyonlar uygulama boyunca yaşamalı

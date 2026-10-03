@@ -23,9 +23,9 @@ Uygulama, iki TSF il temsilciliğinde yürütülen turnuvalarda kullanılmaktad�
 - Turnuva yönergesi, raporu ve teknik toplantı tutanağı: gömülü şablonlar ya da kendi .docx şablonunuz chess-results verisi ve ilin TSF sitesindeki yönergeyle doldurulur; tüm alanlar tek tabloda düzenlenir; PDF, yazıcı veya Word çıktısı
 - Tempoya göre resmi düşünme süresi önerisi (klasik, hızlı, yıldırım)
 - TSF prosedürüne göre program ve kategori kontrolü: tempoya göre iki tur arası en az süre (ör. 35+30 → 150 dk), günlük tur sınırı (UKD 4, ELO 3; 2400+ ELO'da 90+30 ve 2 tur), 12 saat sınırı, kayıt kontrol süresi (30–60 dk), sporcu sayısına göre sistem/tur sayısı, kategorilerde tempo birliği, "Yaş ve Altı" kategorilerinin çift yaşta bitmesi; "Programı öner" ile tur saatleri otomatik hesaplanır
-- Kategori masa kartları (A4 yatay): üstte turnuva afişi, altta büyük kategori adı; her kategorinin tema rengi ve iki stil (yazı renkli / beyaz zemin ya da zemin renkli / beyaz yazı); afiş kırpma aracı (kart yuvası, 16:9, 4:3, 1:1 ya da serbest) ve kenardan kenara tam genişlik seçeneği; gömülü yazı tipleri (Montserrat, Oswald, Inter) ve kendi yazı tiplerinizi ekleme (Satoshi tek tıkla Fontshare'den indirilip eklenir; lisansı gereği programla dağıtılmaz); adet kategorideki masa sayısı kadar önerilir
+- Kategori masa kartları (A4 yatay): üstte turnuva afişi, altta büyük kategori adı; her kategorinin tema rengi ve iki stil (yazı renkli / beyaz zemin ya da zemin renkli / beyaz yazı); afiş kırpma aracı (kart yuvası, 16:9, 4:3, 1:1 ya da serbest) ve kenardan kenara tam genişlik seçeneği; gömülü yazı tipleri (Montserrat, Oswald, Inter); kategori adı tüm kartlarda aynı, hepsine sığan en büyük puntoda; adet kategorideki masa sayısı kadar önerilir
 - Hakem yaka kartları (85×54 veya 90×60 mm, A4'e 2×5 / 2×4 dizili, kesim işaretli): logo, fotoğraf, ad soyad, görev ve unvana göre renkli şerit
-- Sessiz yazdırma: ayarlardaki hedef yazıcıya, tepsiye ve kopya sayısına pencere açmadan baskı
+- Yazıcı ayarları: hedef yazıcı, tepsi, kopya sayısı, yazıcının kendi tercihleri (sessiz mod, kalite) ve önizlemesiz "doğrudan yazdır"
 - JSON, CSV, TXT ve XLSX dosyalarını içe aktarma
 - Basılacak masaları listeden işaretleyerek seçme (seçim her kategori ve tur için ayrı hatırlanır)
 - Tur ve kategoriye göre toplu yazdırma
@@ -48,7 +48,7 @@ Başlıktaki **📄 Yönerge / Tutanak** düğmesi turnuva bilgilerini (tarih, y
 
 **🪪 Yaka Kartları** görevlileri chess-results'tan alır; unvan IA/FA/NA bilgisinden önerilir, TSF derecesi (Aday, İl, Ulusal, FIDE, Uluslararası) seçilebilir ve hatırlanır.
 
-**Ayarlar → Yazıcı** bölümünden hedef yazıcı, kağıt kaynağı, kopya sayısı ve sessiz yazdırma ayarlanır. Sessiz yazdırma açıkken önizleme ve yazıcı penceresi açılmadan doğrudan basılır.
+**Ayarlar → Yazıcı** bölümünden hedef yazıcı, kağıt kaynağı ve kopya sayısı ayarlanır. **Yazıcı tercihleri…** yazıcının kendi ayar penceresini açar (sessiz mod, baskı kalitesi gibi üreticiye özel seçenekler); seçilenler her baskıda uygulanır. **Doğrudan yazdır** açıkken önizleme ve yazıcı penceresi açılmadan basılır.
 
 Yazılar hazır kâğıttaki kutulara göre kayıksa **Ayarlar → Yazıcı hizalama** bölümünden milimetre cinsinden düzeltin ve **Hizalama testi** ile tek kâğıt basarak kontrol edin; şablonu değiştirmeniz gerekmez. Turnuva yeri, hakem ve zaman kontrolü bilgileri bilinçli olarak kâğıda basılmaz.
 

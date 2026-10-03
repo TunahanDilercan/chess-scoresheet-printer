@@ -28,7 +28,7 @@ public static class PrintRouter
     public static bool TargetAvailable =>
         string.IsNullOrWhiteSpace(Config.PrinterName) || InstalledPrinters().Contains(Config.PrinterName!, StringComparer.OrdinalIgnoreCase);
 
-    /// <summary>Sessiz yazdırma etkin ve hedef yazıcı kullanılabilir mi.</summary>
+    /// <summary>"Doğrudan yazdır" etkin ve hedef yazıcı kullanılabilir mi.</summary>
     public static bool IsSilent => Config.Silent && TargetAvailable;
 
     /// <summary>Baskının gideceği yazıcının adı (kullanıcıya göstermek için).</summary>
@@ -71,6 +71,9 @@ public static class PrintRouter
     {
         if (!string.IsNullOrWhiteSpace(Config.PrinterName) && TargetAvailable)
             doc.PrinterSettings.PrinterName = Config.PrinterName;
+        // Yazıcının kendi tercihleri (sessiz mod vb.); kağıt ve yön sonra programca ayarlanır.
+        if (Config.DevModes.TryGetValue(doc.PrinterSettings.PrinterName, out var devmode))
+            PrinterPreferences.Apply(doc, devmode);
         doc.PrinterSettings.Copies = (short)Math.Clamp(Config.Copies, 1, 99);
     }
 

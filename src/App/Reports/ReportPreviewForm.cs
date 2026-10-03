@@ -5,7 +5,7 @@ namespace NotasyonOtomasyonu.App.Reports;
 
 /// <summary>
 /// Raporun yazdırılmadan önce görüldüğü önizleme penceresi: Word'ün ürettiği PDF'in sayfaları birebir
-/// gösterilir. Buradan yazıcıya gönderilir (sessiz yazdırma ayarına uyar) ya da PDF olarak kaydedilir.
+/// gösterilir. Buradan yazıcıya gönderilir ("doğrudan yazdır" ve yazıcı tercihlerine uyar) ya da PDF olarak kaydedilir.
 /// </summary>
 public sealed class ReportPreviewForm : Form
 {
@@ -48,7 +48,7 @@ public sealed class ReportPreviewForm : Form
         var zoomFit = Btn("Sayfaya sığdır", 120);
         var zoomIn = Btn("+", 36);
         bar.Controls.AddRange(new Control[] { print, pdf, close, Spacer(), zoomOut, zoomFit, zoomIn, _lblInfo });
-        _lblInfo.Text = $"{pages.Count} sayfa • yazıcı: {PrintRouter.TargetName}{(PrintRouter.IsSilent ? " (sessiz yazdırma)" : "")} • Ctrl+P yazdır, Esc kapat";
+        _lblInfo.Text = $"{pages.Count} sayfa • yazıcı: {PrintRouter.TargetName}{(PrintRouter.IsSilent ? " (doğrudan yazdır)" : "")} • Ctrl+P yazdır, Esc kapat";
 
         print.Click += (_, _) => DoPrint();
         pdf.Click += (_, _) => SavePdf();
@@ -112,42 +112,12 @@ public sealed class ReportPreviewForm : Form
     // ================= Yazdırma =================
     private async void DoPrint()
     {
-        int index = 0;
-        List<Bitmap>? hi = null;
-        using var doc = new PrintDocument { DocumentName = Text };
-        PrintRouter.ApplyTarget(doc);
-        doc.OriginAtMargins = false;
-        doc.BeginPrint += (_, _) => index = 0;
-        doc.QueryPageSettings += (_, e) =>
-        {
-            var s = _sizesPt[Math.Min(index, _sizesPt.Count - 1)];
-            e.PageSettings.Landscape = s.Width > s.Height;
-        };
-        doc.PrintPage += (_, e) =>
-        {
-            var g = e.Graphics!;
-            g.PageUnit = GraphicsUnit.Point;
-            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-            // (0,0) yazdırılabilir alanın köşesi: sabit kenar boşluğunu telafi et → sayfa kağıdın köşesinden
-            g.TranslateTransform(-e.PageSettings.HardMarginX / 100f * 72f, -e.PageSettings.HardMarginY / 100f * 72f);
-            var s = _sizesPt[Math.Min(index, _sizesPt.Count - 1)];
-            var img = hi is not null && index < hi.Count ? hi[index] : _pages[index];
-            g.DrawImage(img, 0, 0, s.Width, s.Height);
-            index++;
-            e.HasMorePages = index < _pages.Count;
-        };
         try
         {
-            // Baskı için sayfalar yüksek çözünürlükte yeniden çizilir (önizleme ekrana göre).
             UseWaitCursor = true;
-            hi = await PdfPages.RenderAsync(_pdfPath, PrintDpi);
+            bool printed = await PrintPdfAsync(this, _pdfPath, _sizesPt, Text);
             UseWaitCursor = false;
-            if (!PrintRouter.Print(doc, this, (d, _) =>
-                {
-                    try { foreach (PaperSize ps in d.PrinterSettings.PaperSizes) if (ps.Kind == PaperKind.A4) { d.DefaultPageSettings.PaperSize = ps; break; } }
-                    catch (InvalidPrinterException) { }
-                    return true;
-                })) return;
+            if (!printed) return;
             Printed = true;
             Close();
         }
@@ -156,9 +126,49 @@ public sealed class ReportPreviewForm : Form
             UseWaitCursor = false;
             MessageBox.Show(this, "Yazdırılamadı: " + ex.Message, "Yazdır", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    /// <summary>
+    /// PDF'i yazıcıya gönderir: sayfalar 300 dpi çizilir, kağıdın köşesinden basılır; hedef yazıcı, tepsi,
+    /// kopya, yazıcı tercihleri (sessiz mod vb.) ve "doğrudan yazdır" ayarı uygulanır. true = gönderildi.
+    /// </summary>
+    public static async Task<bool> PrintPdfAsync(IWin32Window owner, string pdfPath, List<SizeF> sizesPt, string docName)
+    {
+        var pages = await PdfPages.RenderAsync(pdfPath, PrintDpi);
+        try
+        {
+            int index = 0;
+            using var doc = new PrintDocument { DocumentName = docName };
+            PrintRouter.ApplyTarget(doc);
+            doc.OriginAtMargins = false;
+            doc.BeginPrint += (_, _) => index = 0;
+            doc.QueryPageSettings += (_, e) =>
+            {
+                var s = sizesPt[Math.Min(index, sizesPt.Count - 1)];
+                e.PageSettings.Landscape = s.Width > s.Height;
+            };
+            doc.PrintPage += (_, e) =>
+            {
+                var g = e.Graphics!;
+                g.PageUnit = GraphicsUnit.Point;
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                // (0,0) yazdırılabilir alanın köşesi: sabit kenar boşluğunu telafi et → sayfa kağıdın köşesinden
+                g.TranslateTransform(-e.PageSettings.HardMarginX / 100f * 72f, -e.PageSettings.HardMarginY / 100f * 72f);
+                var s = sizesPt[Math.Min(index, sizesPt.Count - 1)];
+                g.DrawImage(pages[index], 0, 0, s.Width, s.Height);
+                index++;
+                e.HasMorePages = index < pages.Count;
+            };
+            return PrintRouter.Print(doc, owner, (d, _) =>
+            {
+                try { foreach (PaperSize ps in d.PrinterSettings.PaperSizes) if (ps.Kind == PaperKind.A4) { d.DefaultPageSettings.PaperSize = ps; break; } }
+                catch (InvalidPrinterException) { }
+                return true;
+            });
+        }
         finally
         {
-            if (hi is not null) foreach (var b in hi) b.Dispose();
+            foreach (var b in pages) b.Dispose();
         }
     }
 

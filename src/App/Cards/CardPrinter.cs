@@ -8,12 +8,15 @@ public sealed class CardPrinter
 {
 
     private readonly List<CardSpec> _pages;   // adet kadar açılmış
+    private readonly List<CardSpec> _distinct; // önizlemede her karttan bir sayfa
+    private List<CardSpec> _active = new();    // bu geçişte çizilen sayfalar
     private readonly string? _logoPath;
     private readonly string _eventName;
     private readonly string _font;
     private readonly CardLayout _layout;
     private readonly bool _filled;
     private readonly bool _fullWidth;
+    private readonly float _bandPt;            // tüm kartlarda ortak kategori yazısı puntosu
     private Image? _logo;
     private int _pageIndex;
 
@@ -23,21 +26,25 @@ public sealed class CardPrinter
         _filled = filled;
         _fullWidth = fullWidth;
         _pages = cards.SelectMany(c => Enumerable.Repeat(c, Math.Max(0, c.Copies))).ToList();
+        _distinct = _pages.Distinct().ToList();
         _logoPath = !string.IsNullOrWhiteSpace(logoPath) && File.Exists(logoPath) ? logoPath : null;
         _eventName = eventName;
         _font = string.IsNullOrWhiteSpace(font) ? CardFonts.Default : font!;
         _layout = new CardLayout(landscape);
+        _bandPt = CommonBandPt(_layout, _pages.Select(p => p.Category), _font);
     }
 
     public int PageCount => _pages.Count;
 
     // ================= Önizleme + yazıcı =================
-    /// <summary>Önizleme açar (sessiz modda doğrudan basar). true = yazıcıya gönderildi.</summary>
+    /// <summary>Önizleme açar ("doğrudan yazdır" açıksa önizlemesiz basar). true = yazıcıya gönderildi.</summary>
     public bool PrintWithPreview(IWin32Window owner)
     {
         using var doc = BuildDocument();
         if (PrintRouter.IsSilent) return PrintRouter.Print(doc, owner, PreparePaper);
-        return PreviewDialog.Show(owner, doc, PageCount, $"{PageCount} kart • A4 {(_layout.Landscape ? "yatay" : "dikey")}",
+        // Önizleme her karttan bir sayfa gösterir (30 kartın 30 sayfasını çizmek yavaştı); baskı tüm adetleri basar.
+        return PreviewDialog.Show(owner, doc, _distinct.Count,
+                                  $"{PageCount} kart basılacak (önizlemede her kategoriden bir sayfa) • A4 {(_layout.Landscape ? "yatay" : "dikey")}",
                                   f => PrintRouter.Print(doc, f, PreparePaper));
     }
 
@@ -57,10 +64,38 @@ public sealed class CardPrinter
         // Her sayfa yönü açıkça bildirir: önizleme ilk çizimde de yatay ölçülsün (yazıcı varsayılanı dikey olsa bile).
         doc.QueryPageSettings += (_, e) => e.PageSettings.Landscape = _layout.Landscape;
         doc.OriginAtMargins = false;
-        doc.BeginPrint += (_, _) => { _pageIndex = 0; _logo = LoadLogo(_logoPath); };
+        doc.BeginPrint += (s, _) =>
+        {
+            _pageIndex = 0;
+            bool preview = (s as PrintDocument)?.PrintController?.IsPreview == true;
+            _active = preview ? _distinct : _pages;
+            // Afiş bir kez hedef boyuta küçültülür (önizlemede ekran, baskıda 300 dpi): her sayfada büyük
+            // görseli yeniden ölçeklemek önizlemeyi çok yavaşlatıyordu.
+            _logo = ScaledLogo(_logoPath, preview ? 120 : 300);
+        };
         doc.EndPrint += (_, _) => { _logo?.Dispose(); _logo = null; _pageIndex = 0; };
         doc.PrintPage += OnPrintPage;
         return doc;
+    }
+
+    private Image? ScaledLogo(string? path, int dpi)
+    {
+        var src = LoadLogo(path);
+        if (src is null) return null;
+        var slot = _fullWidth ? _layout.HeaderRect : _layout.LogoRect;
+        var fit = _fullWidth ? new SizeF(slot.Width, src.Height * slot.Width / src.Width)
+                             : CardLayout.FitImage(new SizeF(src.Width, src.Height), slot).Size;
+        int w = (int)Math.Ceiling(fit.Width / 72f * dpi), h = (int)Math.Ceiling(fit.Height / 72f * dpi);
+        if (w >= src.Width || h <= 0) return src; // zaten küçük
+        var bmp = new Bitmap(w, h);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+            g.DrawImage(src, 0, 0, w, h);
+        }
+        src.Dispose();
+        return bmp;
     }
 
     private static Image? LoadLogo(string? path)
@@ -91,9 +126,9 @@ public sealed class CardPrinter
         bool preview = (sender as PrintDocument)?.PrintController?.IsPreview == true;
         if (!preview) g.TranslateTransform(-e.PageSettings.HardMarginX / 100f * 72f, -e.PageSettings.HardMarginY / 100f * 72f);
 
-        if (_pageIndex < _pages.Count) Draw(g, _layout, _pages[_pageIndex], _logo, _eventName, _font, _filled, _fullWidth);
+        if (_pageIndex < _active.Count) Draw(g, _layout, _active[_pageIndex], _logo, _eventName, _font, _filled, _fullWidth, _bandPt);
         _pageIndex++;
-        e.HasMorePages = _pageIndex < _pages.Count;
+        e.HasMorePages = _pageIndex < _active.Count;
     }
 
     /// <summary>
@@ -101,7 +136,7 @@ public sealed class CardPrinter
     /// <paramref name="filled"/>: false = beyaz zeminde tema renginde yazı, true = tema renginde zeminde beyaz yazı.
     /// </summary>
     public static void Draw(Graphics g, CardLayout layout, CardSpec card, Image? logo, string eventName, string? font, bool filled,
-                            bool fullWidth = false)
+                            bool fullWidth = false, float? bandPt = null)
     {
         var prevInterp = g.InterpolationMode;
         var prevSmooth = g.SmoothingMode;
@@ -117,16 +152,24 @@ public sealed class CardPrinter
         if (filled)
             using (var b = new SolidBrush(card.Color)) g.FillRectangle(b, layout.BandRect);
         var box = layout.BandTextRect;
-        CardLayout.DrawLines(g, CardLayout.Fit(card.Category, box, 230, font, 14, layout.Landscape ? 2 : 3), box,
-                             filled ? Color.White : card.Color, font);
+        var fit = bandPt is float pt ? CardLayout.FitAt(card.Category, box, pt, font, MaxBandLines)
+                                     : CardLayout.Fit(card.Category, box, MaxBandPt, font, 14, MaxBandLines);
+        CardLayout.DrawLines(g, fit, box, filled ? Color.White : card.Color, font);
         g.InterpolationMode = prevInterp;
         g.SmoothingMode = prevSmooth;
     }
+
+    private const float MaxBandPt = 230;
+    private const int MaxBandLines = 3;
+
+    /// <summary>Kategori adları için ortak punto: hepsinin sığdığı en büyük.</summary>
+    public static float CommonBandPt(CardLayout layout, IEnumerable<string> categories, string? font)
+        => CardLayout.CommonPt(categories, layout.BandTextRect, MaxBandPt, font, 14, MaxBandLines);
 
     // ================= PDF =================
     public void SavePdf(string path)
     {
         using var logo = LoadLogo(_logoPath);
-        GdiPdf.Save(path, _pages, _layout.PageW, _layout.PageH, (g, card) => Draw(g, _layout, card, logo, _eventName, _font, _filled, _fullWidth));
+        GdiPdf.Save(path, _pages, _layout.PageW, _layout.PageH, (g, card) => Draw(g, _layout, card, logo, _eventName, _font, _filled, _fullWidth, _bandPt));
     }
 }

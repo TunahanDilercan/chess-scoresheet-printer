@@ -54,7 +54,7 @@ public sealed class SheetPrinter
     public bool PrintWithPreview(IWin32Window owner)
     {
         using var doc = BuildDocument();
-        // Sessiz yazdırma: önizleme ve yazıcı penceresi açılmadan hedef yazıcıya.
+        // Doğrudan yazdır: önizleme ve yazıcı penceresi açılmadan hedef yazıcıya.
         if (PrintRouter.IsSilent) return ChoosePrinterAndPrint(doc, owner);
         return PreviewDialog.Show(owner, doc, PageCount,
             $"{PageCount} sayfa • {_pageSize} • soluk kağıt yalnız önizlemededir, basılmaz",
@@ -185,6 +185,19 @@ public sealed class SheetPrinter
         if (_bgs.TryGetValue(path, out var cached)) return cached;
         Image? img = null;
         try { if (File.Exists(path)) img = Image.FromFile(path); } catch { img = null; }
+        // Önizlemede soluk kağıt ekran çözünürlüğüne küçültülür: her sayfada tam boy görseli yeniden
+        // ölçeklemek "Generating preview" süresini uzatıyordu.
+        if (_preview && img is not null && img.Width > 1400)
+        {
+            var small = new Bitmap(1400, (int)(img.Height * 1400.0 / img.Width));
+            using (var g = Graphics.FromImage(small))
+            {
+                g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBilinear;
+                g.DrawImage(img, 0, 0, small.Width, small.Height);
+            }
+            img.Dispose();
+            img = small;
+        }
         _bgs[path] = img;
         return img;
     }

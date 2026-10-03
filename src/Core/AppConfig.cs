@@ -52,7 +52,7 @@ public sealed class AppConfig
     /// <summary>Hakem yaka kartları.</summary>
     public BadgeConfig Badges { get; set; } = new();
 
-    /// <summary>Yazıcı: hedef yazıcı, tepsi, kopya ve sessiz yazdırma.</summary>
+    /// <summary>Yazıcı: hedef yazıcı, tepsi, kopya, yazıcı tercihleri ve doğrudan yazdırma.</summary>
     public PrintConfig Printing { get; set; } = new();
 
     /// <summary>Pairing'in sistemine göre basılacak şablon (eşleme yoksa etkin şablon).</summary>
@@ -161,7 +161,7 @@ public sealed class CardConfig
     /// <summary>Kategori tnr → tema rengi ("#RRGGBB"). Atanan renk kalıcıdır; aynı kategori hep aynı renkte basılır.</summary>
     public Dictionary<string, string> CategoryColors { get; set; } = new();
 
-    /// <summary>Kart yazı tipi (gömülü: "DejaVu Sans", "Montserrat", "Oswald", "Inter").</summary>
+    /// <summary>Kart yazı tipi (gömülü: "Montserrat", "Oswald", "Inter", "DejaVu Sans").</summary>
     public string FontName { get; set; } = "Montserrat";
 
     /// <summary>Kart yönü: yatay (varsayılan) ya da dikey A4.</summary>
@@ -169,9 +169,6 @@ public sealed class CardConfig
 
     /// <summary>Afiş üst alanın tüm genişliğine (kenardan kenara) yayılsın; oran korunur, taşan kısım kırpılır.</summary>
     public bool LogoFullWidth { get; set; }
-
-    /// <summary>Kullanıcının kendi eklediği yazı tipi dosyaları (exe yanındaki fonts klasöründe; programla dağıtılmaz).</summary>
-    public List<string> UserFonts { get; set; } = new();
 
     /// <summary>Yazıcıda birbirinden net ayrılan temel renkler (otomatik atama sırası).</summary>
     public static readonly string[] Palette =
@@ -297,7 +294,7 @@ public sealed class BadgeConfig
     public Dictionary<string, string> Grades { get; set; } = new();
 }
 
-/// <summary>Yazıcı ve sessiz yazdırma ayarları.</summary>
+/// <summary>Yazıcı ayarları: hedef, tepsi, kopya, yazıcının kendi tercihleri (sessiz mod vb.) ve doğrudan yazdırma.</summary>
 public sealed class PrintConfig
 {
     /// <summary>Hedef yazıcı (boş = Windows varsayılan yazıcısı).</summary>
@@ -309,6 +306,12 @@ public sealed class PrintConfig
     /// <summary>Her baskı işinin kopya sayısı (notasyon nüshası bundan ayrıdır).</summary>
     public int Copies { get; set; } = 1;
 
-    /// <summary>Açıksa yazdırma penceresi ve önizleme açılmadan doğrudan hedef yazıcıya gönderilir.</summary>
+    /// <summary>Doğrudan yazdır: önizleme ve yazdırma penceresi açılmadan hedef yazıcıya gönderilir.</summary>
     public bool Silent { get; set; }
+
+    /// <summary>
+    /// Yazıcı adı → yazıcının kendi tercihleri (DEVMODE, base64): sessiz mod, kalite, tepsi gibi üreticiye
+    /// özel ayarlar. Ayarlar → "Yazıcı tercihleri…" ile seçilir, her baskıda uygulanır.
+    /// </summary>
+    public Dictionary<string, string> DevModes { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
