@@ -1,3 +1,4 @@
+using NotasyonOtomasyonu.Online;
 using NotasyonOtomasyonu.App.Overlay;
 using NotasyonOtomasyonu.Core;
 
@@ -16,6 +17,16 @@ public sealed class SettingsForm : Form
     private readonly NumericUpDown _offX = MmBox();
     private readonly NumericUpDown _offY = MmBox();
     private readonly Dictionary<string, ComboBox> _systemTemplate = new();
+
+    // Sağ sütun: bölge (varsayılan il, TSF sitesi) ve yazıcı
+    private readonly ComboBox _province = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly TextBox _tsfSite = new();
+    private readonly ComboBox _printer = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly ComboBox _tray = new() { DropDownStyle = ComboBoxStyle.DropDownList };
+    private readonly NumericUpDown _copies = new() { Minimum = 1, Maximum = 20, Value = 1 };
+    private readonly ToggleSwitch _silent = new() { Text = "Sessiz yazdırma (pencere açmadan doğrudan bas)" };
+    private const string DefaultPrinterItem = "(Windows varsayılan yazıcısı)";
+    private const string AutoTrayItem = "(otomatik)";
 
     private const string ActiveTemplateItem = "(etkin şablon)";
     private static readonly (string Key, string Label)[] SystemRows =
@@ -108,8 +119,10 @@ public sealed class SettingsForm : Form
         });
         y += 44;
 
+        y = Math.Max(y, BuildRightColumn());
+
         // Credit
-        var sep = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new System.Drawing.Point(16, y), Size = new System.Drawing.Size(408, 2) };
+        var sep = new Label { BorderStyle = BorderStyle.Fixed3D, Location = new System.Drawing.Point(16, y), Size = new System.Drawing.Size(848, 2) };
         Controls.Add(sep); y += 8;
         // İmza: adın kendisi GitHub sayfasına götürür (adres metni gösterilmez).
         const string author = "Tunahan Dilercan";
@@ -136,16 +149,87 @@ public sealed class SettingsForm : Form
 
         var ok = new Button { Text = "Kaydet", DialogResult = DialogResult.OK, Size = new System.Drawing.Size(100, 32) };
         var cancel = new Button { Text = "Vazgeç", DialogResult = DialogResult.Cancel, Size = new System.Drawing.Size(100, 32) };
-        ok.Location = new System.Drawing.Point(218, y);
-        cancel.Location = new System.Drawing.Point(326, y);
+        ok.Location = new System.Drawing.Point(658, y);
+        cancel.Location = new System.Drawing.Point(766, y);
         ok.Click += (_, _) => WriteBack();
         Controls.Add(ok);
         Controls.Add(cancel);
         AcceptButton = ok;
         CancelButton = cancel;
-        ClientSize = new System.Drawing.Size(440, y + 46);
+        ClientSize = new System.Drawing.Size(880, y + 46);
 
         LoadFrom();
+    }
+
+    // ================= Sağ sütun =================
+    private const int RX = 456, RW = 408;
+
+    private Label Section(string text, int y) => new()
+    {
+        Text = text, AutoSize = true, Location = new System.Drawing.Point(RX, y),
+        Font = new System.Drawing.Font("Segoe UI", 9.75F, System.Drawing.FontStyle.Bold),
+        ForeColor = System.Drawing.Color.FromArgb(95, 122, 70)
+    };
+
+    private void RightRow(string label, Control input, ref int y)
+    {
+        Controls.Add(new Label { Text = label, AutoSize = true, Location = new System.Drawing.Point(RX, y + 4) });
+        input.SetBounds(RX + 134, y, RW - 134, 25);
+        Controls.Add(input);
+        y += 34;
+    }
+
+    private Label Note(string text, int y, int h) => new()
+    {
+        Text = text, AutoSize = false, Size = new System.Drawing.Size(RW, h), Location = new System.Drawing.Point(RX, y),
+        ForeColor = System.Drawing.Color.Gray
+    };
+
+    /// <summary>Bölge ve yazıcı ayarları; sütunun alt y'sini döndürür.</summary>
+    private int BuildRightColumn()
+    {
+        int y = 16;
+        Controls.Add(Section("Bölge", y)); y += 24;
+        _province.Items.AddRange(Provinces.List);
+        RightRow("Varsayılan il:", _province, ref y);
+        RightRow("TSF il sitesi:", _tsfSite, ref y);
+        var open = new LinkLabel { Text = "Siteyi aç", AutoSize = true, Location = new System.Drawing.Point(RX + 134, y - 6) };
+        open.LinkClicked += (_, _) =>
+        {
+            var url = _tsfSite.Text.Trim();
+            if (url.StartsWith("http")) try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true }); } catch { }
+        };
+        Controls.Add(open);
+        y += 16;
+        Controls.Add(Note("Program açılınca bu ilin en güncel turnuvası açılır. Yönerge/Tutanak penceresi ilin TSF sitesindeki " +
+                          "yönergeyi bulup bilgilerini (son başvuru, iletişim, program saatleri) kullanır.", y, 54));
+        y += 62;
+        _province.SelectedIndexChanged += (_, _) => _tsfSite.Text = TsfSites.SiteFor(_province.SelectedItem as string, _cfg.TsfSites) ?? "";
+
+        Controls.Add(Section("Yazıcı", y)); y += 24;
+        RightRow("Hedef yazıcı:", _printer, ref y);
+        RightRow("Kağıt kaynağı:", _tray, ref y);
+        _copies.Width = 70;
+        RightRow("Kopya sayısı:", _copies, ref y);
+        _copies.Width = 70;
+        _silent.SetBounds(RX, y, RW, 28);
+        Controls.Add(_silent);
+        y += 34;
+        Controls.Add(Note("Sessiz yazdırma açıkken Yazdır'a ve hızlı erişim düğmelerine basınca önizleme ve yazıcı penceresi " +
+                          "açılmaz; baskı doğrudan hedef yazıcıya, seçili tepsiden gider. Kopya sayısı her baskı işine uygulanır " +
+                          "(notasyon nüshası ana penceredeki \"Nüsha\" ile ayrıca belirlenir).", y, 72));
+        y += 80;
+        _printer.SelectedIndexChanged += (_, _) => FillTrays(null);
+        return y;
+    }
+
+    private void FillTrays(string? select)
+    {
+        var printer = _printer.SelectedItem as string;
+        _tray.Items.Clear();
+        _tray.Items.Add(AutoTrayItem);
+        foreach (var s in PrintRouter.PaperSources(printer == DefaultPrinterItem ? null : printer)) _tray.Items.Add(s);
+        _tray.SelectedItem = select is not null && _tray.Items.Contains(select) ? select : AutoTrayItem;
     }
 
     private static NumericUpDown MmBox() => new()
@@ -203,6 +287,17 @@ public sealed class SettingsForm : Form
         _pageSize.SelectedIndex = NotasyonOtomasyonu.Core.PageGeometry.IsA5(_cfg.Layout.PageSize) ? 0 : 1;
         _offX.Value = Clamp(_cfg.Layout.PrintOffsetXmm, _offX);
         _offY.Value = Clamp(_cfg.Layout.PrintOffsetYmm, _offY);
+
+        _province.SelectedItem = _province.Items.Contains(_cfg.Online.Province) ? _cfg.Online.Province : Provinces.All;
+        _tsfSite.Text = TsfSites.SiteFor(_province.SelectedItem as string, _cfg.TsfSites) ?? "";
+        _printer.Items.Clear();
+        _printer.Items.Add(DefaultPrinterItem);
+        foreach (var p in PrintRouter.InstalledPrinters()) _printer.Items.Add(p);
+        var pc = _cfg.Printing;
+        _printer.SelectedItem = pc.PrinterName is { } pn && _printer.Items.Contains(pn) ? pn : DefaultPrinterItem;
+        FillTrays(pc.PaperSource);
+        _copies.Value = Math.Clamp(pc.Copies, 1, 20);
+        _silent.Checked = pc.Silent;
         FillSystemCombos();
     }
 
@@ -215,6 +310,23 @@ public sealed class SettingsForm : Form
         _cfg.Layout.PageSize = _pageSize.SelectedIndex == 0 ? "A5" : "A4";
         _cfg.Layout.PrintOffsetXmm = (double)_offX.Value;
         _cfg.Layout.PrintOffsetYmm = (double)_offY.Value;
+
+        if (_province.SelectedItem is string prov)
+        {
+            _cfg.Online.Province = prov;
+            // TSF sitesi elle değiştirildiyse il için kaydedilir; gömülü adrese dönüldüyse kayıt silinir.
+            var url = _tsfSite.Text.Trim().TrimEnd('/');
+            if (prov != Provinces.All)
+            {
+                if (url.Length == 0 || url == TsfSites.SiteFor(prov)) _cfg.TsfSites.Remove(prov);
+                else _cfg.TsfSites[prov] = url;
+            }
+        }
+        var pc = _cfg.Printing;
+        pc.PrinterName = _printer.SelectedItem is string p && p != DefaultPrinterItem ? p : null;
+        pc.PaperSource = _tray.SelectedItem is string t && t != AutoTrayItem ? t : null;
+        pc.Copies = (int)_copies.Value;
+        pc.Silent = _silent.Checked;
         foreach (var (key, cbo) in _systemTemplate)
         {
             if (cbo.SelectedItem is string name && name != ActiveTemplateItem) _cfg.TemplateBySystem[key] = name;

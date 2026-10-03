@@ -1,3 +1,4 @@
+using System.IO.Compression;
 using System.Globalization;
 using NotasyonOtomasyonu.Core;
 using NotasyonOtomasyonu.Online;
@@ -15,8 +16,10 @@ public sealed record CardsContext(
     string OutputDir);
 
 /// <summary>
-/// Kategori masa kartları: her kategori kendi (kalıcı) renginde, üstte turnuva afişi, altta büyük
-/// kategori adı. Adet varsayılan olarak kategorideki masa sayısıdır; yeniden basım için değiştirilebilir.
+/// Kategori masa kartları: her kategorinin tek bir (kalıcı) tema rengi vardır; kart stili ya beyaz
+/// zeminde tema renginde yazı ya da tema renginde zeminde beyaz yazıdır. Üstte turnuva afişi (oranı
+/// korunur, kırpma aracıyla yuvaya göre kırpılabilir), altta büyük kategori adı. Adet varsayılan
+/// olarak kategorideki masa sayısıdır.
 /// </summary>
 public sealed class CardsForm : Form
 {
@@ -26,18 +29,30 @@ public sealed class CardsForm : Form
     private static readonly CultureInfo Tr = new("tr-TR");
 
     private readonly CardsContext _ctx;
+    private CardConfig Cfg => _ctx.Config.Cards;
     private readonly HashSet<int> _countEdited = new();   // kullanıcının adedini elle değiştirdiği satırlar
+    private int _countsPending;                           // masa sayısı henüz gelmemiş kategori sayısı
+    private bool _initializing = true;
 
-    private readonly PictureBox _picLogo = new() { Width = 270, Height = 170, SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.White };
-    private readonly Button _btnLogo = new() { Text = "🖼 Afiş / logo seç…", AutoSize = true, Height = 32 };
+    private readonly PictureBox _picLogo = new() { Width = 270, Height = 120, SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.White };
+    private readonly Button _btnLogo = new() { Text = "🖼 Afiş seç…", AutoSize = true, Height = 32 };
+    private readonly Button _btnCrop = new() { Text = "✂ Kırp…", AutoSize = true, Height = 32 };
     private readonly Button _btnLogoClear = new() { Text = "Kaldır", AutoSize = true, Height = 32 };
-    private readonly PictureBox _picPreview = new() { Width = 210, Height = 297, SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.White };
+    private readonly PictureBox _picPreview = new() { SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill };
     private readonly DataGridView _grid = new();
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray };
     private readonly Button _btnPdf = new() { Text = "📄 PDF Kaydet", Width = 150, Height = 40 };
     private readonly Button _btnPrint = new() { Text = "🖨 Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White };
     private readonly Button _btnAll = new() { Text = "Tümünü seç", AutoSize = true, Height = 40 };
     private readonly Button _btnNone = new() { Text = "Hiçbiri", AutoSize = true, Height = 40 };
+    private readonly ComboBox _cboFont = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+    private readonly RadioButton _rbLandscape = new() { Text = "Yatay", AutoSize = true };
+    private readonly RadioButton _rbPortrait = new() { Text = "Dikey", AutoSize = true };
+    private readonly CheckBox _chkFullWidth = new() { Text = "Afişi tam genişliğe yay (kenardan kenara)", AutoSize = true };
+    private readonly Button _btnAddFont = new() { Text = "+", Width = 30, Height = 27 };
+    private readonly LinkLabel _lnkSatoshi = new() { Text = "Satoshi'yi indir ve ekle (Fontshare)", AutoSize = true };
+    private readonly RadioButton _rbTextColored = new() { Text = "Yazı renkli / beyaz zemin", AutoSize = true };
+    private readonly RadioButton _rbFilled = new() { Text = "Zemin renkli / beyaz yazı", AutoSize = true };
 
     public CardsForm(CardsContext ctx)
     {
@@ -45,47 +60,88 @@ public sealed class CardsForm : Form
         Text = "Kategori Masa Kartları — " + EventGrouping.BaseName(ctx.EventName);
         Font = new Font("Segoe UI", 9.75f);
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(1000, 680);
-        MinimumSize = new Size(820, 560);
+        Size = new Size(1000, 720);
+        MinimumSize = new Size(820, 600);
         BackColor = Color.FromArgb(250, 250, 247);
 
         BuildLayout();
+
+        // Kalıcı seçimler önizleme çizilmeden ÖNCE yüklenir: aksi hâlde ilk çizim yön/stil seçilmemişken
+        // (ikisi de kapalı → dikey) yapılıyordu ve yön ancak seçim değiştirilince düzeliyordu.
+        // Kullanıcının eklediği yazı tipleri (exe yanındaki fonts klasöründen)
+        foreach (var f in Cfg.UserFonts.ToList())
+            if (!File.Exists(f) || CardFonts.RegisterUserFont(f) is null) Cfg.UserFonts.Remove(f);
+        FillFonts(Cfg.FontName);
+        _chkFullWidth.Checked = Cfg.LogoFullWidth;
+        (Cfg.Landscape ? _rbLandscape : _rbPortrait).Checked = true;
+        (Cfg.FilledBand ? _rbFilled : _rbTextColored).Checked = true;
+
         LoadLogo();
         FillGrid();
+        UpdatePrintButton();
+        _initializing = false;
+        UpdatePreview();
 
+        _cboFont.SelectedIndexChanged += (_, _) => { Cfg.FontName = (string)_cboFont.SelectedItem!; _ctx.SaveConfig(); UpdatePreview(); };
+        _rbLandscape.CheckedChanged += (_, _) => { Cfg.Landscape = _rbLandscape.Checked; _ctx.SaveConfig(); UpdatePreview(); };
+        _rbFilled.CheckedChanged += (_, _) => { Cfg.FilledBand = _rbFilled.Checked; _ctx.SaveConfig(); UpdatePreview(); };
+        _chkFullWidth.CheckedChanged += (_, _) => { Cfg.LogoFullWidth = _chkFullWidth.Checked; _ctx.SaveConfig(); UpdatePreview(); };
+        _btnAddFont.Click += (_, _) => AddFont();
+        _lnkSatoshi.LinkClicked += async (_, _) => await DownloadSatoshiAsync();
         _btnLogo.Click += (_, _) => ChooseLogo();
-        _btnLogoClear.Click += (_, _) => { _ctx.Config.Cards.LogoPath = null; _ctx.SaveConfig(); LoadLogo(); UpdatePreview(); };
+        _btnCrop.Click += (_, _) => CropLogo();
+        _btnLogoClear.Click += (_, _) => { Cfg.LogoPath = null; Cfg.LogoSourcePath = null; _ctx.SaveConfig(); LoadLogo(); UpdatePreview(); };
         _btnAll.Click += (_, _) => SetAll(true);
         _btnNone.Click += (_, _) => SetAll(false);
         _btnPrint.Click += (_, _) => Print();
         _btnPdf.Click += (_, _) => SavePdf();
-        Shown += async (_, _) => await LoadCountsAsync();
+        Shown += async (_, _) =>
+        {
+            try { await LoadCountsAsync(); }
+            catch (Exception ex) { _countsPending = 0; _lblStatus.Text = "Masa sayıları alınamadı: " + ex.Message; }
+        };
     }
 
     // ================= Yerleşim =================
     private void BuildLayout()
     {
-        // Sol sütun: üstte logo ayarları (sabit), altta kalan yüksekliği dolduran kart önizlemesi.
-        var leftHost = new Panel { Dock = DockStyle.Left, Width = 300 };
+        // Sol sütun: üstte afiş ve kart ayarları, altta kalan yüksekliği dolduran kart önizlemesi.
+        var leftHost = new Panel { Dock = DockStyle.Left, Width = 310 };
         var left = new FlowLayoutPanel
         {
             Dock = DockStyle.Top, AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false,
             Padding = new Padding(14, 12, 8, 0)
         };
-        left.Controls.Add(new Label { Text = "Turnuva afişi / logosu", AutoSize = true, Font = new Font(Font, FontStyle.Bold), ForeColor = GreenDark });
+        left.Controls.Add(Header("Turnuva afişi / logosu", 0));
         left.Controls.Add(_picLogo);
         var logoButtons = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 6, 0, 0) };
-        logoButtons.Controls.AddRange(new Control[] { _btnLogo, _btnLogoClear });
+        logoButtons.Controls.AddRange(new Control[] { _btnLogo, _btnCrop, _btnLogoClear });
         left.Controls.Add(logoButtons);
+        left.Controls.Add(_chkFullWidth);
         left.Controls.Add(new Label
         {
-            AutoSize = false, Width = 270, Height = 36, ForeColor = Color.Gray,
-            Text = "Kartın üstüne oranı korunarak basılır. Seçilmezse turnuva adı yazılır."
+            AutoSize = false, Width = 280, Height = 54, ForeColor = Color.Gray,
+            Text = "Oranı korunarak basılır; \"Kırp\" ile yuvaya göre kırpabilirsiniz. Seçilmezse turnuva adı yazılır."
         });
-        left.Controls.Add(new Label { Text = "Önizleme (seçili kategori)", AutoSize = true, Font = new Font(Font, FontStyle.Bold), ForeColor = GreenDark, Margin = new Padding(0, 8, 0, 4) });
+        var fontRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 4, 0, 0) };
+        fontRow.Controls.Add(new Label { Text = "Yazı tipi:", AutoSize = true, Margin = new Padding(0, 7, 6, 0) });
+        fontRow.Controls.Add(_cboFont);
+        _btnAddFont.Margin = new Padding(4, 1, 0, 0);
+        fontRow.Controls.Add(_btnAddFont);
+        left.Controls.Add(fontRow);
+        _lnkSatoshi.Margin = new Padding(66, 0, 0, 2);
+        left.Controls.Add(_lnkSatoshi);
+        var orientRow = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(0, 2, 0, 0) };
+        orientRow.Controls.Add(new Label { Text = "Kağıt yönü:", AutoSize = true, Margin = new Padding(0, 5, 6, 0) });
+        orientRow.Controls.AddRange(new Control[] { _rbLandscape, _rbPortrait });
+        left.Controls.Add(orientRow);
+        left.Controls.Add(Header("Kart stili (tema rengiyle)", 6));
+        // Stil seçenekleri ayrı bir kapta: yön düğmeleriyle aynı grupta olmasınlar.
+        var styleBox = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0) };
+        styleBox.Controls.AddRange(new Control[] { _rbTextColored, _rbFilled });
+        left.Controls.Add(styleBox);
+        left.Controls.Add(Header("Önizleme (seçili kategori)", 8));
         var previewHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14, 0, 8, 10) };
-        _picPreview.Dock = DockStyle.Fill;
-        _picPreview.BorderStyle = BorderStyle.None;
         _picPreview.BackColor = BackColor;
         previewHost.Controls.Add(_picPreview);
         leftHost.Controls.Add(previewHost); // Fill önce
@@ -102,7 +158,7 @@ public sealed class CardsForm : Form
         _grid.GridColor = Color.FromArgb(230, 230, 222);
         _grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Bas", HeaderText = "Bas", Width = 44 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Kategori", HeaderText = "Kartta yazacak ad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
-        _grid.Columns.Add(new DataGridViewButtonColumn { Name = "Renk", HeaderText = "Renk (değiştir)", Width = 130, FlatStyle = FlatStyle.Flat });
+        _grid.Columns.Add(new DataGridViewButtonColumn { Name = "Renk", HeaderText = "Tema rengi", Width = 120, FlatStyle = FlatStyle.Flat });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Adet", HeaderText = "Adet", Width = 70 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Masa", HeaderText = "Masa sayısı", Width = 100, ReadOnly = true });
         _grid.Columns["Adet"]!.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -116,9 +172,10 @@ public sealed class CardsForm : Form
         _grid.CellValueChanged += (_, e) =>
         {
             if (e.RowIndex < 0) return;
-            if (_grid.Columns[e.ColumnIndex].Name == "Adet") _countEdited.Add(e.RowIndex);
+            var col = _grid.Columns[e.ColumnIndex].Name;
+            if (col == "Adet") _countEdited.Add(e.RowIndex);
             UpdateSummary();
-            UpdatePreview();
+            if (col == "Kategori") UpdatePreview(); // adet/masa sayısı kartın görünüşünü değiştirmez
         };
         _grid.CellValidating += (_, e) =>
         {
@@ -136,7 +193,7 @@ public sealed class CardsForm : Form
         {
             Dock = DockStyle.Top, Height = 44, ForeColor = Color.DimGray,
             Text = "Adet, kategorideki masa sayısı kadar önerilir (yeniden basım için değiştirebilirsiniz). " +
-                   "Her kategoriye otomatik ayrı bir renk atanır ve hatırlanır; değiştirmek için renge tıklayın."
+                   "Her kategoriye otomatik ayrı bir tema rengi atanır ve hatırlanır; değiştirmek için renge tıklayın."
         };
         gridPanel.Controls.Add(_grid);
         gridPanel.Controls.Add(hint);
@@ -150,13 +207,19 @@ public sealed class CardsForm : Form
         bottom.Controls.Add(bl);
         bottom.Controls.Add(br);
 
-        foreach (var b in new[] { _btnLogo, _btnLogoClear, _btnPdf, _btnPrint, _btnAll, _btnNone }) Style(b);
+        foreach (var b in new[] { _btnLogo, _btnCrop, _btnLogoClear, _btnPdf, _btnPrint, _btnAll, _btnNone, _btnAddFont }) Style(b);
+        new ToolTip().SetToolTip(_btnAddFont, "Kendi indirdiğiniz yazı tipini (.ttf) ekleyin — ör. Fontshare'den Satoshi. Font yalnız bu bilgisayarda kalır.");
         _btnPrint.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
 
         Controls.Add(gridPanel);
         Controls.Add(leftHost);
         Controls.Add(bottom);
     }
+
+    private Label Header(string text, int top) => new()
+    {
+        Text = text, AutoSize = true, Font = new Font(Font, FontStyle.Bold), ForeColor = GreenDark, Margin = new Padding(0, top, 0, 4)
+    };
 
     private static void Style(Button b)
     {
@@ -169,6 +232,15 @@ public sealed class CardsForm : Form
         b.FlatAppearance.MouseOverBackColor = primary ? Color.FromArgb(134, 168, 100) : Color.FromArgb(236, 241, 231);
     }
 
+    private void UpdatePrintButton()
+    {
+        bool silent = Overlay.PrintRouter.IsSilent;
+        _btnPrint.Text = silent ? "🖨 Yazdır" : "🖨 Önizle ve Yazdır";
+        new ToolTip().SetToolTip(_btnPrint, silent
+            ? $"Sessiz yazdırma açık: doğrudan “{Overlay.PrintRouter.TargetName}” yazıcısına gönderilir (Ayarlar → Yazıcı)."
+            : "Önizleme açılır; oradan yazıcıya gönderilir.");
+    }
+
     // ================= Veri =================
     private void FillGrid()
     {
@@ -176,8 +248,8 @@ public sealed class CardsForm : Form
         bool assigned = false;
         foreach (var c in _ctx.Categories)
         {
-            assigned |= !_ctx.Config.Cards.CategoryColors.ContainsKey(c.Tnr.ToString());
-            var color = CardLayout.ParseColor(_ctx.Config.Cards.ColorFor(c.Tnr, tnrs), Color.Gray);
+            assigned |= !Cfg.CategoryColors.ContainsKey(c.Tnr.ToString());
+            var color = CardLayout.ParseColor(Cfg.ColorFor(c.Tnr, tnrs), Color.Gray);
             var label = EventGrouping.ShortCategory(c.Name).ToUpper(Tr);
             int i = _grid.Rows.Add(true, label, "", "…", "…");
             var row = _grid.Rows[i];
@@ -193,13 +265,9 @@ public sealed class CardsForm : Form
     {
         var cell = row.Cells["Renk"];
         cell.Value = CardLayout.ToHex(color);
-        cell.Style.BackColor = color;
-        cell.Style.SelectionBackColor = color;
-        cell.Style.ForeColor = CardLayout.TextColorFor(color);
-        cell.Style.SelectionForeColor = CardLayout.TextColorFor(color);
+        cell.Style.BackColor = cell.Style.SelectionBackColor = color;
+        cell.Style.ForeColor = cell.Style.SelectionForeColor = CardLayout.TextColorFor(color);
     }
-
-    private int _countsPending; // masa sayısı henüz gelmemiş kategori sayısı
 
     private async Task LoadCountsAsync()
     {
@@ -263,68 +331,193 @@ public sealed class CardsForm : Form
         };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         SetColorCell(row, dlg.Color);
-        _ctx.Config.Cards.CategoryColors[c.Tnr.ToString()] = CardLayout.ToHex(dlg.Color);
+        Cfg.CategoryColors[c.Tnr.ToString()] = CardLayout.ToHex(dlg.Color);
         _ctx.SaveConfig();
         UpdatePreview();
     }
 
-    // ================= Logo =================
+    // ================= Afiş / logo =================
+    private string CardsDir()
+    {
+        var dir = Path.Combine(_ctx.BaseDir, "cards");
+        Directory.CreateDirectory(dir);
+        return dir;
+    }
+
     private void ChooseLogo()
     {
         using var dlg = new OpenFileDialog { Title = "Turnuva afişi / logosu seç", Filter = "Resim (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp" };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         try
         {
-            using (var test = Image.FromFile(dlg.FileName)) { } // geçerli resim mi
-            // Kopyası exe yanında tutulur: asıl dosya taşınsa/silinse de kart basılabilsin.
-            var dir = Path.Combine(_ctx.BaseDir, "cards");
-            Directory.CreateDirectory(dir);
-            var dest = Path.Combine(dir, "logo_" + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(dlg.FileName).ToLowerInvariant());
-            File.Copy(dlg.FileName, dest, overwrite: true);
-            _ctx.Config.Cards.LogoPath = dest;
-            _ctx.SaveConfig();
-            LoadLogo();
-            UpdatePreview();
+            using (Image.FromFile(dlg.FileName)) { } // geçerli resim mi
+            // Asıl görselin kopyası exe yanında tutulur: dosya taşınsa da yeniden kırpılabilsin.
+            var src = Path.Combine(CardsDir(), "afis_asil_" + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(dlg.FileName).ToLowerInvariant());
+            File.Copy(dlg.FileName, src, overwrite: true);
+            Cfg.LogoSourcePath = src;
+            if (!CropLogo()) { Cfg.LogoPath = src; _ctx.SaveConfig(); LoadLogo(); UpdatePreview(); }
         }
         catch (Exception ex)
         {
-            MessageBox.Show(this, "Resim açılamadı: " + ex.Message, "Logo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "Resim açılamadı: " + ex.Message, "Afiş", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    /// <summary>Asıl afişi kırpma aracında açar; kırpılan görsel kartta kullanılır. false = vazgeçildi.</summary>
+    private bool CropLogo()
+    {
+        var srcPath = Cfg.LogoSourcePath is { } s && File.Exists(s) ? s : Cfg.LogoPath;
+        if (string.IsNullOrWhiteSpace(srcPath) || !File.Exists(srcPath))
+        {
+            _lblStatus.Text = "Önce bir afiş seçin.";
+            return false;
+        }
+        using var src = LoadBitmap(srcPath);
+        if (src is null) return false;
+        var slot = new CardLayout(_rbLandscape.Checked);
+        using var crop = new CropForm(src, _chkFullWidth.Checked ? slot.HeaderAspect : slot.LogoAspect);
+        if (crop.ShowDialog(this) != DialogResult.OK || crop.Result is null) return false;
+        using var result = crop.Result;
+        var dest = Path.Combine(CardsDir(), "afis_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png");
+        result.Save(dest, System.Drawing.Imaging.ImageFormat.Png);
+        Cfg.LogoPath = dest;
+        _ctx.SaveConfig();
+        LoadLogo();
+        UpdatePreview();
+        return true;
+    }
+
+    // ================= Yazı tipleri =================
+    private void FillFonts(string? select)
+    {
+        _cboFont.Items.Clear();
+        foreach (var n in CardFonts.Names) _cboFont.Items.Add(n);
+        _cboFont.SelectedItem = select is not null && _cboFont.Items.Contains(select) ? select : CardFonts.Default;
+    }
+
+    /// <summary>
+    /// Kullanıcının indirdiği yazı tipini ekler (exe yanındaki fonts klasörüne kopyalanır). Fontshare
+    /// fontları (Satoshi vb.) lisansları gereği programla dağıtılmaz; her kullanıcı kendi kopyasını ekler.
+    /// </summary>
+    private void AddFont()
+    {
+        using var dlg = new OpenFileDialog
+        {
+            Title = "Yazı tipi ekle (ör. Satoshi-Bold.ttf)",
+            Filter = "TrueType yazı tipi (*.ttf)|*.ttf|Tüm yazı tipleri (*.ttf;*.otf)|*.ttf;*.otf"
+        };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        var dir = Path.Combine(_ctx.BaseDir, "fonts");
+        Directory.CreateDirectory(dir);
+        var dest = Path.Combine(dir, Path.GetFileName(dlg.FileName));
+        try
+        {
+            if (!string.Equals(Path.GetFullPath(dlg.FileName), Path.GetFullPath(dest), StringComparison.OrdinalIgnoreCase))
+                File.Copy(dlg.FileName, dest, overwrite: true);
+        }
+        catch (IOException) { dest = dlg.FileName; } // kullanımda: yerinden kullan
+        var family = CardFonts.RegisterUserFont(dest);
+        if (family is null)
+        {
+            MessageBox.Show(this,
+                "Bu yazı tipi okunamadı.\n\nWindows'un çizim motoru bazı .otf (CFF) dosyalarını desteklemez; aynı fontun .ttf sürümünü seçin " +
+                "(Satoshi paketinde: Fonts\\WEB\\fonts\\Satoshi-Bold.ttf).", "Yazı tipi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (!Cfg.UserFonts.Contains(dest, StringComparer.OrdinalIgnoreCase)) Cfg.UserFonts.Add(dest);
+        Cfg.FontName = family;
+        _ctx.SaveConfig();
+        FillFonts(family);
+        UpdatePreview();
+        _lblStatus.Text = $"\"{family}\" yazı tipi eklendi.";
+    }
+
+    /// <summary>
+    /// Satoshi'yi Fontshare'in resmi sunucusundan bu bilgisayara indirip ekler. Lisansı (ITF Free Font
+    /// License) fontun programla dağıtılmasına izin vermediği için exe'de gömülü değildir; her kullanıcı
+    /// kendi kopyasını resmi kaynaktan alır. Lisans metni fontun yanına kaydedilir.
+    /// </summary>
+    private async Task DownloadSatoshiAsync()
+    {
+        if (CardFonts.Names.Contains("Satoshi")) { FillFonts("Satoshi"); Cfg.FontName = "Satoshi"; _ctx.SaveConfig(); UpdatePreview(); return; }
+        if (MessageBox.Show(this,
+                "Satoshi yazı tipi Fontshare'den (Indian Type Foundry) indirilecek ve yalnız bu bilgisayarda kullanılacak.\n\n" +
+                "Font ücretsizdir ancak ITF Free Font License kapsamındadır: kişisel ve ticari kullanım serbest; font dosyasının " +
+                "başkalarına dağıtılması yasaktır. Lisans metni fontun yanına kaydedilir.\n\nDevam edilsin mi?",
+                "Satoshi", MessageBoxButtons.YesNo, MessageBoxIcon.Information) != DialogResult.Yes) return;
+        _lblStatus.Text = "Satoshi indiriliyor…";
+        UseWaitCursor = true;
+        try
+        {
+            using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(60) };
+            http.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) ChessScoresheetPrinter");
+            var zipBytes = await http.GetByteArrayAsync("https://api.fontshare.com/v2/fonts/download/satoshi");
+            var dir = Path.Combine(_ctx.BaseDir, "fonts");
+            Directory.CreateDirectory(dir);
+            string? ttf = null;
+            using (var zip = new System.IO.Compression.ZipArchive(new MemoryStream(zipBytes)))
+            {
+                // Kalın statik TTF (GDI+ değişken fontların yalnız varsayılan kesimini çizer)
+                var entry = zip.Entries.FirstOrDefault(e => e.FullName.EndsWith("/Satoshi-Bold.ttf", StringComparison.OrdinalIgnoreCase))
+                            ?? zip.Entries.FirstOrDefault(e => e.FullName.EndsWith("Satoshi-Bold.otf", StringComparison.OrdinalIgnoreCase));
+                if (entry is null) throw new InvalidDataException("Pakette Satoshi-Bold bulunamadı.");
+                ttf = Path.Combine(dir, Path.GetFileName(entry.FullName));
+                entry.ExtractToFile(ttf, overwrite: true);
+                var lic = zip.Entries.FirstOrDefault(e => e.FullName.EndsWith("FFL.txt", StringComparison.OrdinalIgnoreCase));
+                lic?.ExtractToFile(Path.Combine(dir, "Satoshi-Lisans-FFL.txt"), overwrite: true);
+            }
+            var family = CardFonts.RegisterUserFont(ttf) ?? throw new InvalidDataException("Font yüklenemedi.");
+            if (!Cfg.UserFonts.Contains(ttf, StringComparer.OrdinalIgnoreCase)) Cfg.UserFonts.Add(ttf);
+            Cfg.FontName = family;
+            _ctx.SaveConfig();
+            FillFonts(family);
+            UpdatePreview();
+            _lblStatus.Text = "Satoshi eklendi ve seçildi.";
+        }
+        catch (Exception ex)
+        {
+            _lblStatus.Text = "Satoshi indirilemedi.";
+            MessageBox.Show(this, "Satoshi indirilemedi: " + (ex is HttpRequestException or TaskCanceledException ? "internet bağlantısını kontrol edin." : ex.Message) +
+                                  "\n\nFontshare.com'dan elle indirip \"+\" ile de ekleyebilirsiniz.", "Satoshi", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+        finally { UseWaitCursor = false; }
+    }
+
+    private static Bitmap? LoadBitmap(string path)
+    {
+        try { using var fs = File.OpenRead(path); using var img = Image.FromStream(fs); return new Bitmap(img); } // dosyayı kilitlemeden
+        catch { return null; }
     }
 
     private void LoadLogo()
     {
         _picLogo.Image?.Dispose();
         _picLogo.Image = null;
-        var path = _ctx.Config.Cards.LogoPath;
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return;
-        try
-        {
-            using var fs = File.OpenRead(path); // dosyayı kilitlemeden yükle
-            using var img = Image.FromStream(fs);
-            _picLogo.Image = new Bitmap(img);
-        }
-        catch { /* bozuk resim: logosuz */ }
+        if (!string.IsNullOrWhiteSpace(Cfg.LogoPath) && File.Exists(Cfg.LogoPath)) _picLogo.Image = LoadBitmap(Cfg.LogoPath);
+        _btnCrop.Enabled = _picLogo.Image is not null;
     }
 
     private void UpdatePreview()
     {
+        if (_initializing) return;
         var row = _grid.SelectedRows.Count > 0 ? _grid.SelectedRows[0] : (_grid.Rows.Count > 0 ? _grid.Rows[0] : null);
         if (row is null) return;
         var name = row.Cells["Kategori"].Value?.ToString() ?? "";
         var color = CardLayout.ParseColor(row.Cells["Renk"].Value?.ToString(), Color.Gray);
-        const float scale = 0.6f; // 595×842 pt → ~357×505 px
-        var bmp = new Bitmap((int)(CardLayout.PageW * scale), (int)(CardLayout.PageH * scale));
+        var layout = new CardLayout(_rbLandscape.Checked);
+        const float scale = 0.6f; // 842×595 pt → ~505×357 px
+        var bmp = new Bitmap((int)(layout.PageW * scale), (int)(layout.PageH * scale));
         using (var g = Graphics.FromImage(bmp))
         {
             g.Clear(Color.White);
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
             g.PageUnit = GraphicsUnit.Point;         // yazı puntoları baskıdakiyle aynı ölçülsün
             float k = scale * 72f / bmp.HorizontalResolution; // Point biriminde 1 pt = dpi/72 px → scale px olsun
             g.ScaleTransform(k, k);
-            CardPrinter.Draw(g, new CardSpec(name, color, 1), _picLogo.Image, EventGrouping.BaseName(_ctx.EventName));
+            CardPrinter.Draw(g, layout, new CardSpec(name, color, 1), _picLogo.Image,
+                             EventGrouping.BaseName(_ctx.EventName), _cboFont.SelectedItem as string, _rbFilled.Checked, _chkFullWidth.Checked);
+            using var pen = new Pen(Color.FromArgb(200, 200, 200), 1f / k);
+            g.DrawRectangle(pen, 0, 0, layout.PageW, layout.PageH); // beyaz zeminde kart kenarı görünsün
         }
         var old = _picPreview.Image;
         _picPreview.Image = bmp;
@@ -337,7 +530,8 @@ public sealed class CardsForm : Form
         _grid.EndEdit();
         var cards = Selected().ToList();
         if (cards.Count == 0) { _lblStatus.Text = "Basılacak kart seçilmedi."; return null; }
-        return new CardPrinter(cards, _ctx.Config.Cards.LogoPath, EventGrouping.BaseName(_ctx.EventName));
+        return new CardPrinter(cards, Cfg.LogoPath, EventGrouping.BaseName(_ctx.EventName),
+                               _cboFont.SelectedItem as string, _rbLandscape.Checked, _rbFilled.Checked, _chkFullWidth.Checked);
     }
 
     private void Print()

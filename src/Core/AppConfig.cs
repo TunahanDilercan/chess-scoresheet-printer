@@ -40,8 +40,20 @@ public sealed class AppConfig
     /// <summary>Yönerge/rapor sihirbazında verilen cevaplar (telefon, e-posta…); sonraki raporda önerilir.</summary>
     public Dictionary<string, string> ReportAnswers { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    /// <summary>Turnuva bazında son rapor/tutanak değerleri (etkinlik tnr → alan → değer); tutanağa aktarılır.</summary>
+    public Dictionary<string, Dictionary<string, string>> ReportEventValues { get; set; } = new();
+
+    /// <summary>TSF il sitesi adresini değiştirmek için (il → "https://…tsf.org.tr"); boşsa gömülü liste.</summary>
+    public Dictionary<string, string> TsfSites { get; set; } = new();
+
     /// <summary>Kategori masa kartları: afiş/logo ve kategori renkleri (kategori tnr → "#RRGGBB").</summary>
     public CardConfig Cards { get; set; } = new();
+
+    /// <summary>Hakem yaka kartları.</summary>
+    public BadgeConfig Badges { get; set; } = new();
+
+    /// <summary>Yazıcı: hedef yazıcı, tepsi, kopya ve sessiz yazdırma.</summary>
+    public PrintConfig Printing { get; set; } = new();
 
     /// <summary>Pairing'in sistemine göre basılacak şablon (eşleme yoksa etkin şablon).</summary>
     public OverlayTemplate TemplateFor(TournamentSystem system)
@@ -97,6 +109,7 @@ public sealed class AppConfig
         {
             // Kalıcı seçimler sınırsız büyümesin: en eski kayıtları at.
             while (Online.Selections.Count > 400) Online.Selections.Remove(Online.Selections.Keys.First());
+            while (ReportEventValues.Count > 40) ReportEventValues.Remove(ReportEventValues.Keys.First());
             var json = JsonSerializer.Serialize(this, JsonOpts);
             File.WriteAllText(path, json);
         }
@@ -133,11 +146,32 @@ public sealed class AppConfig
 /// <summary>Kategori masa kartları ayarları (kalıcı).</summary>
 public sealed class CardConfig
 {
-    /// <summary>Kartın üst bölümüne basılacak turnuva afişi/logosu (boş = turnuva adı yazılır).</summary>
+    /// <summary>Kartın üst bölümüne basılacak turnuva afişi/logosu (kırpılmış hâli; boş = turnuva adı yazılır).</summary>
     public string? LogoPath { get; set; }
 
-    /// <summary>Kategori tnr → renk ("#RRGGBB"). Atanan renk kalıcıdır; aynı kategori hep aynı renkte basılır.</summary>
+    /// <summary>Afişin kırpılmamış asıl hâli (yeniden kırpmak için).</summary>
+    public string? LogoSourcePath { get; set; }
+
+    /// <summary>
+    /// Kart stili: false = yazı tema renginde, zemin beyaz (varsayılan); true = alt bant tema renginde,
+    /// yazı beyaz.
+    /// </summary>
+    public bool FilledBand { get; set; }
+
+    /// <summary>Kategori tnr → tema rengi ("#RRGGBB"). Atanan renk kalıcıdır; aynı kategori hep aynı renkte basılır.</summary>
     public Dictionary<string, string> CategoryColors { get; set; } = new();
+
+    /// <summary>Kart yazı tipi (gömülü: "DejaVu Sans", "Montserrat", "Oswald", "Inter").</summary>
+    public string FontName { get; set; } = "Montserrat";
+
+    /// <summary>Kart yönü: yatay (varsayılan) ya da dikey A4.</summary>
+    public bool Landscape { get; set; } = true;
+
+    /// <summary>Afiş üst alanın tüm genişliğine (kenardan kenara) yayılsın; oran korunur, taşan kısım kırpılır.</summary>
+    public bool LogoFullWidth { get; set; }
+
+    /// <summary>Kullanıcının kendi eklediği yazı tipi dosyaları (exe yanındaki fonts klasöründe; programla dağıtılmaz).</summary>
+    public List<string> UserFonts { get; set; } = new();
 
     /// <summary>Yazıcıda birbirinden net ayrılan temel renkler (otomatik atama sırası).</summary>
     public static readonly string[] Palette =
@@ -238,4 +272,39 @@ public sealed class LayoutConfig
     /// Kullanıcı "Hariç Tut" ekranından seçer; kalıcıdır.
     /// </summary>
     public string ExcludedBoards { get; set; } = "";
+}
+
+/// <summary>Hakem yaka kartı ayarları.</summary>
+public sealed class BadgeConfig
+{
+    /// <summary>Kartın sol üstündeki resmi logo (boş = gömülü TSF/uygulama logosu yok, yalnız yazı).</summary>
+    public string? LogoPath { get; set; }
+
+    /// <summary>Kart ölçüsü: "85x54" (kredi kartı) ya da "90x60" milimetre.</summary>
+    public string Size { get; set; } = "85x54";
+
+    /// <summary>Kesim çizgileri ve köşe işaretleri basılsın mı.</summary>
+    public bool CropMarks { get; set; } = true;
+
+    /// <summary>Hakem adı (katlanmış) → vesikalık fotoğraf yolu.</summary>
+    public Dictionary<string, string> Photos { get; set; } = new();
+
+    /// <summary>Hakem adı (katlanmış) → elle seçilen unvan (chess-results'ta olmayan TSF dereceleri için).</summary>
+    public Dictionary<string, string> Grades { get; set; } = new();
+}
+
+/// <summary>Yazıcı ve sessiz yazdırma ayarları.</summary>
+public sealed class PrintConfig
+{
+    /// <summary>Hedef yazıcı (boş = Windows varsayılan yazıcısı).</summary>
+    public string? PrinterName { get; set; }
+
+    /// <summary>Kağıt kaynağı / tepsi adı (boş = yazıcının otomatik seçimi).</summary>
+    public string? PaperSource { get; set; }
+
+    /// <summary>Her baskı işinin kopya sayısı (notasyon nüshası bundan ayrıdır).</summary>
+    public int Copies { get; set; } = 1;
+
+    /// <summary>Açıksa yazdırma penceresi ve önizleme açılmadan doğrudan hedef yazıcıya gönderilir.</summary>
+    public bool Silent { get; set; }
 }

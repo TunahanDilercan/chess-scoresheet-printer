@@ -54,6 +54,8 @@ public sealed class SheetPrinter
     public bool PrintWithPreview(IWin32Window owner)
     {
         using var doc = BuildDocument();
+        // Sessiz yazdırma: önizleme ve yazıcı penceresi açılmadan hedef yazıcıya.
+        if (PrintRouter.IsSilent) return ChoosePrinterAndPrint(doc, owner);
         return PreviewDialog.Show(owner, doc, PageCount,
             $"{PageCount} sayfa • {_pageSize} • soluk kağıt yalnız önizlemededir, basılmaz",
             f => ChoosePrinterAndPrint(doc, f));
@@ -64,28 +66,23 @@ public sealed class SheetPrinter
     /// Seçilen yazıcı istenen kağıdı desteklemiyorsa kullanıcıyı uyarır.
     /// </summary>
     private bool ChoosePrinterAndPrint(PrintDocument doc, IWin32Window owner)
-    {
-        using var pd = new PrintDialog { Document = doc, UseEXDialog = true, AllowSomePages = false };
-        if (pd.ShowDialog(owner) != DialogResult.OK) return false;
-
-        // Diyalogda başka yazıcı seçilmiş olabilir: kağıt, o yazıcının listesinden seçilmeli.
-        var paper = FindPaper(doc);
-        if (paper is null)
+        => PrintRouter.Print(doc, owner, (d, o) =>
         {
-            var ans = MessageBox.Show(owner,
-                $"“{doc.PrinterSettings.PrinterName}” yazıcısı {_pageSize} kağıt boyutunu listelemiyor.\n\n" +
-                $"Yine de basılırsa yazılar {_pageSize} ölçüsüne göre sayfanın sol-üst köşesine yerleşir; " +
-                "hazır kağıtla hizalama kayabilir.\n\nDevam edilsin mi?",
-                "Kağıt boyutu", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-            if (ans != DialogResult.Yes) return false;
-        }
-        else doc.DefaultPageSettings.PaperSize = paper;
-        doc.DefaultPageSettings.Landscape = false;
-
-        doc.PrintController = new StandardPrintController(); // önizleme değil, gerçek baskı
-        doc.Print();
-        return true;
-    }
+            // Pencerede başka yazıcı seçilmiş olabilir: kağıt, o yazıcının listesinden seçilmeli.
+            var paper = FindPaper(d);
+            if (paper is null)
+            {
+                var ans = MessageBox.Show(o,
+                    $"“{d.PrinterSettings.PrinterName}” yazıcısı {_pageSize} kağıt boyutunu listelemiyor.\n\n" +
+                    $"Yine de basılırsa yazılar {_pageSize} ölçüsüne göre sayfanın sol-üst köşesine yerleşir; " +
+                    "hazır kağıtla hizalama kayabilir.\n\nDevam edilsin mi?",
+                    "Kağıt boyutu", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (ans != DialogResult.Yes) return false;
+            }
+            else d.DefaultPageSettings.PaperSize = paper;
+            d.DefaultPageSettings.Landscape = false;
+            return true;
+        });
 
     private PrintDocument BuildDocument()
     {

@@ -56,6 +56,7 @@ public partial class MainForm : Form
                 _unchecked[(c, r)] = boards.ToHashSet();
         }
         OverlayDefaults.EnsureDefaults(_config, baseDir); // Ana Örnek varsayılan şablonu hazırla
+        Overlay.PrintRouter.Config = _config.Printing;     // hedef yazıcı / tepsi / sessiz yazdırma
         ApplyConfigToUi();
 
         // Başlık çubuğundaki "⚙ Ayarlar" butonunu her boyutta sağ üste sabitle
@@ -69,7 +70,6 @@ public partial class MainForm : Form
 
         var tip = new ToolTip();
         tip.SetToolTip(btnSync, "Eşleştirmeleri yeniden çek (F5). Kategori/tur seçince zaten otomatik çekilir.");
-        tip.SetToolTip(btnPrint, "Önizleme açılır; oradan yazıcı seçip basılır (Ctrl+P).");
         tip.SetToolTip(btnPdf, "İşaretli masaları PDF olarak kaydedip açar.");
         tip.SetToolTip(numCopies, "Her masa için kaç kağıt (2 = iki oyuncuya birer notasyon).");
 
@@ -82,6 +82,7 @@ public partial class MainForm : Form
         ShowPairings(null);
 
         ApplyTheme(); // genel görsel cila (hover/flat, başlıklar, palet)
+        UpdatePrintButtonsForSilent();
 
         // İlk açılışta: hatırlanan turnuva varsa otomatik yükle + eşleştirmeleri çek.
         Shown += MainForm_Shown;
@@ -1095,7 +1096,7 @@ public partial class MainForm : Form
         else
         {
             lblSelection.Text = $"{n} / {total} masa işaretli • {sheets} kağıt";
-            btnPrint.Text = n > 0 ? $"🖨  Yazdır — {sheets} kağıt" : "🖨  Yazdır (masa seçilmedi)";
+            btnPrint.Text = n > 0 ? $"🖨  Yazdır — {sheets} kağıt" + (Overlay.PrintRouter.IsSilent ? " (doğrudan)" : "") : "🖨  Yazdır (masa seçilmedi)";
         }
     }
 
@@ -1216,6 +1217,10 @@ public partial class MainForm : Form
         using var dlg = new SettingsForm(_config);
         if (dlg.ShowDialog(this) == DialogResult.OK)
         {
+            Overlay.PrintRouter.Config = _config.Printing;
+            UpdatePrintButtonsForSilent();
+            if (cboProvince.Items.Contains(_config.Online.Province) && !Equals(cboProvince.SelectedItem, _config.Online.Province))
+                cboProvince.SelectedItem = _config.Online.Province; // Ayarlar'da değişen varsayılan il
             _config.Save(_configPath);
             UpdateInfoLabel();
             if (!_config.Overlay.IsConfigured)

@@ -64,7 +64,8 @@ internal static class PreviewDialog
 
         form.Controls.Add(preview); // Fill önce
         form.Controls.Add(bar);     // Top sonra
-        form.Shown += (_, _) => btnPrint.Focus();
+        // Sayfa ayarları (yön, kağıt) belgeye bağlandıktan sonra ilk çizim bunlarla yenilenir.
+        form.Shown += (_, _) => { preview.InvalidatePreview(); btnPrint.Focus(); };
         form.ShowDialog(owner);
         return printed;
     }

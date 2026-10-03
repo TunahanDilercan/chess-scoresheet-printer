@@ -11,10 +11,18 @@
   <ItemGroup>
     <!-- HTML ayrıştırma (MIT). chess-results sayfalarındaki iç içe tabloları sağlam okur. -->
     <PackageReference Include="AngleSharp" Version="1.5.0" />
+    <PackageReference Include="PdfPig" Version="0.1.16" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Core\Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 81 ilin TSF il temsilciliği siteleri (ayarlardan değiştirilebilir). -->
+    <EmbeddedResource Include="..\..\assets\tsf_il_siteleri.json">
+      <LogicalName>NotasyonOtomasyonu.Online.tsf_il_siteleri.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
 </Project>

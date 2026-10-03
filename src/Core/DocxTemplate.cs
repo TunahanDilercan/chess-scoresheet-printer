@@ -84,6 +84,12 @@ public static class DocxTemplate
                     else if (key.StartsWith("program.", StringComparison.OrdinalIgnoreCase)) prog = true;
                     else if (!fields.Contains(key, StringComparer.OrdinalIgnoreCase)) fields.Add(key);
                 }
+            // Word yer imleri ve içerik denetimleri (adı/etiketi alan anahtarı ya da bilinen etiket)
+            foreach (var (key, current) in Bookmarks(x).Select(b => (b.Key, b.Text)).Concat(ContentControls(x).Select(c => (c.Key, c.Text))))
+            {
+                if (!fields.Contains(key, StringComparer.OrdinalIgnoreCase)) fields.Add(key);
+                if (!existing.ContainsKey(key) && Regex.IsMatch(current, @"[\p{L}\d]{2,}")) existing[key] = current;
+            }
             foreach (var (key, cell) in LabelCells(x))
             {
                 if (!labels.Contains(key) && !fields.Contains(key, StringComparer.OrdinalIgnoreCase)) labels.Add(key);
@@ -112,6 +118,8 @@ public static class DocxTemplate
                     ExpandRows(x, "kategori.", data.Categories, mergeDateKey: null);
                     ExpandRows(x, "program.", data.Program, mergeDateKey: "tarih");
                     ReplaceTokens(x, data.Values);
+                    FillBookmarks(x, data.Values);
+                    FillContentControls(x, data.Values);
                     FillLabelCells(x, data.Values);
                     using var w = new StreamWriter(ws, new UTF8Encoding(false));
                     x.Save(w, SaveOptions.DisableFormatting);
@@ -204,6 +212,97 @@ public static class DocxTemplate
             if (!t.Value.Contains("{{")) continue;
             t.Value = Token.Replace(t.Value, m => values.TryGetValue(m.Groups[1].Value, out var v) ? v : "");
             Preserve(t);
+        }
+    }
+
+    // ================= Yer imleri / içerik denetimleri =================
+
+    /// <summary>
+    /// Yer imi ya da içerik denetimi adından alan anahtarı: "TURNUVA_ADI", "turnuva_adi" → TURNUVA_ADI;
+    /// "İli", "Başhakem" gibi etiketler etiket tablosundan; Word'ün iç yer imleri ("_GoBack") yok sayılır.
+    /// </summary>
+    public static string? KeyFor(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name) || name.StartsWith('_')) return null;
+        var f = Fold(name.Replace('_', ' ')).Trim(' ', ':');
+        if (LabelMap.TryGetValue(f, out var k)) return k;
+        var key = Regex.Replace(Fold(name).ToUpperInvariant(), @"[^A-Z0-9]+", "_").Trim('_');
+        return key.Length == 0 ? null : key;
+    }
+
+    /// <summary>Yer imleri: (anahtar, başlangıç, aynı paragraftaki koşular, şu anki metin).</summary>
+    private static IEnumerable<(string Key, XElement Start, List<XElement> Runs, string Text)> Bookmarks(XDocument x)
+    {
+        foreach (var b in x.Descendants(W + "bookmarkStart").ToList())
+        {
+            var key = KeyFor((string?)b.Attribute(W + "name"));
+            if (key is null) continue;
+            var id = (string?)b.Attribute(W + "id");
+            var runs = new List<XElement>();
+            foreach (var e in b.ElementsAfterSelf())
+            {
+                if (e.Name == W + "bookmarkEnd" && (string?)e.Attribute(W + "id") == id) break;
+                if (e.Name == W + "r") runs.Add(e);
+            }
+            yield return (key, b, runs, string.Concat(runs.Descendants(W + "t").Select(t => t.Value)).Trim());
+        }
+    }
+
+    private static void FillBookmarks(XDocument x, IReadOnlyDictionary<string, string> values)
+    {
+        foreach (var (key, start, runs, _) in Bookmarks(x).ToList())
+        {
+            if (!values.TryGetValue(key, out var v) || string.IsNullOrWhiteSpace(v)) continue;
+            var ts = runs.SelectMany(r => r.Elements(W + "t")).ToList();
+            if (ts.Count > 0)
+            {
+                ts[0].Value = v; Preserve(ts[0]);
+                foreach (var t in ts.Skip(1)) t.Value = "";
+                continue;
+            }
+            // Boş (nokta) yer imi: önceki koşunun biçimiyle yeni koşu eklenir.
+            var rPr = start.ElementsBeforeSelf(W + "r").LastOrDefault()?.Element(W + "rPr");
+            var nt = new XElement(W + "t", v); Preserve(nt);
+            start.AddAfterSelf(new XElement(W + "r", rPr is null ? null : new XElement(rPr), nt));
+        }
+    }
+
+    /// <summary>İçerik denetimleri (w:sdt): etiketi (tag) ya da başlığı (alias) alan anahtarı olanlar.</summary>
+    private static IEnumerable<(string Key, XElement Sdt, string Text)> ContentControls(XDocument x)
+    {
+        foreach (var sdt in x.Descendants(W + "sdt").ToList())
+        {
+            var pr = sdt.Element(W + "sdtPr");
+            var key = KeyFor((string?)pr?.Element(W + "tag")?.Attribute(W + "val"))
+                      ?? KeyFor((string?)pr?.Element(W + "alias")?.Attribute(W + "val"));
+            if (key is null) continue;
+            bool placeholder = pr?.Element(W + "showingPlcHdr") is not null;
+            var text = placeholder ? "" : string.Concat(sdt.Element(W + "sdtContent")?.Descendants(W + "t").Select(t => t.Value) ?? Array.Empty<string>()).Trim();
+            yield return (key, sdt, text);
+        }
+    }
+
+    private static void FillContentControls(XDocument x, IReadOnlyDictionary<string, string> values)
+    {
+        foreach (var (key, sdt, _) in ContentControls(x).ToList())
+        {
+            if (!values.TryGetValue(key, out var v) || string.IsNullOrWhiteSpace(v)) continue;
+            var content = sdt.Element(W + "sdtContent");
+            if (content is null) continue;
+            sdt.Element(W + "sdtPr")?.Element(W + "showingPlcHdr")?.Remove(); // artık yer tutucu metin değil
+            foreach (var style in content.Descendants(W + "rStyle").Where(s => ((string?)s.Attribute(W + "val") ?? "").Contains("Placeholder", StringComparison.OrdinalIgnoreCase)).ToList())
+                style.Remove();
+            var ts = content.Descendants(W + "t").ToList();
+            if (ts.Count > 0)
+            {
+                ts[0].Value = v; Preserve(ts[0]);
+                foreach (var t in ts.Skip(1)) t.Value = "";
+                continue;
+            }
+            var nt = new XElement(W + "t", v); Preserve(nt);
+            var run = new XElement(W + "r", nt);
+            var p = content.Descendants(W + "p").FirstOrDefault();
+            if (p is not null) p.Add(run); else content.Add(run);
         }
     }
 

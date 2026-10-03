@@ -2,7 +2,9 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <!-- Windows.Data.Pdf (rapor önizlemesi) için; Windows 10 1809 ve sonrası. -->
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
     <UseWindowsForms>true</UseWindowsForms>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
@@ -11,8 +13,8 @@
     <Product>Chess Scoresheet Printer</Product>
     <Authors>Tunahan Dilercan</Authors>
     <Description>Satranç turnuvaları için hazır notasyon kâğıdı yazdırma aracı.</Description>
-    <Version>1.3.0</Version>
-    <FileVersion>1.3.0.0</FileVersion>
+    <Version>1.4.0</Version>
+    <FileVersion>1.4.0.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
@@ -33,6 +35,13 @@
     <!-- Gömülü yönerge/rapor şablonu ({{ALAN}} işaretli .docx). -->
     <EmbeddedResource Include="..\..\assets\turnuva_yonergesi_sablon.docx">
       <LogicalName>NotasyonOtomasyonu.App.turnuva_yonergesi_sablon.docx</LogicalName>
+    </EmbeddedResource>
+    <!-- Kart/yaka kartı yazı tipleri (SIL OFL; yalnız kalın kesim, Latin + Türkçe alt küme). -->
+    <EmbeddedResource Include="..\..\assets\fonts\Montserrat-Bold.ttf" LogicalName="NotasyonOtomasyonu.App.fonts.Montserrat-Bold.ttf" />
+    <EmbeddedResource Include="..\..\assets\fonts\Oswald-Bold.ttf" LogicalName="NotasyonOtomasyonu.App.fonts.Oswald-Bold.ttf" />
+    <EmbeddedResource Include="..\..\assets\fonts\Inter-Bold.ttf" LogicalName="NotasyonOtomasyonu.App.fonts.Inter-Bold.ttf" />
+    <EmbeddedResource Include="..\..\assets\teknik_toplanti_tutanagi_sablon.docx">
+      <LogicalName>NotasyonOtomasyonu.App.teknik_toplanti_tutanagi_sablon.docx</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 

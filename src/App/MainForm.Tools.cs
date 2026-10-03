@@ -1,3 +1,4 @@
+using NotasyonOtomasyonu.App.Badges;
 using NotasyonOtomasyonu.App.Cards;
 using NotasyonOtomasyonu.App.Reports;
 using NotasyonOtomasyonu.Core;
@@ -5,18 +6,21 @@ using NotasyonOtomasyonu.Online;
 
 namespace NotasyonOtomasyonu.App;
 
-/// <summary>Başlıktaki ek araçlar: turnuva yönergesi/raporu ve kategori masa kartları.</summary>
+/// <summary>Başlıktaki ek araçlar: yönerge/rapor/tutanak, kategori masa kartları, hakem yaka kartları.</summary>
 public partial class MainForm
 {
     private Button? _btnReport;
     private Button? _btnCards;
+    private Button? _btnBadges;
 
     private void InitToolButtons()
     {
-        _btnReport = HeaderButton("📄 Yönerge / Rapor", "Turnuva yönergesi/raporunu chess-results verisiyle doldurup PDF olarak kaydet.");
-        _btnCards = HeaderButton("🏷 Masa Kartları", "Kategori masa kartlarını (A4, kategori renginde) bas.");
+        _btnReport = HeaderButton("📄 Yönerge / Tutanak", "Turnuva yönergesi, raporu ya da teknik toplantı tutanağını chess-results ve TSF il sitesindeki yönergeyle doldurup PDF olarak kaydet.");
+        _btnCards = HeaderButton("🏷 Masa Kartları", "Kategori masa kartlarını (A4 yatay, kategori renginde) bas.");
+        _btnBadges = HeaderButton("🪪 Yaka Kartları", "Hakem yaka kartlarını (85×54 / 90×60 mm, A4'e dizili, kesim işaretli) bas.");
         _btnReport.Click += (_, _) => OpenReport();
         _btnCards.Click += (_, _) => OpenCards();
+        _btnBadges.Click += (_, _) => OpenBadges();
     }
 
     private Button HeaderButton(string text, string tip)
@@ -44,7 +48,7 @@ public partial class MainForm
     /// <summary>Ayarlar'ın soluna araç butonlarını dizer (PositionHeader'dan çağrılır).</summary>
     private int PositionToolButtons(int right)
     {
-        foreach (var b in new[] { _btnCards, _btnReport })
+        foreach (var b in new[] { _btnBadges, _btnCards, _btnReport })
         {
             if (b is null) continue;
             b.Top = (pnlHeader.Height - b.Height) / 2;
@@ -101,7 +105,7 @@ public partial class MainForm
         var ctx = new ReportContext(
             _online, _eventTnr!.Value, CurrentEventName(), cats, CurrentProvince(),
             async t => { var r = await RoundsOfAsync(t); return (r.Max, r.System); },
-            _config, () => _config.Save(_configPath), AppContext.BaseDirectory, _outputDir);
+            _config, () => _config.Save(_configPath), AppContext.BaseDirectory, _outputDir, CategoryStatsAsync);
         using var f = new ReportForm(ctx) { Icon = Icon };
         f.ShowDialog(this);
     }
@@ -115,6 +119,55 @@ public partial class MainForm
             _config, () => _config.Save(_configPath), AppContext.BaseDirectory, _outputDir);
         using var f = new CardsForm(ctx) { Icon = Icon };
         f.ShowDialog(this);
+    }
+
+    private readonly ToolTip _printTip = new();
+
+    /// <summary>Sessiz yazdırma açık/kapalıya göre yazdır düğmelerinin açıklaması.</summary>
+    private void UpdatePrintButtonsForSilent()
+    {
+        bool silent = Overlay.PrintRouter.IsSilent;
+        _printTip.SetToolTip(btnPrint, silent
+            ? $"Sessiz yazdırma açık: önizleme açılmadan doğrudan “{Overlay.PrintRouter.TargetName}” yazıcısına gönderilir (Ctrl+P)."
+            : "Önizleme açılır; oradan yazıcı seçip basılır (Ctrl+P).");
+        UpdateSelectionSummary();
+    }
+
+    private void OpenBadges()
+    {
+        if (!rbOnline.Checked || _eventTnr is not int tnr)
+        {
+            MessageBox.Show(this, "Önce chess-results'tan bir turnuva seçin.", "Turnuva seçilmedi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        UpdateConfigFromUi();
+        var ctx = new BadgesContext(CurrentEventName(), async () => await _online.GetInfoTableAsync(tnr),
+            _config, () => _config.Save(_configPath), AppContext.BaseDirectory, _outputDir);
+        using var f = new BadgesForm(ctx) { Icon = Icon };
+        f.ShowDialog(this);
+    }
+
+    /// <summary>
+    /// Kategori bilgisi (TSF kontrolleri için): sporcu (takımda takım) sayısı ve en yüksek rating
+    /// 1. tur eşleştirmesinden (BAY alan sporcu da sayılır), zaman kontrolü kategorinin bilgi sayfasından.
+    /// </summary>
+    private async Task<CategoryStats> CategoryStatsAsync(CategoryRef c)
+    {
+        string? tc = null;
+        try
+        {
+            var info = await _online.GetInfoTableAsync(c.Tnr);
+            tc = info.FirstOrDefault(k => k.Key.StartsWith("Zaman kontrol", StringComparison.OrdinalIgnoreCase)).Value;
+        }
+        catch { /* tempo bilinmiyorsa birlik kontrolü bu kategoriyi atlar */ }
+        var r = await RoundsOfAsync(c.Tnr);
+        if (r.Current <= 0) return new CategoryStats(0, 0, tc);
+        var t = await _online.GetPairingsAsync(c.Tnr, 1, r.System);
+        int maxRating = t.Pairings.SelectMany(p => new[] { p.White.Rating, p.Black?.Rating }).Max(x => x ?? 0);
+        int players = r.System.IsTeam()
+            ? t.Pairings.SelectMany(p => new[] { p.WhiteTeam, p.BlackTeam }).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().Count()
+            : t.Pairings.Sum(p => p.IsBye ? 1 : 2);
+        return new CategoryStats(players, maxRating, tc);
     }
 
     /// <summary>Kategorinin masa sayısı: son eşlenen turdaki (başlamadıysa 1. tur) BAY dışı masalar.</summary>
