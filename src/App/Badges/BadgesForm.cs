@@ -413,9 +413,7 @@ public sealed class BadgesForm : Form
             g.ScaleTransform(k, k);
             static Image? Load(string? path)
             {
-                try { if (path is not null && File.Exists(path)) { using var fs = File.OpenRead(path); using var src = Image.FromStream(fs); return new Bitmap(src); } }
-                catch { }
-                return null;
+                return ImageFiles.Load(path);
             }
             using var photo = Load(spec.PhotoPath);
             using var banner = BannerMode ? Load(Cfg.BannerPath) : null;

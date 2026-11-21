@@ -13,6 +13,7 @@ public partial class MainForm
     private Button? _btnReport;
     private Button? _btnCards;
     private Button? _btnBadges;
+    private Button? _btnAthletes;
 
     private void InitToolButtons()
     {
@@ -22,6 +23,8 @@ public partial class MainForm
         _btnReport.Click += (_, _) => OpenReport();
         _btnCards.Click += (_, _) => OpenCards();
         _btnBadges.Click += (_, _) => OpenBadges();
+        _btnAthletes = HeaderButton("🎽 Sporcu Kartları", "Sporcu yaka kartı (95×135 mm, A4'e 4) ve masa isimliği (190 mm, A4'e 3–4): liste chess-results'tan, TSF kayıt listesinden ya da Excel'den.");
+        _btnAthletes.Click += (_, _) => OpenAthletes();
     }
 
     private Button HeaderButton(string text, string tip)
@@ -49,7 +52,7 @@ public partial class MainForm
     /// <summary>Ayarlar'ın soluna araç butonlarını dizer (PositionHeader'dan çağrılır).</summary>
     private int PositionToolButtons(int right)
     {
-        foreach (var b in new[] { _btnBadges, _btnCards, _btnReport, _btnUpdate })
+        foreach (var b in new[] { _btnAthletes, _btnBadges, _btnCards, _btnReport, _btnUpdate })
         {
             if (b is null) continue;
             b.Top = (pnlHeader.Height - b.Height) / 2;
@@ -194,6 +197,24 @@ public partial class MainForm
             : "Önizleme açılır; oradan yazıcı seçip basılır (Ctrl+P).");
         UpdateSelectionSummary();
         UpdatePrinterButton();
+    }
+
+    /// <summary>Sporcu yaka kartı / isimlik. Turnuva seçilmemişse de açılır (liste Excel'den ya da elle).</summary>
+    private void OpenAthletes()
+    {
+        UpdateConfigFromUi();
+        bool online = rbOnline.Checked && _eventTnr is int;
+        var cats = online ? CurrentCategories() : new List<CategoryRef>();
+        if (online && cats.Count == 0)
+        {
+            var name = _config.Online.SelectedTournamentName ?? $"Turnuva {_eventTnr}";
+            cats.Add(new CategoryRef(_eventTnr!.Value, EventGrouping.CategoryFromEventName(name) is { Length: > 0 } c ? c : "Genel", true));
+        }
+        var ctx = new Athletes.AthletesContext(online ? CurrentEventName() : "", online ? _eventTnr : null, cats,
+            online ? async t => (IReadOnlyList<Player>)await _online.GetStartingListAsync(t) : null,
+            _config, () => SaveConfig(), AppPaths.DataDir, _outputDir);
+        using var f = new Athletes.AthletesForm(ctx) { Icon = Icon };
+        f.ShowDialog(this);
     }
 
     private void OpenBadges()

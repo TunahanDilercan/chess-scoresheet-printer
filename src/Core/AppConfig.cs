@@ -73,6 +73,9 @@ public sealed class AppConfig
     /// <summary>Hakem yaka kartları.</summary>
     public BadgeConfig Badges { get; set; } = new();
 
+    /// <summary>Sporcu yaka kartı ve isimlik ayarları.</summary>
+    public AthleteCardConfig Athletes { get; set; } = new();
+
     /// <summary>Uygulama güncellemeleri (GitHub sürümleri).</summary>
     public UpdateConfig Updates { get; set; } = new();
 

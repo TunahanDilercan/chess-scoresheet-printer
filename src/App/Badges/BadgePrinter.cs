@@ -117,7 +117,7 @@ public sealed class BadgePrinter
     {
         if (string.IsNullOrWhiteSpace(path)) return null;
         if (_images.TryGetValue(path, out var img)) return img;
-        try { using var fs = File.OpenRead(path); using var src = Image.FromStream(fs); img = new Bitmap(src); }
+        try { img = ImageFiles.Load(path); }
         catch { img = null; }
         return _images[path] = img;
     }

@@ -24,6 +24,9 @@ internal static class AppPaths
     /// <summary>Ayar dosyası.</summary>
     public static string ConfigFile { get; private set; } = Path.Combine(AppContext.BaseDirectory, "config.json");
 
+    /// <summary>Taşınabilir kullanım: exe yanında "portable" dosyası var (ayarlar exe yanında; kuruluma geçilmez).</summary>
+    public static bool IsPortableMode { get; private set; }
+
     /// <summary>Bu açılışta exe yanından taşındıysa eski config.json'un yolu.</summary>
     public static string? MigratedFrom { get; private set; }
 
@@ -39,7 +42,8 @@ internal static class AppPaths
             try { Directory.CreateDirectory(env); DataDir = env; ConfigFile = Path.Combine(env, "config.json"); return; }
             catch { /* geçersiz klasör: varsayılana düş */ }
         }
-        if (File.Exists(Path.Combine(baseDir, "portable"))) return;
+        IsPortableMode = File.Exists(Path.Combine(baseDir, "portable"));
+        if (IsPortableMode) return;
         try
         {
             var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), FolderName);

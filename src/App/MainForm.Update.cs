@@ -25,13 +25,18 @@ public partial class MainForm
     private async Task CheckForUpdateOnStartAsync()
     {
         var u = _config.Updates;
-        if (!u.AutoCheck || u.LastCheck is { } last && DateTime.Now - last < TimeSpan.FromHours(20)) return;
+        // ZIP ile yeni güncellenmiş taşınabilir exe: kurulu sürüme geçiş hemen önerilsin (günlük sınırı beklemeden)
+        bool migrateNow = Program.UpdatedFrom is not null && !Velo.IsInstalled && !AppPaths.IsPortableMode;
+        if (!migrateNow && (!u.AutoCheck || u.LastCheck is { } last && DateTime.Now - last < TimeSpan.FromHours(20))) return;
         try
         {
-            var r = await Updater.LatestAsync();
+            var r = await Updater.CheckAsync();
             u.LastCheck = DateTime.Now;
             SaveConfig();
-            if (r is not null && Updater.IsNewer(r) && u.SkippedVersion != r.Version.ToString()) ShowUpdateButton(r);
+            if (r is null) return;
+            if (Updater.IsNewer(r) ? u.SkippedVersion != r.Version.ToString()
+                                   : UpdateForm.Actionable(r, Updater.Current, Velo.IsInstalled, AppPaths.IsPortableMode))
+                ShowUpdateButton(r);
         }
         catch { /* çevrimdışı: sessizce geç, sonraki açılışta yine denenir */ }
     }
@@ -45,7 +50,7 @@ public partial class MainForm
             _btnUpdate.ForeColor = Color.FromArgb(90, 60, 0);
             _btnUpdate.FlatAppearance.BorderColor = Color.FromArgb(200, 160, 40);
         }
-        _btnUpdate.Text = $"⬆ Yeni sürüm v{r.Version}";
+        _btnUpdate.Text = Updater.IsNewer(r) ? $"⬆ Yeni sürüm v{r.Version}" : "⬆ Hızlı güncellemeye geç";
         new ToolTip().SetToolTip(_btnUpdate, "Yeni sürümün notlarını görün; tek tıkla indirilip kurulur, ayarlarınız korunur.");
         _btnUpdate.Click -= UpdateButtonClick;
         _btnUpdate.Click += UpdateButtonClick;
