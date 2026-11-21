@@ -57,7 +57,7 @@ public sealed class FieldListForm : Form
         _grid.CellDoubleClick += (_, e) => Copy(e.RowIndex);
 
         var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 52, Padding = new Padding(10), BackColor = Color.FromArgb(242, 242, 236) };
-        var copy = new Button { Text = "📋 Seçili işareti kopyala", AutoSize = true, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.White };
+        var copy = Icons.Set(new Button { Text = "Seçili işareti kopyala", AutoSize = true, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.White }, Ico.Copy);
         var copyAll = new Button { Text = "Tüm listeyi kopyala", AutoSize = true, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.White };
         var close = new Button { Text = "Kapat", AutoSize = true, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.White, DialogResult = DialogResult.OK };
         copy.Click += (_, _) => Copy(_grid.CurrentRow?.Index ?? -1);

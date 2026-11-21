@@ -20,7 +20,7 @@ public sealed class ExclusionsForm : Form
         _cfg = cfg;
         _available = availableBoards ?? Array.Empty<int>();
 
-        Text = "🚫 Hariç Tut (basılmayacaklar)";
+        Text = "Hariç Tut (basılmayacaklar)";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterParent;
         MaximizeBox = MinimizeBox = false;

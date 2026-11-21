@@ -53,7 +53,7 @@ public sealed class SettingsForm : Form
         _saveNow = saveNow;
         _configPath = configPath;
 
-        Text = "⚙ Ayarlar";
+        Text = "Ayarlar";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterParent;
         MaximizeBox = MinimizeBox = false;
@@ -108,10 +108,11 @@ public sealed class SettingsForm : Form
         y -= 4;
         var btnTest = new Button
         {
-            Text = "🖨 Hizalama testi yazdır (örnek tek kağıt)…",
+            Text = "Hizalama testi yazdır (örnek tek kağıt)…",
             Size = new System.Drawing.Size(408, 32), Location = new System.Drawing.Point(16, y)
         };
         btnTest.Click += PrintAlignmentTest;
+        Icons.Set(btnTest, Ico.Print);
         _host.Controls.Add(btnTest);
         y += 44;
         int yNotation = y;
@@ -121,11 +122,12 @@ public sealed class SettingsForm : Form
         y = 16;
         var btnTemplate = new Button
         {
-            Text = "🎨 Hazır kağıt şablonları (ekle / düzenle)…",
+            Text = "Hazır kağıt şablonları (ekle / düzenle)…",
             Size = new System.Drawing.Size(408, 32),
             Location = new System.Drawing.Point(16, y)
         };
         btnTemplate.Click += OpenTemplates;
+        Icons.Set(btnTemplate, Ico.Template);
         _host.Controls.Add(btnTemplate);
         y += 42;
 
@@ -177,7 +179,7 @@ public sealed class SettingsForm : Form
             LinkColor = System.Drawing.Color.FromArgb(95, 122, 70),
             ActiveLinkColor = System.Drawing.Color.FromArgb(118, 150, 86),
             LinkBehavior = LinkBehavior.AlwaysUnderline,
-            Text = $"♞ Geliştiren: {author} — satranç oyuncusu ve hakemi. (v{version?.ToString(3)})"
+            Text = $"Geliştiren: {author} — satranç oyuncusu ve hakemi. (v{version?.ToString(3)})"
         };
         credit.LinkArea = new LinkArea(credit.Text.IndexOf(author, StringComparison.Ordinal), author.Length);
         credit.LinkClicked += (_, _) =>
@@ -265,10 +267,11 @@ public sealed class SettingsForm : Form
         // Kayıt listesi turnuva açılınca kendiliğinden alınır; elle düzeltme gerekirse buradan.
         var btnReg = new Button
         {
-            Text = "📋 Kayıt listesi ve sporcu illeri…", Size = new System.Drawing.Size(RW, 32),
+            Text = "Kayıt listesi ve sporcu illeri…", Size = new System.Drawing.Size(RW, 32),
             Location = new System.Drawing.Point(RX, y), Enabled = _openRegistration is not null
         };
         btnReg.Click += (_, _) => _openRegistration?.Invoke(this);
+        Icons.Set(btnReg, Ico.ClipboardList);
         new ToolTip().SetToolTip(btnReg, "Açık turnuvanın TSF kayıt listesi kendiliğinden alınır. Başka bir kayıt formunu seçmek, " +
                                          "listeyi yenilemek ya da bir sporcunun ilini elle düzeltmek için açın.");
         _host.Controls.Add(btnReg);
@@ -304,10 +307,11 @@ public sealed class SettingsForm : Form
         y += 32;
         var btn = new Button
         {
-            Text = "⬆ Güncellemeleri denetle…", Size = new System.Drawing.Size(RW, 34), Location = new System.Drawing.Point(RX, y),
+            Text = "Güncellemeleri denetle…", Size = new System.Drawing.Size(RW, 34), Location = new System.Drawing.Point(RX, y),
             Enabled = _openUpdates is not null
         };
         btn.Click += (_, _) => { WriteBack(); _openUpdates?.Invoke(this); };
+        Icons.Set(btn, Ico.Update);
         _host.Controls.Add(btn);
         y += 44;
         _autoUpdate.Location = new System.Drawing.Point(RX, y);
@@ -323,7 +327,7 @@ public sealed class SettingsForm : Form
             _host.Controls.Add(Note($"Ayarlar, şablonlar ve eklediğiniz afiş/logo/fotoğraflar: {Path.GetDirectoryName(_configPath)} " +
                                     "(her kayıtta ayarların önceki hâli config.json.bak olarak saklanır).", y, 54));
             y += 56;
-            var open = new LinkLabel { Text = "📂 Ayar klasörünü aç", AutoSize = true, Location = new System.Drawing.Point(RX, y) };
+            var open = new LinkLabel { Text = "Ayar klasörünü aç", AutoSize = true, Location = new System.Drawing.Point(RX, y) };
             open.LinkClicked += (_, _) =>
             {
                 try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(Path.GetDirectoryName(_configPath)!) { UseShellExecute = true }); }

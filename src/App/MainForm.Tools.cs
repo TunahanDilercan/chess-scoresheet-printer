@@ -17,17 +17,17 @@ public partial class MainForm
 
     private void InitToolButtons()
     {
-        _btnReport = HeaderButton("📄 Yönerge / Tutanak", "Turnuva yönergesi, raporu ya da teknik toplantı tutanağını chess-results ve TSF il sitesindeki yönergeyle doldurup PDF olarak kaydet.");
-        _btnCards = HeaderButton("🏷 Masa Kartları", "Kategori masa kartlarını (A4 yatay, kategori renginde) bas.");
-        _btnBadges = HeaderButton("🪪 Yaka Kartları", "Hakem yaka kartlarını (85×54 / 90×60 mm, A4'e dizili, kesim işaretli) bas.");
+        _btnReport = HeaderButton("Yönerge / Tutanak", "Turnuva yönergesi, raporu ya da teknik toplantı tutanağını chess-results ve TSF il sitesindeki yönergeyle doldurup PDF olarak kaydet.", Ico.Doc);
+        _btnCards = HeaderButton("Masa Kartları", "Kategori masa kartlarını (A4 yatay, kategori renginde) bas.", Ico.TableCard);
+        _btnBadges = HeaderButton("Yaka Kartları", "Hakem yaka kartlarını (85×54 / 90×60 mm, A4'e dizili, kesim işaretli) bas.", Ico.Badge);
         _btnReport.Click += (_, _) => OpenReport();
         _btnCards.Click += (_, _) => OpenCards();
         _btnBadges.Click += (_, _) => OpenBadges();
-        _btnAthletes = HeaderButton("🎽 Sporcu Kartları", "Sporcu yaka kartı (95×135 mm, A4'e 4) ve masa isimliği (190 mm, A4'e 3–4): liste chess-results'tan, TSF kayıt listesinden ya da Excel'den.");
+        _btnAthletes = HeaderButton("Sporcu Kartları", "Sporcu yaka kartı (95×135 mm, A4'e 4) ve masa isimliği (190 mm, A4'e 3–4): liste chess-results'tan, TSF kayıt listesinden ya da Excel'den.", Ico.Pawn);
         _btnAthletes.Click += (_, _) => OpenAthletes();
     }
 
-    private Button HeaderButton(string text, string tip)
+    private Button HeaderButton(string text, string tip, Ico? icon = null)
     {
         var b = new Button
         {
@@ -36,7 +36,7 @@ public partial class MainForm
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Height = btnSettings.Height,
             MinimumSize = new Size(0, btnSettings.Height),
-            Padding = new Padding(6, 0, 6, 0),
+            Padding = new Padding(3, 0, 5, 0),
             FlatStyle = FlatStyle.Flat,
             BackColor = Color.White,
             ForeColor = ThGreenDark,
@@ -44,6 +44,7 @@ public partial class MainForm
             Cursor = Cursors.Hand
         };
         b.FlatAppearance.BorderColor = ThGreenDark;
+        if (icon is { } i) Icons.Set(b, i);
         new ToolTip().SetToolTip(b, tip);
         pnlHeader.Controls.Add(b);
         return b;

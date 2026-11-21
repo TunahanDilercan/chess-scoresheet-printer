@@ -47,11 +47,11 @@ public sealed class ArbiterSheetsForm : Form
     private readonly ComboBox _cboSize = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 170 };
     private readonly PictureBox _pic = new() { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.FromArgb(226, 226, 220) };
     private readonly Label _lblPage = new() { AutoSize = false, Width = 120, TextAlign = ContentAlignment.MiddleCenter, Height = 30 };
-    private readonly Button _btnPrev = new() { Text = "◀", Width = 40, Height = 30 };
-    private readonly Button _btnNext = new() { Text = "▶", Width = 40, Height = 30 };
+    private readonly Button _btnPrev = Icons.Set(new Button { Text = "", Width = 40, Height = 30 }, Ico.ChevronLeft);
+    private readonly Button _btnNext = Icons.Set(new Button { Text = "", Width = 40, Height = 30 }, Ico.ChevronRight);
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(10, 11, 0, 0) };
-    private readonly Button _btnPdf = new() { Text = "📄 PDF Kaydet", Width = 140, Height = 40 };
-    private readonly Button _btnPrint = new() { Text = "🖨 Önizle ve Yazdır", Width = 190, Height = 40, BackColor = Green, ForeColor = Color.White };
+    private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 140, Height = 40 }, Ico.Pdf);
+    private readonly Button _btnPrint = Icons.Set(new Button { Text = "Önizle ve Yazdır", Width = 190, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Print);
     private ArbiterSheetPrinter? _printer;
     private int _page;
     private int _pending;

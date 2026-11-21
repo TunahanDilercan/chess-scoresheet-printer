@@ -21,7 +21,7 @@ public sealed class TemplatesForm : Form
         _cfg = cfg;
         _print = print ?? (() => (cfg.Layout.PageSize, cfg.Layout.PrintOffsetXmm, cfg.Layout.PrintOffsetYmm));
 
-        Text = "🎨 Hazır Kağıt Şablonları";
+        Text = "Hazır Kağıt Şablonları";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterParent;
         MaximizeBox = MinimizeBox = false;
@@ -46,15 +46,15 @@ public sealed class TemplatesForm : Form
         Controls.Add(_info);
 
         int bx = 352, by = 38;
-        AddBtn("✓ Etkin Yap", bx, ref by, MakeActive, primary: true);
-        AddBtn("✏ Düzenle…", bx, ref by, (_, _) => EditSelected());
-        AddBtn("➕ Yeni Ekle…", bx, ref by, AddNew);
-        AddBtn("⧉ Çoğalt", bx, ref by, Duplicate);
-        AddBtn("🗑 Sil", bx, ref by, Delete);
+        AddBtn("Etkin Yap", Ico.Check, bx, ref by, MakeActive, primary: true);
+        AddBtn("Düzenle…", Ico.Edit, bx, ref by, (_, _) => EditSelected());
+        AddBtn("Yeni Ekle…", Ico.Plus, bx, ref by, AddNew);
+        AddBtn("Çoğalt", Ico.Copy, bx, ref by, Duplicate);
+        AddBtn("Sil", Ico.Trash, bx, ref by, Delete);
         by += 12;
-        AddBtn("↺ Varsayılana Sıfırla", bx, ref by, ResetDefault);
+        AddBtn("Varsayılana Sıfırla", Ico.Reset, bx, ref by, ResetDefault);
         by += 6;
-        AddBtn("🖨 Hizalama testi", bx, ref by, (_, _) =>
+        AddBtn("Hizalama testi", Ico.Print, bx, ref by, (_, _) =>
         {
             var t = Selected; if (t is null) return;
             var (size, x, y) = _print();
@@ -68,10 +68,11 @@ public sealed class TemplatesForm : Form
         RefreshList(_cfg.Overlay.Name);
     }
 
-    private void AddBtn(string text, int x, ref int y, EventHandler onClick, bool primary = false)
+    private void AddBtn(string text, Ico icon, int x, ref int y, EventHandler onClick, bool primary = false)
     {
         var b = new Button { Text = text, Size = new System.Drawing.Size(152, 30), Location = new System.Drawing.Point(x, y), TextAlign = System.Drawing.ContentAlignment.MiddleLeft };
         if (primary) { b.BackColor = System.Drawing.Color.FromArgb(118, 150, 86); b.ForeColor = System.Drawing.Color.White; b.FlatStyle = FlatStyle.Flat; }
+        Icons.Set(b, icon);
         b.Click += onClick;
         Controls.Add(b);
         y += 36;

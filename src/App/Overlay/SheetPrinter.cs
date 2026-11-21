@@ -197,7 +197,7 @@ public sealed class SheetPrinter
         var (pw, ph) = NotasyonOtomasyonu.Core.PageGeometry.Points(_pageSize);
         sb.AppendLine($"Programın istediği: {_pageSize} ({Pt(pw)}×{Pt(ph)} mm, dikey), şablon: {tpl.Name}, kağıda {(tpl.PerPage is 2 ? 2 : 1)} notasyon");
         try { sb.AppendLine($"Sürücünün kağıdı: {ps.PaperSize.PaperName} (tür {ps.PaperSize.Kind}, kod {ps.PaperSize.RawKind}), {H(ps.PaperSize.Width)}×{H(ps.PaperSize.Height)} mm, {(ps.Landscape ? "YATAY" : "dikey")}, tepsi: {ps.PaperSource.SourceName}"); } catch { }
-        sb.AppendLine($"Yazıcının bildirdiği sayfa: {H(e.PageBounds.Width)}×{H(e.PageBounds.Height)} mm {(PaperMismatch ? "⚠ notasyon boyutundan FARKLI" : "✓ notasyon boyutuyla aynı")}");
+        sb.AppendLine($"Yazıcının bildirdiği sayfa: {H(e.PageBounds.Width)}×{H(e.PageBounds.Height)} mm {(PaperMismatch ? "— notasyon boyutundan FARKLI (yazılar kayar)" : "✓ notasyon boyutuyla aynı")}");
         try { sb.AppendLine($"Basılamayan kenar: sol {Pt(hxPt)} mm, üst {Pt(hyPt)} mm (program bunu düzeltir); basılabilir alan {H(ps.PrintableArea.Width)}×{H(ps.PrintableArea.Height)} mm"); } catch { }
         try { sb.AppendLine($"Çözünürlük: {ps.PrinterResolution.X}×{ps.PrinterResolution.Y} dpi"); } catch { }
         sb.AppendLine($"Yazıcı kaydırması (Ayarlar): sağa {Pt(_offsetXPt)} mm, aşağı {Pt(_offsetYPt)} mm");

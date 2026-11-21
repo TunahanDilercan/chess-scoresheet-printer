@@ -56,7 +56,7 @@ public sealed class CropForm : Form
         };
 
         var bottom = new FlowLayoutPanel { Dock = DockStyle.Bottom, AutoSize = true, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(10) };
-        var ok = new Button { Text = "✂ Kırp ve kullan", Width = 170, Height = 36, BackColor = Green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font(Font, FontStyle.Bold) };
+        var ok = Icons.Set(new Button { Text = "Kırp ve kullan", Width = 170, Height = 36, BackColor = Green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font(Font, FontStyle.Bold) }, Ico.Crop);
         var raw = new Button { Text = "Kırpmadan kullan", Width = 150, Height = 36, FlatStyle = FlatStyle.Flat };
         var cancel = new Button { Text = "Vazgeç", Width = 100, Height = 36, FlatStyle = FlatStyle.Flat, DialogResult = DialogResult.Cancel };
         ok.Click += (_, _) => { Result = Crop(_src, _canvas.Selection); DialogResult = DialogResult.OK; };

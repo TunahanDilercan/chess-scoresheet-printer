@@ -28,8 +28,8 @@ public sealed class BadgesForm : Form
     private BadgeConfig Cfg => _ctx.Config.Badges;
 
     private readonly PictureBox _picLogo = new() { Width = 120, Height = 80, SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.White };
-    private readonly Button _btnLogo = new() { Text = "🖼 Logo seç…", AutoSize = true, Height = 30 };
-    private readonly Button _btnLogoClear = new() { Text = "Kaldır", AutoSize = true, Height = 30 };
+    private readonly Button _btnLogo = Icons.Set(new Button { Text = "Logo seç…", Width = 116, Height = 30 }, Ico.Image);
+    private readonly Button _btnLogoClear = new() { Text = "Kaldır", Width = 116, Height = 30 };
     private readonly ComboBox _cboSize = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 280 };
     private readonly CheckBox _chkSimpleRoles = new() { Text = "Görevi sade yaz: Başhakem / Hakem", AutoSize = true };
     private static readonly string[] Sizes = { "85x54", "90x60", "95x135" };
@@ -38,7 +38,7 @@ public sealed class BadgesForm : Form
     // Büyük dikey kartta fotoğraf alanı: hakem vesikalığı ya da tüm kartlarda aynı yatay görsel
     private readonly RadioButton _rbPhoto = new() { Text = "Hakem fotoğrafı (vesikalık)", AutoSize = true };
     private readonly RadioButton _rbBanner = new() { Text = "Afiş / turnuva bilgisi (yatay, tüm kartlarda)", AutoSize = true };
-    private readonly Button _btnBanner = new() { Text = "🖼 Görsel seç…", AutoSize = true, Height = 28 };
+    private readonly Button _btnBanner = Icons.Set(new Button { Text = "Görsel seç…", AutoSize = true, Height = 28 }, Ico.Image);
     private readonly Button _btnBannerCards = new() { Text = "Masa kartı afişini kullan", AutoSize = true, Height = 28 };
     private readonly Label _lblBanner = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
     private readonly FlowLayoutPanel _portraitBox = new() { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0) };
@@ -46,8 +46,8 @@ public sealed class BadgesForm : Form
     private readonly PictureBox _picPreview = new() { SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill };
     private readonly DataGridView _grid = new();
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray };
-    private readonly Button _btnPdf = new() { Text = "📄 PDF Kaydet", Width = 150, Height = 40 };
-    private readonly Button _btnPrint = new() { Text = "🖨 Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White };
+    private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 150, Height = 40 }, Ico.Pdf);
+    private readonly Button _btnPrint = Icons.Set(new Button { Text = "Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Print);
     private readonly Button _btnAll = new() { Text = "Tümünü seç", AutoSize = true, Height = 40 };
     private readonly Button _btnNone = new() { Text = "Hiçbiri", AutoSize = true, Height = 40 };
     private bool _loading;
@@ -89,7 +89,7 @@ public sealed class BadgesForm : Form
         _btnPrint.Click += (_, _) => Print();
         _btnPdf.Click += (_, _) => SavePdf();
         bool silent = PrintRouter.IsSilent;
-        _btnPrint.Text = silent ? "🖨 Yazdır" : "🖨 Önizle ve Yazdır";
+        _btnPrint.Text = silent ? "Yazdır" : "Önizle ve Yazdır";
         Shown += async (_, _) => await LoadArbitersAsync();
     }
 

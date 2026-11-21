@@ -42,14 +42,14 @@ public partial class MainForm
         try
         {
             var ps = new PrinterSettings { PrinterName = target };
-            if (!ps.IsValid) sb.AppendLine("⚠ Yazıcı bulunamadı ya da erişilemiyor.");
+            if (!ps.IsValid) sb.AppendLine("Uyarı: Yazıcı bulunamadı ya da erişilemiyor.");
             else
             {
                 var def = ps.DefaultPageSettings;
                 sb.AppendLine($"Yazıcının varsayılan kağıdı: {def.PaperSize.PaperName} ({Mm(def.PaperSize.Width)}×{Mm(def.PaperSize.Height)} mm), {(def.Landscape ? "yatay" : "dikey")}, tepsi: {def.PaperSource.SourceName}");
                 var want = PageGeometry.IsA5(l.PageSize) ? PaperKind.A5 : PaperKind.A4;
                 var paper = ps.PaperSizes.Cast<PaperSize>().FirstOrDefault(p => p.Kind == want);
-                if (paper is null) sb.AppendLine($"⚠ Yazıcı {l.PageSize} kağıdını listelemiyor: notasyon yanlış boyutta basılabilir.");
+                if (paper is null) sb.AppendLine($"Uyarı: Yazıcı {l.PageSize} kağıdını listelemiyor: notasyon yanlış boyutta basılabilir.");
                 else
                 {
                     var pg = (PageSettings)def.Clone();

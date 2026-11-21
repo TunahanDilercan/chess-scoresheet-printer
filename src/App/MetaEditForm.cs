@@ -15,7 +15,7 @@ public sealed class MetaEditForm : Form
     public MetaEditForm(AppConfig cfg)
     {
         _cfg = cfg;
-        Text = "✏ Turnuva Bilgisini Düzenle";
+        Text = "Turnuva Bilgisini Düzenle";
         FormBorderStyle = FormBorderStyle.FixedDialog;
         StartPosition = FormStartPosition.CenterParent;
         MaximizeBox = MinimizeBox = false;

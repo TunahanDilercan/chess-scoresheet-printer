@@ -18,8 +18,8 @@ public partial class MainForm
     private void AnnounceUpdate()
     {
         if (Program.UpdatedFrom is not { } from) return;
-        SetStatus($"⬆ Program v{Updater.Current} sürümüne güncellendi (önceki: v{from}). Ayarlarınız korundu.", ok: true);
-        Log($"⬆ Güncellendi: v{from} → v{Updater.Current}");
+        SetStatus($"Program v{Updater.Current} sürümüne güncellendi (önceki: v{from}). Ayarlarınız korundu.", ok: true);
+        Log($"Güncellendi: v{from} → v{Updater.Current}");
     }
 
     private async Task CheckForUpdateOnStartAsync()
@@ -49,8 +49,9 @@ public partial class MainForm
             _btnUpdate.BackColor = Color.FromArgb(255, 236, 160);
             _btnUpdate.ForeColor = Color.FromArgb(90, 60, 0);
             _btnUpdate.FlatAppearance.BorderColor = Color.FromArgb(200, 160, 40);
+            Icons.Set(_btnUpdate, Ico.Update, Color.FromArgb(90, 60, 0));
         }
-        _btnUpdate.Text = Updater.IsNewer(r) ? $"⬆ Yeni sürüm v{r.Version}" : "⬆ Hızlı güncellemeye geç";
+        _btnUpdate.Text = Updater.IsNewer(r) ? $"Yeni sürüm v{r.Version}" : "Hızlı güncellemeye geç";
         new ToolTip().SetToolTip(_btnUpdate, "Yeni sürümün notlarını görün; tek tıkla indirilip kurulur, ayarlarınız korunur.");
         _btnUpdate.Click -= UpdateButtonClick;
         _btnUpdate.Click += UpdateButtonClick;

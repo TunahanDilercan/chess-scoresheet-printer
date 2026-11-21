@@ -29,10 +29,10 @@ internal static class PreviewDialog
         var preview = new PrintPreviewControl { Dock = DockStyle.Fill, Document = doc, UseAntiAlias = true, AutoZoom = true };
 
         var bar = new Panel { Dock = DockStyle.Top, Height = 46, BackColor = Color.FromArgb(245, 245, 240) };
-        var btnPrint = new Button { Text = "🖨  Yazdır", Width = 150, Height = 34, Left = 10, Top = 6, BackColor = green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold) };
+        var btnPrint = Icons.Set(new Button { Text = "Yazdır", Width = 150, Height = 34, Left = 10, Top = 6, BackColor = green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = new Font("Segoe UI", 10.5f, FontStyle.Bold) }, Ico.Print);
         var btnClose = new Button { Text = "Kapat", Width = 100, Height = 34, Left = 168, Top = 6 };
-        var btnPrev = new Button { Text = "◀", Width = 40, Height = 34, Left = 290, Top = 6 };
-        var btnNext = new Button { Text = "▶", Width = 40, Height = 34, Left = 334, Top = 6 };
+        var btnPrev = Icons.Set(new Button { Text = "", Width = 40, Height = 34, Left = 290, Top = 6 }, Ico.ChevronLeft);
+        var btnNext = Icons.Set(new Button { Text = "", Width = 40, Height = 34, Left = 334, Top = 6 }, Ico.ChevronRight);
         var lblPage = new Label { AutoSize = true, Left = 382, Top = 14 };
         var lblHint = new Label { AutoSize = true, Left = 500, Top = 14, ForeColor = Color.Gray, Text = hint + " • Ctrl+P yazdır, Esc kapat" };
         bar.Controls.AddRange(new Control[] { btnPrint, btnClose, btnPrev, btnNext, lblPage, lblHint });

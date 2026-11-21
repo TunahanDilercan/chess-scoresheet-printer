@@ -139,7 +139,7 @@ partial class MainForm
         lblTitle.Text = "Notasyon Kâğıdı Yazdırıcı";
         lblTitle.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
         ((System.ComponentModel.ISupportInitialize)pbLogo).EndInit();
-        btnSettings.Text = "⚙ Ayarlar";
+        btnSettings.Text = "Ayarlar";
         btnSettings.Size = new System.Drawing.Size(104, 34);
         btnSettings.Location = new System.Drawing.Point(448, 11);
         btnSettings.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -149,6 +149,7 @@ partial class MainForm
         btnSettings.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
         btnSettings.FlatAppearance.BorderColor = greenDark;
         btnSettings.Click += btnSettings_Click;
+        Icons.Set(btnSettings, Ico.Settings);
 
         // ================= SOL SÜTUN: turnuva / kategori / tur =================
         lblSource.AutoSize = true;
@@ -192,7 +193,8 @@ partial class MainForm
         cboProvince.DropDownStyle = ComboBoxStyle.DropDownList;
         cboProvince.SelectedIndexChanged += cboProvince_SelectedIndexChanged;
         btnSearch.Location = new System.Drawing.Point(396, 20); btnSearch.Size = new System.Drawing.Size(120, 27);
-        btnSearch.Text = "🔍 Ara"; btnSearch.Click += btnSearch_Click;
+        btnSearch.Text = "Ara"; btnSearch.Click += btnSearch_Click;
+        Icons.Set(btnSearch, Ico.Search);
         btnSearch.BackColor = green; btnSearch.ForeColor = System.Drawing.Color.White; btnSearch.FlatStyle = FlatStyle.Flat;
 
         lblTournament.AutoSize = true; lblTournament.Location = new System.Drawing.Point(12, 54); lblTournament.Text = "Turnuva:";
@@ -216,11 +218,12 @@ partial class MainForm
 
         // Eşleştirmeleri yeniden çek (F5) — chess-results'ta değişiklik olduysa.
         btnSync.Location = new System.Drawing.Point(460, 120); btnSync.Size = new System.Drawing.Size(56, 38);
-        btnSync.Text = "🔄";
+        btnSync.Text = "";
         btnSync.Font = new System.Drawing.Font("Segoe UI", 12F);
         btnSync.BackColor = green; btnSync.ForeColor = System.Drawing.Color.White; btnSync.FlatStyle = FlatStyle.Flat;
         btnSync.FlatAppearance.BorderColor = greenDark;
         btnSync.Click += btnSync_Click;
+        Icons.Set(btnSync, Ico.Refresh, scale: 1.15f);
 
         lnkAdvanced.AutoSize = true; lnkAdvanced.Location = new System.Drawing.Point(12, 166);
         lnkAdvanced.Text = "▸ Gelişmiş: chess-results link/no ile getir";
@@ -256,17 +259,19 @@ partial class MainForm
         lblInfo.Text = "Turnuva: —";
         btnEditInfo.Location = new System.Drawing.Point(448, 296);
         btnEditInfo.Size = new System.Drawing.Size(98, 27);
-        btnEditInfo.Text = "✏ Düzenle";
+        btnEditInfo.Text = "Düzenle";
+        Icons.Set(btnEditInfo, Ico.Edit);
         btnEditInfo.Anchor = leftAnchor;
         btnEditInfo.Click += btnEditInfo_Click;
         btnExclude.Location = new System.Drawing.Point(448, 325);
         btnExclude.Size = new System.Drawing.Size(98, 27);
-        btnExclude.Text = "🚫 Hariç Tut";
+        btnExclude.Text = "Hariç Tut";
+        Icons.Set(btnExclude, Ico.Exclude);
         btnExclude.Anchor = leftAnchor;
         btnExclude.Click += btnExclude_Click;
 
         // Hızlı yazdır (kısayollar) — kategori başına tek tık + tüm kategoriler.
-        grpQuick.Text = "⚡ Hızlı erişim — kategori · son tur";
+        grpQuick.Text = "Hızlı erişim — kategori · son tur";
         grpQuick.Location = new System.Drawing.Point(18, 358);
         grpQuick.Size = new System.Drawing.Size(528, 70);
         grpQuick.Anchor = leftAnchor;
@@ -278,7 +283,8 @@ partial class MainForm
         flowQuick.WrapContents = true;
         btnPrintAll.Location = new System.Drawing.Point(384, 20);
         btnPrintAll.Size = new System.Drawing.Size(132, 40);
-        btnPrintAll.Text = "★ Tüm\nKategoriler";
+        btnPrintAll.Text = "Tüm\nKategoriler";
+        Icons.Set(btnPrintAll, Ico.Layers);
         btnPrintAll.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
         btnPrintAll.BackColor = green; btnPrintAll.ForeColor = System.Drawing.Color.White; btnPrintAll.FlatStyle = FlatStyle.Flat;
         btnPrintAll.FlatAppearance.BorderColor = greenDark;
@@ -340,10 +346,10 @@ partial class MainForm
         dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBIl", HeaderText = "İl", FillWeight = 12, ReadOnly = true });
 
         btnSelectAll.Location = new System.Drawing.Point(10, 430); btnSelectAll.Size = new System.Drawing.Size(90, 26);
-        btnSelectAll.Text = "☑ Tümü"; btnSelectAll.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        btnSelectAll.Text = "Tümü"; Icons.Set(btnSelectAll, Ico.CheckAll); btnSelectAll.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         btnSelectAll.Click += btnSelectAll_Click;
         btnSelectNone.Location = new System.Drawing.Point(104, 430); btnSelectNone.Size = new System.Drawing.Size(90, 26);
-        btnSelectNone.Text = "☐ Hiçbiri"; btnSelectNone.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        btnSelectNone.Text = "Hiçbiri"; Icons.Set(btnSelectNone, Ico.CheckNone); btnSelectNone.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         btnSelectNone.Click += btnSelectNone_Click;
         lblSelection.Location = new System.Drawing.Point(202, 434); lblSelection.Size = new System.Drawing.Size(288, 20);
         lblSelection.Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
@@ -359,12 +365,14 @@ partial class MainForm
         numCopies.ValueChanged += numCopies_ValueChanged;
 
         btnPdf.Location = new System.Drawing.Point(10, 506); btnPdf.Size = new System.Drawing.Size(104, 44);
-        btnPdf.Text = "📄 PDF";
+        btnPdf.Text = "PDF";
+        Icons.Set(btnPdf, Ico.Pdf);
         btnPdf.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         btnPdf.Click += btnPdf_Click;
 
         btnPrint.Location = new System.Drawing.Point(124, 470); btnPrint.Size = new System.Drawing.Size(366, 80);
-        btnPrint.Text = "🖨  Yazdır";
+        btnPrint.Text = "Yazdır";
+        Icons.Set(btnPrint, Ico.Print, scale: 1.15f);
         btnPrint.Font = new System.Drawing.Font("Segoe UI", 12F, System.Drawing.FontStyle.Bold);
         btnPrint.BackColor = green; btnPrint.ForeColor = System.Drawing.Color.White; btnPrint.FlatStyle = FlatStyle.Flat;
         btnPrint.FlatAppearance.BorderColor = greenDark;

@@ -128,7 +128,7 @@ public sealed class CardDesignForm : Form
         });
 
         var bottom = new Panel { Dock = DockStyle.Bottom, Height = 60, Padding = new Padding(12), BackColor = Color.FromArgb(242, 242, 236) };
-        var reset = new Button { Text = "↺ Varsayılana dön", AutoSize = true, Height = 36, Dock = DockStyle.Left };
+        var reset = Icons.Set(new Button { Text = "Varsayılana dön", AutoSize = true, Height = 36, Dock = DockStyle.Left }, Ico.Reset);
         reset.Click += (_, _) =>
         {
             _mode = CardBranding.Auto;
@@ -137,7 +137,7 @@ public sealed class CardDesignForm : Form
             _chkBacking.Checked = true;
             Changed(thumbs: true);
         };
-        var ok = new Button { Text = "✔ Tamam", Width = 130, Height = 36, Dock = DockStyle.Right, BackColor = Green, ForeColor = Color.White, DialogResult = DialogResult.OK };
+        var ok = Icons.Set(new Button { Text = "Tamam", Width = 130, Height = 36, Dock = DockStyle.Right, BackColor = Green, ForeColor = Color.White, DialogResult = DialogResult.OK }, Ico.Check);
         var cancel = new Button { Text = "Vazgeç", Width = 110, Height = 36, Dock = DockStyle.Right, DialogResult = DialogResult.Cancel };
         ok.Click += (_, _) => Save();
         foreach (var b in new[] { reset, ok, cancel })
@@ -196,7 +196,7 @@ public sealed class CardDesignForm : Form
             b.FlatAppearance.BorderSize = on ? 3 : 1;
             b.Font = new Font("Segoe UI", 8.5f, on ? FontStyle.Bold : FontStyle.Regular);
         }
-        _lblMode.Text = _mode == CardBranding.Custom ? "✋ Elle yerleştirildi (hazır bir yerleşim seçerek dönebilirsiniz)"
+        _lblMode.Text = _mode == CardBranding.Custom ? "Elle yerleştirildi (hazır bir yerleşim seçerek dönebilirsiniz)"
                       : _mode == CardBranding.Auto ? "Otomatik: " + CardBranding.Label(effective, single)
                       : "Seçili: " + CardBranding.Label(effective, single);
         _lblSize.Text = $"%{_trkSize.Value}";

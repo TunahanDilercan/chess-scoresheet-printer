@@ -108,16 +108,16 @@ public sealed class ReportEditorForm : Form
     private void BuildLayout()
     {
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 52, Padding = new Padding(10, 7, 10, 0), BackColor = Color.FromArgb(245, 245, 240), WrapContents = false };
-        var print = Btn(PrintRouter.IsSilent ? "🖨  Yazdır (doğrudan)" : "🖨  Yazdır", 170, primary: true);
-        var pdf = Btn("📄 PDF kaydet", 130);
+        var print = Icons.Set(Btn(PrintRouter.IsSilent ? "Yazdır (doğrudan)" : "Yazdır", 170, primary: true), Ico.Print);
+        var pdf = Icons.Set(Btn("PDF kaydet", 130), Ico.Pdf);
         var docx = Btn("Word (.docx)", 110);
         var close = Btn("Kapat", 80);
         var zoomOut = Btn("−", 34);
         var zoomFit = Btn("Sığdır", 70);
         var zoomIn = Btn("+", 34);
-        var next = Btn("Sonraki boş alan ▶ (F3)", 190);
-        _btnUndo = Btn("↶ Geri al", 96);
-        _btnRedo = Btn("↷ Yinele", 90);
+        var next = Icons.Set(Btn("Sonraki boş alan (F3)", 190), Ico.ArrowRight);
+        _btnUndo = Icons.Set(Btn("Geri al", 100), Ico.Undo);
+        _btnRedo = Icons.Set(Btn("Yinele", 94), Ico.Redo);
         _tip.SetToolTip(_btnUndo, "Son değişikliği geri al (Ctrl+Z)");
         _tip.SetToolTip(_btnRedo, "Geri alınanı yinele (Ctrl+Y)");
         _btnUndo.Click += (_, _) => Undo();
@@ -338,11 +338,11 @@ public sealed class ReportEditorForm : Form
         {
             CommitEdit();
             if (_render is not null && _pageRects.Any(r => r.Contains(p)))
-                _status.Text = "🔒 Bu kısım şablonun sabit metni (kilitli). Yalnız sarı işaretli alanlar düzenlenir.";
+                _status.Text = "Bu kısım şablonun sabit metni (kilitli). Yalnız sarı işaretli alanlar düzenlenir.";
             return;
         }
         if (FieldOf(hit.Key) is { } f) BeginEdit(f, ScreenRect(hit));
-        else _status.Text = "🔒 Bu hücre otomatik doldurulur; ilgili saat alanından değiştirin.";
+        else _status.Text = "Bu hücre otomatik doldurulur; ilgili saat alanından değiştirin.";
     }
 
     // ================= Yerinde düzenleme =================
@@ -433,7 +433,7 @@ public sealed class ReportEditorForm : Form
         t = Fresh(t);
         Apply(t, old);
         FocusField(t, edit: false);
-        _status.Text = $"↶ Geri alındı: {t.Label} → {(old.Length == 0 ? "(boş)" : old)}";
+        _status.Text = $"Geri alındı: {t.Label} → {(old.Length == 0 ? "(boş)" : old)}";
     }
 
     private void Redo()
@@ -445,7 +445,7 @@ public sealed class ReportEditorForm : Form
         t = Fresh(t);
         Apply(t, now);
         FocusField(t, edit: false);
-        _status.Text = $"↷ Yinelendi: {t.Label} → {(now.Length == 0 ? "(boş)" : now)}";
+        _status.Text = $"Yinelendi: {t.Label} → {(now.Length == 0 ? "(boş)" : now)}";
     }
 
     private void UpdateUndoButtons()

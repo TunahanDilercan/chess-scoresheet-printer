@@ -56,13 +56,13 @@ public sealed class RegistrationForm : Form
     private readonly CheckedListBox _lstOptions = new() { Width = 640, Height = 96, CheckOnClick = true, IntegralHeight = false };
     private readonly TextBox _txtTid = new() { Width = 300, PlaceholderText = "Kayıt linki ya da numarası (tid)" };
     private readonly Button _btnAddTid = new() { Text = "Ekle", AutoSize = true, Height = 30 };
-    private readonly Button _btnFetch = new() { Text = "⬇ Kayıt listesini al ve kaydet", AutoSize = true, Height = 34, BackColor = Green, ForeColor = Color.White };
+    private readonly Button _btnFetch = Icons.Set(new Button { Text = "Kayıt listesini al ve kaydet", AutoSize = true, Height = 34, BackColor = Green, ForeColor = Color.White }, Ico.Download);
     private readonly Label _lblSnapshot = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(700, 0) };
     private readonly Label _lblEvent = new() { AutoSize = true, ForeColor = Color.FromArgb(40, 40, 40), MaximumSize = new Size(1040, 0), Margin = new Padding(0, 0, 0, 2) };
     private readonly DataGridView _grid = new();
     private readonly CheckBox _chkOnlyIssues = new() { Text = "Yalnız kontrol gerekenler", AutoSize = true };
     private readonly Label _lblSummary = new() { AutoSize = true, ForeColor = Color.DimGray };
-    private readonly Button _btnSave = new() { Text = "💾 Kaydet ve kapat", Width = 180, Height = 40, BackColor = Green, ForeColor = Color.White };
+    private readonly Button _btnSave = Icons.Set(new Button { Text = "Kaydet ve kapat", Width = 180, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Save);
     private readonly Button _btnClose = new() { Text = "Kapat", Width = 100, Height = 40 };
 
     private List<RosterPlayer> _roster = new();

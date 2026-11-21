@@ -118,7 +118,7 @@ public static class RegistrationSync
         cfg.Registrations[key] = reg;
         var counts = string.Join(" · ", RegistrationCategories.Counts(reg).Select(c => $"{c.Name} {c.Count}"));
         var what = before == 0 ? "alındı" : reg.Entries.Count != before ? $"güncellendi ({before} → {reg.Entries.Count})" : "kontrol edildi";
-        return new(true, $"📋 Kayıt listesi {what}: {reg.Entries.Count} sporcu — {counts}", reg);
+        return new(true, $"Kayıt listesi {what}: {reg.Entries.Count} sporcu — {counts}", reg);
     }
 
     private static EventRegistration Copy(EventRegistration source, string eventName, EventRegistration? keep) => new()

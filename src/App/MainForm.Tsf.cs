@@ -5,15 +5,15 @@ namespace NotasyonOtomasyonu.App;
 
 /// <summary>
 /// "Kayıttaki turnuva": ilin TSF sitesinde kayda açık olup chess-results'ta henüz bulunmayan turnuva.
-/// Turnuva listesinde "📋 Kayıtta: …" olarak görünür ve eksi numarayla (−tid) tutulur. Seçilince
+/// Turnuva listesinde "Kayıtta: …" olarak görünür ve eksi numarayla (−tid) tutulur. Seçilince
 /// kategoriler ve sporcu sayıları TSF kayıt formundan gelir; masa kartları bu sayılarla basılır.
 /// Eşleştirme isteyen işlemler turnuva chess-results'ta yayımlanınca açılır (o zaman kayıt listesi
 /// adından tanınıp chess-results turnuvasına kendiliğinden bağlanır).
 /// </summary>
 public partial class MainForm
 {
-    private const string TsfLabel = "📋 Kayıtta: ";
-    private const string TsfClosedLabel = "📋 Kayıt bitti: ";
+    private const string TsfLabel = "Kayıtta: ";
+    private const string TsfClosedLabel = "Kayıt bitti: ";
     private readonly Dictionary<int, string> _tsfFormSites = new();   // form numarası → il sitesi
 
     /// <summary>
@@ -33,8 +33,8 @@ public partial class MainForm
     private static bool IsTsfClosed(int tid) => TsfInfo.GetValueOrDefault(tid) is { Closed: true };
 
     /// <summary>
-    /// "📋 Kayıtta: Isparta Küçükler … — 32 sporcu  (TSF kayıt #358)",
-    /// "📋 Kayıt bitti (23.10): Isparta Yıldızlar … — 21 sporcu  (TSF kayıt #359)".
+    /// "Kayıtta: Isparta Küçükler … — 32 sporcu  (TSF kayıt #358)",
+    /// "Kayıt bitti (23.10): Isparta Yıldızlar … — 21 sporcu  (TSF kayıt #359)".
     /// </summary>
     private static string ComboLabel(TournamentRef t)
     {
@@ -42,8 +42,8 @@ public partial class MainForm
         var info = TsfInfo.GetValueOrDefault(-t.Tnr);
         var head = info switch
         {
-            { StoredAt: { } at } => $"📋 Saklı kayıt listesi ({at:dd.MM}): ",
-            { Closed: true, ClosesAt: { } end } => $"📋 Kayıt bitti ({end:dd.MM}): ",
+            { StoredAt: { } at } => $"Saklı kayıt listesi ({at:dd.MM}): ",
+            { Closed: true, ClosesAt: { } end } => $"Kayıt bitti ({end:dd.MM}): ",
             { Closed: true } => TsfClosedLabel,
             _ => TsfLabel
         };
@@ -84,7 +84,7 @@ public partial class MainForm
             }
             int nOpen = list.Count(t => !IsTsfClosed(-t.Tnr)), nClosed = list.Count - nOpen;
             if (list.Count > 0 && string.IsNullOrWhiteSpace(text))
-                LogOnce($"📋 TSF {province}: {(nOpen > 0 ? $"{nOpen} turnuvada kayıt sürüyor" : "kaydı süren turnuva yok")}" +
+                LogOnce($"TSF {province}: {(nOpen > 0 ? $"{nOpen} turnuvada kayıt sürüyor" : "kaydı süren turnuva yok")}" +
                         $"{(nClosed > 0 ? $", {nClosed} turnuvanın kaydı bitti" : "")} (chess-results'ta henüz yok; turnuva listesinin en üstünde).");
         }
         catch (Exception ex) { LogOnce("Uyarı: TSF kayıt formları alınamadı — " + TsfNet(ex)); }
@@ -207,7 +207,7 @@ public partial class MainForm
             var summary = string.Join(" · ", counts.Select(c => $"{c.Name} {c.Count}"));
             var state = page is { Closed: true } ? $"kayıtlar bitti{(page.ClosesAt is { } end ? $" ({end:dd.MM HH:mm})" : "")}" : page is null ? "eldeki liste" : "kayıt sürüyor";
             SetStatus($"Turnuva henüz chess-results'ta yok — TSF kayıt listesi ({state}): {reg.Entries.Count} sporcu. Masa kartları bu sayılarla basılabilir.", ok: true);
-            LogOnce($"📋 Kayıttaki turnuva: {name} (TSF #{tid}, {state}) — {reg.Entries.Count} sporcu: {summary}" +
+            LogOnce($"Kayıttaki turnuva: {name} (TSF #{tid}, {state}) — {reg.Entries.Count} sporcu: {summary}" +
                     (page is null ? $" • site okunamadı ({problem}), {reg.FetchedAt:dd.MM HH:mm} tarihli liste kullanılıyor" : ""));
         }
         finally { SetBusy(false); }

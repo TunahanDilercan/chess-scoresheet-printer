@@ -28,7 +28,7 @@ public partial class MainForm
     {
         _grpLists = new GroupBox
         {
-            Text = "📋 Listeler — A4 (pano: eşleştirme · sonuç ve sıralama; hakem kağıtları)",
+            Text = "Listeler — A4 (pano: eşleştirme · sonuç ve sıralama; hakem kağıtları)",
             Anchor = AnchorStyles.Top | AnchorStyles.Left,
             Location = new Point(grpQuick.Left, grpQuick.Bottom + 6),
             Size = new Size(grpQuick.Width, 76),
@@ -38,13 +38,15 @@ public partial class MainForm
         _flowPairLists = new FlowLayoutPanel { WrapContents = true, Location = new Point(92, 20), Size = new Size(grpQuick.Width - 102, 28) };
         _flowResultLists = new FlowLayoutPanel { WrapContents = true, Location = new Point(92, 50), Size = new Size(grpQuick.Width - 102, 28) };
         _lblArbiter = SmallLabel("Hakem");
-        _btnArbiter = new Button { Text = "🧑‍⚖️ Hakem eşleştirme kağıtları…", AutoSize = true, BackColor = Color.White, Font = new Font("Segoe UI", 8.5f) };
+        _btnArbiter = new Button { Text = "Hakem eşleştirme kağıtları…", AutoSize = true, BackColor = Color.White, Font = new Font("Segoe UI", 8.5f) };
         StyleButton(_btnArbiter);
+        Icons.Set(_btnArbiter, Ico.ClipboardCheck);
         _btnArbiter.Click += (_, _) => OpenArbiterSheets();
         _listTip.SetToolTip(_btnArbiter, "Tur başında hakemlere verilen eşleştirme kağıtları (Ctrl+H): iri yazı, her masada sonuç kutusu; " +
                                          "kategoriler ayrı sayfaya, sığdıkça aynı sayfaya ya da seçtiğiniz gruplara göre.");
-        _btnIncidents = new Button { Text = "📝 Ceza / itiraz kayıtları…", AutoSize = true, BackColor = Color.White, Font = new Font("Segoe UI", 8.5f) };
+        _btnIncidents = new Button { Text = "Ceza / itiraz kayıtları…", AutoSize = true, BackColor = Color.White, Font = new Font("Segoe UI", 8.5f) };
         StyleButton(_btnIncidents);
+        Icons.Set(_btnIncidents, Ico.DocAlert);
         _btnIncidents.Click += (_, _) => OpenIncidents();
         _listTip.SetToolTip(_btnIncidents, "Turnuvada verilen cezalar ve yapılan itirazlar: Ceza Tutanağı, İtiraz Tutanağı ve Turnuva Sonu Raporu bunlarla dolar.");
         _grpLists.Controls.AddRange(new Control[] { _lblPairLists, _flowPairLists, _lblResultLists, _flowResultLists, _lblArbiter, _btnArbiter, _btnIncidents });
@@ -53,21 +55,22 @@ public partial class MainForm
         // Sağdaki listenin altında: ekranda seçili kategori + tur için liste.
         _btnGridList = new Button
         {
-            Text = "📋 Liste ▾",
+            Text = "Liste ▾",
             Size = new Size(96, btnSelectNone.Height),
             Location = new Point(btnSelectNone.Right + 4, btnSelectNone.Top),
             Anchor = btnSelectNone.Anchor,
             BackColor = Color.White
         };
         StyleButton(_btnGridList);
+        Icons.Set(_btnGridList, Ico.ClipboardList);
         grpPairings.Controls.Add(_btnGridList);
         lblSelection.Left += _btnGridList.Width + 4;
         lblSelection.Width -= _btnGridList.Width + 4;
-        _gridListMenu.Items.Add("📋 Bu turun eşleştirme listesi", null, async (_, _) => await PrintGridListAsync(results: false));
-        _gridListMenu.Items.Add("🏁 Bu turun sonuçları ve sıralama", null, async (_, _) => await PrintGridListAsync(results: true));
+        Icons.SetItem(_gridListMenu.Items.Add("Bu turun eşleştirme listesi", null, async (_, _) => await PrintGridListAsync(results: false)), Ico.ClipboardList);
+        Icons.SetItem(_gridListMenu.Items.Add("Bu turun sonuçları ve sıralama", null, async (_, _) => await PrintGridListAsync(results: true)), Ico.Podium);
         _gridListMenu.Items.Add(new ToolStripSeparator());
-        _gridListMenu.Items.Add("🧑‍⚖️ Hakem eşleştirme kağıtları…", null, (_, _) => OpenArbiterSheets());
-        _gridListMenu.Items.Add("📝 Ceza / itiraz kayıtları…", null, (_, _) => OpenIncidents());
+        Icons.SetItem(_gridListMenu.Items.Add("Hakem eşleştirme kağıtları…", null, (_, _) => OpenArbiterSheets()), Ico.ClipboardCheck);
+        Icons.SetItem(_gridListMenu.Items.Add("Ceza / itiraz kayıtları…", null, (_, _) => OpenIncidents()), Ico.DocAlert);
         _btnGridList.Click += (_, _) => _gridListMenu.Show(_btnGridList, new Point(0, _btnGridList.Height));
         _listTip.SetToolTip(_btnGridList, "Listede görünen kategori ve turun eşleştirme ya da sonuç listesini A4 olarak bas (salon panosu için).");
 
@@ -113,8 +116,8 @@ public partial class MainForm
         // "Tümü" düğmeleri sağda ayrı sütunda (hızlı erişimdeki "Tüm Kategoriler" gibi); tek kategoride gerek yok.
         if (_btnAllPairLists is null)
         {
-            _btnAllPairLists = SmallButton("★ Tümü", null, async (_, _) => await PrintListsAsync(CurrentCategories(), results: false), strong: true);
-            _btnAllResultLists = SmallButton("★ Tümü", null, async (_, _) => await PrintListsAsync(CurrentCategories(), results: true), strong: true);
+            _btnAllPairLists = Icons.Set(SmallButton("Tümü", null, async (_, _) => await PrintListsAsync(CurrentCategories(), results: false), strong: true), Ico.Layers);
+            _btnAllResultLists = Icons.Set(SmallButton("Tümü", null, async (_, _) => await PrintListsAsync(CurrentCategories(), results: true), strong: true), Ico.Layers);
             _listTip.SetToolTip(_btnAllPairLists, "Tüm kategorilerin son eşlenen turunun eşleştirme listesi (her kategori ayrı sayfa).");
             _listTip.SetToolTip(_btnAllResultLists, "Tüm kategorilerin sonucu girilmiş son turunun sonuçları ve sıralaması (her kategori ayrı sayfa).");
             _grpLists.Controls.Add(_btnAllPairLists);
@@ -270,7 +273,7 @@ public partial class MainForm
         if (printed)
         {
             SetStatus($"✓ {char.ToUpper(kind[0]) + kind[1..]} yazıcıya gönderildi ({printer.PageCount} sayfa).", ok: true);
-            Log($"📋 Basıldı: {kind} — {what} ({printer.PageCount} sayfa).");
+            Log($"Basıldı: {kind} — {what} ({printer.PageCount} sayfa).");
         }
         else SetStatus("Önizleme kapatıldı; liste basılmadı.", ok: true);
         return Task.CompletedTask;

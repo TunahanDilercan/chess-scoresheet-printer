@@ -31,7 +31,7 @@ public partial class MainForm
         // Kaydı ayrı, boyutlandırılabilir pencerede aç (sol alt kutu küçük kaldığında)
         _lnkLogWindow = new LinkLabel
         {
-            AutoSize = true, Text = "⧉ ayrı pencerede", LinkBehavior = LinkBehavior.HoverUnderline,
+            AutoSize = true, Text = "ayrı pencerede", LinkBehavior = LinkBehavior.HoverUnderline,
             LinkColor = ThGreenDark, ActiveLinkColor = ThGreenDark, Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         _lnkLogWindow.LinkClicked += (_, _) => ShowLogWindow();
@@ -40,7 +40,7 @@ public partial class MainForm
         // Doğrudan baskı ayrıntıları sekmesi (kayma sorununda)
         _lnkPrintDetails = new LinkLabel
         {
-            AutoSize = true, Text = "🔍 baskı ayrıntıları", LinkBehavior = LinkBehavior.HoverUnderline,
+            AutoSize = true, Text = "baskı ayrıntıları", LinkBehavior = LinkBehavior.HoverUnderline,
             LinkColor = ThGreenDark, ActiveLinkColor = ThGreenDark, Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         _lnkPrintDetails.LinkClicked += (_, _) => { ShowLogWindow(); _logWindow?.ShowDetailsTab(); };
@@ -63,6 +63,7 @@ public partial class MainForm
             AutoEllipsis = true
         };
         StyleButton(_btnPrinter);
+        Icons.Set(_btnPrinter, Ico.Print);
         _btnPrinter.Click += (_, _) => OpenPrinterSettings();
         grpPairings.Controls.Add(_btnPrinter);
         new ToolTip().SetToolTip(_btnPrinter, "Yazıcı ayarları: hedef yazıcı, kağıt kaynağı, kopya, yazıcı tercihleri (sessiz mod), doğrudan yazdır.");
@@ -70,7 +71,7 @@ public partial class MainForm
         // Yanında yazdırma sırası: bekleyen/takılan işler tek tıkla görülsün (Ctrl+Q).
         _btnQueue = new Button
         {
-            Text = "📋 Yazdırma sırası",
+            Text = "Yazdırma sırası",
             Location = new Point(_btnPrinter.Right + 4, _btnPrinter.Top),
             Size = new Size(queueW, 24),
             Anchor = btnPrint.Anchor & ~AnchorStyles.Left | AnchorStyles.Right,
@@ -79,6 +80,7 @@ public partial class MainForm
             Font = new Font("Segoe UI", 8.75f)
         };
         StyleButton(_btnQueue);
+        Icons.Set(_btnQueue, Ico.ListLines);
         _btnQueue.Click += (_, _) => OpenPrintQueue();
         grpPairings.Controls.Add(_btnQueue);
         new ToolTip().SetToolTip(_btnQueue, "Hedef yazıcının yazdırma sırasını açar: bekleyen, takılan ya da hatalı işleri görün, iptal edin (Ctrl+Q).");
@@ -113,11 +115,11 @@ public partial class MainForm
         SetStatus("Yazıcı ayarları kaydedildi: " + Overlay.PrintRouter.TargetName, ok: true);
     }
 
-    /// <summary>Yazıcı satırının yazısı ("🖨 HP LaserJet • Tepsi 2 • doğrudan   ⚙").</summary>
+    /// <summary>Yazıcı satırının yazısı ("HP LaserJet • Tepsi 2 • doğrudan · değiştir").</summary>
     private void UpdatePrinterButton()
     {
         if (_btnPrinter is null) return;
-        _btnPrinter.Text = Overlay.PrinterSettingsPanel.Summary(_config.Printing) + "   ⚙ değiştir";
+        _btnPrinter.Text = Overlay.PrinterSettingsPanel.Summary(_config.Printing) + " · değiştir";
     }
 
     private bool LogExpanded => _config?.Layout.LogExpanded ?? false;

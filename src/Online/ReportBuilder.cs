@@ -132,7 +132,7 @@ public static class ReportBuilder
             ["TOPLANTI_SAATI"] = ("Teknik toplantı saati", "Örn. 09.30", false, false),
             ["TOPLANTI_YERI"] = ("Teknik toplantı yeri", "Turnuva salonu", false, false),
             ["SPORCU_SAYISI"] = ("Toplam sporcu sayısı", "Final sıralamalarından", false, false),
-            ["IL_SAYISI"] = ("Katılan il sayısı", "TSF kayıt listesindeki illerden (📋 Kayıt / İl)", true, false),
+            ["IL_SAYISI"] = ("Katılan il sayısı", "TSF kayıt listesindeki illerden (Ayarlar → Kayıt listesi ve sporcu illeri)", true, false),
             ["RAPOR_TARIHI"] = ("Rapor tarihi", "Örn. 04.10.2026", false, false),
             ["DEGERLENDIRME"] = ("Genel değerlendirme / itirazlar", "Turnuvanın işleyişi, itirazlar, olağanüstü durumlar", false, true),
             ["CEZA_SAYISI"] = ("Verilen ceza sayısı", "Ceza / itiraz kayıtlarından", true, false),

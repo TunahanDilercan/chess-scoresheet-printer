@@ -123,10 +123,10 @@ public sealed class PrinterSettingsPanel : UserControl
         _trayA5.SelectedItem = selectA5 is not null && _trayA5.Items.Contains(selectA5) ? selectA5 : SameTrayItem;
     }
 
-    /// <summary>Ana ekrandaki düğme için kısa özet: "🖨 HP LaserJet • Tepsi 2 • 2 kopya • doğrudan".</summary>
+    /// <summary>Ana ekrandaki düğme için kısa özet: "HP LaserJet • Tepsi 2 • 2 kopya • doğrudan".</summary>
     public static string Summary(PrintConfig pc)
     {
-        var parts = new List<string> { "🖨 " + PrintRouter.TargetName };
+        var parts = new List<string> { PrintRouter.TargetName };
         if (!string.IsNullOrWhiteSpace(pc.PaperSource)) parts.Add(pc.PaperSource!);
         if (!string.IsNullOrWhiteSpace(pc.PaperSourceA5)) parts.Add("A5: " + pc.PaperSourceA5);
         if (pc.Copies > 1) parts.Add($"{pc.Copies} kopya");

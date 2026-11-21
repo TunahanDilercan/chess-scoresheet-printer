@@ -34,14 +34,14 @@ public sealed class CardsForm : Form
     private bool _initializing = true;
 
     private readonly PictureBox _picLogo = new() { Width = 270, Height = 120, SizeMode = PictureBoxSizeMode.Zoom, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.White };
-    private readonly Button _btnLogo = new() { Text = "🖼 Afiş seç…", AutoSize = true, Height = 32 };
-    private readonly Button _btnCrop = new() { Text = "✂ Kırp…", AutoSize = true, Height = 32 };
+    private readonly Button _btnLogo = Icons.Set(new Button { Text = "Afiş seç…", AutoSize = true, Height = 32 }, Ico.Image);
+    private readonly Button _btnCrop = Icons.Set(new Button { Text = "Kırp…", AutoSize = true, Height = 32 }, Ico.Crop);
     private readonly Button _btnLogoClear = new() { Text = "Kaldır", AutoSize = true, Height = 32 };
     private readonly PictureBox _picPreview = new() { SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill };
     private readonly DataGridView _grid = new();
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray };
-    private readonly Button _btnPdf = new() { Text = "📄 PDF Kaydet", Width = 150, Height = 40 };
-    private readonly Button _btnPrint = new() { Text = "🖨 Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White };
+    private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 150, Height = 40 }, Ico.Pdf);
+    private readonly Button _btnPrint = Icons.Set(new Button { Text = "Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Print);
     private readonly Button _btnAll = new() { Text = "Tümünü seç", AutoSize = true, Height = 40 };
     private readonly Button _btnNone = new() { Text = "Hiçbiri", AutoSize = true, Height = 40 };
     private readonly ComboBox _cboFont = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
@@ -51,7 +51,7 @@ public sealed class CardsForm : Form
     private readonly RadioButton _rbTextColored = new() { Text = "Yazı renkli / beyaz zemin", AutoSize = true };
     private readonly RadioButton _rbFilled = new() { Text = "Zemin renkli / beyaz yazı", AutoSize = true };
     private readonly Label _lblLogos = new() { AutoSize = false, Width = 280, Height = 36, ForeColor = Color.DimGray };
-    private readonly Button _btnDesign = new() { Text = "🎨 Kart tasarımı (logo yerleşimi)…", AutoSize = true, Height = 32 };
+    private readonly Button _btnDesign = Icons.Set(new Button { Text = "Kart tasarımı (logo yerleşimi)…", AutoSize = true, Height = 32 }, Ico.Template);
     private Image? _gsbImg, _tsfImg;   // önizlemede kullanılan resmi logolar
 
     public CardsForm(CardsContext ctx)
@@ -235,7 +235,7 @@ public sealed class CardsForm : Form
     private void UpdatePrintButton()
     {
         bool silent = Overlay.PrintRouter.IsSilent;
-        _btnPrint.Text = silent ? "🖨 Yazdır" : "🖨 Önizle ve Yazdır";
+        _btnPrint.Text = silent ? "Yazdır" : "Önizle ve Yazdır";
         new ToolTip().SetToolTip(_btnPrint, silent
             ? $"Doğrudan yazdır açık: önizlemesiz “{Overlay.PrintRouter.TargetName}” yazıcısına gönderilir (Ayarlar → Yazıcı)."
             : "Önizleme açılır; oradan yazıcıya gönderilir.");

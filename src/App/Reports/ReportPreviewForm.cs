@@ -41,8 +41,8 @@ public sealed class ReportPreviewForm : Form
         KeyPreview = true;
 
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 50, Padding = new Padding(10, 7, 10, 0), BackColor = Color.FromArgb(245, 245, 240), WrapContents = false };
-        var print = Btn(PrintRouter.IsSilent ? "🖨  Yazdır (doğrudan)" : "🖨  Yazdır", 170, primary: true);
-        var pdf = Btn("📄 PDF Olarak Kaydet", 180);
+        var print = Icons.Set(Btn(PrintRouter.IsSilent ? "Yazdır (doğrudan)" : "Yazdır", 170, primary: true), Ico.Print);
+        var pdf = Icons.Set(Btn("PDF Olarak Kaydet", 190), Ico.Pdf);
         var close = Btn("Kapat", 90);
         var zoomOut = Btn("−", 36);
         var zoomFit = Btn("Sayfaya sığdır", 120);

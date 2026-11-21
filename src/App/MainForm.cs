@@ -655,6 +655,7 @@ public partial class MainForm : Form
             };
             b.Click += quickCategory_Click;
             StyleButton(b); // birincil (yeşil) stil + hover/pressed
+            Icons.Set(b, Ico.Print);
             _quickTip.SetToolTip(b, QuickTip(c));
             flowQuick.Controls.Add(b);
         }
@@ -667,8 +668,8 @@ public partial class MainForm : Form
 
     private string QuickText(CategoryRef c)
     {
-        if (!_roundCache.TryGetValue(c.Tnr, out var r)) return $"🖨 {ButtonText(c)} · …";
-        return r.Current > 0 ? $"🖨 {ButtonText(c)} · T{PrintRound(r)}" : $"{ButtonText(c)} · —";
+        if (!_roundCache.TryGetValue(c.Tnr, out var r)) return $"{ButtonText(c)} · …";
+        return r.Current > 0 ? $"{ButtonText(c)} · T{PrintRound(r)}" : $"{ButtonText(c)} · —";
     }
 
     /// <summary>
@@ -855,7 +856,7 @@ public partial class MainForm : Form
         await PrefetchCategoryRoundsAsync(cats, _eventTnr.Value);
         _ = SyncRegistrationAsync(_eventTnr.Value);
         FlashChangedRounds(cats, before);
-        Log($"🔄 Yenilendi: {string.Join(", ", cats.Select(QuickText).Select(t => t.Replace("🖨 ", "")))}");
+        Log($"Yenilendi: {string.Join(", ", cats.Select(QuickText))}");
     }
 
     /// <summary>
@@ -917,7 +918,7 @@ public partial class MainForm : Form
         {
             if (seq != _syncSeq) return;
             if (showWarnings) Fail("Eşleştirme çekilemedi", FriendlyNet(ex));
-            else { SetStatus($"{round}. tur eşleştirmeleri çekilemedi — 🔄 (F5) ile tekrar deneyin.", ok: false); Log("Uyarı: " + FriendlyNet(ex)); }
+            else { SetStatus($"{round}. tur eşleştirmeleri çekilemedi — yenile düğmesiyle (F5) tekrar deneyin.", ok: false); Log("Uyarı: " + FriendlyNet(ex)); }
             _syncedTournament = null;
             ShowPairings(null);
         }
@@ -987,7 +988,7 @@ public partial class MainForm : Form
             if (all.Count == 0 || first is null) { SetStatus("Hiçbir kategoride yazdırılacak masa bulunamadı.", ok: false); return; }
             var combined = first with { Pairings = all };
             PrintTournament(combined, _config.Layout.CopiesPerBoard);
-            Log($"★ Tüm kategoriler: {okCats} kategori, {all.Count} masa.");
+            Log($"Tüm kategoriler: {okCats} kategori, {all.Count} masa.");
         }
         catch (UserMessageException ex) { Fail("Tüm kategoriler", ex.Message); }
         catch (Exception ex) { Fail("Tüm kategoriler baskısı başarısız", FriendlyNet(ex)); }
@@ -1113,7 +1114,7 @@ public partial class MainForm : Form
             var path = await Task.Run(() => RenderToPdf(t));
             OpenWithShell(path);
             SetStatus($"PDF açıldı: {Path.GetFileName(path)} ({t.Pairings.Count} kağıt)", ok: true);
-            Log($"📄 PDF: {path}");
+            Log($"PDF: {path}");
         }
         catch (UserMessageException ex) { Fail("PDF oluşturulamadı", ex.Message); }
         catch (Exception ex) { Fail("PDF hatası", ex.Message); }
@@ -1219,12 +1220,12 @@ public partial class MainForm : Form
         if (total == 0)
         {
             lblSelection.Text = rbOnline.Checked ? "Eşleştirme yok — turnuva/kategori/tur seçin." : "Dosya seçin.";
-            btnPrint.Text = "🖨  Yazdır";
+            btnPrint.Text = "Yazdır";
         }
         else
         {
             lblSelection.Text = $"{n} / {total} masa işaretli • {sheets} kağıt";
-            btnPrint.Text = n > 0 ? $"🖨  Yazdır — {sheets} kağıt" + (Overlay.PrintRouter.IsSilent ? " (doğrudan)" : "") : "🖨  Yazdır (masa seçilmedi)";
+            btnPrint.Text = n > 0 ? $"Yazdır — {sheets} kağıt" + (Overlay.PrintRouter.IsSilent ? " (doğrudan)" : "") : "Yazdır (masa seçilmedi)";
         }
     }
 
@@ -1276,7 +1277,7 @@ public partial class MainForm : Form
     {
         var t = ExpandCopies(WithProvinces(baseT), copies);
         if (!_config.Overlay.IsConfigured)
-            throw new UserMessageException("Önce ⚙ Ayarlar'dan hazır kağıt şablonu tasarlayın.");
+            throw new UserMessageException("Önce Ayarlar'dan hazır kağıt şablonu tasarlayın.");
         SetStatus("Önizleme açılıyor…", ok: true);
         var printer = new Overlay.SheetPrinter(p => _config.TemplateFor(p.System), t, _config.Layout.PageSize,
             _config.Layout.PrintOffsetXmm, _config.Layout.PrintOffsetYmm);
@@ -1284,14 +1285,14 @@ public partial class MainForm : Form
         if (printed)
         {
             SetStatus($"✓ {t.Pairings.Count} kağıt yazıcıya gönderildi.", ok: true);
-            Log($"🖨 Basıldı: {baseT.Name} — {DescribeRounds(baseT)}, {baseT.Pairings.Count} masa × {copies} = {t.Pairings.Count} kağıt " +
+            Log($"Basıldı: {baseT.Name} — {DescribeRounds(baseT)}, {baseT.Pairings.Count} masa × {copies} = {t.Pairings.Count} kağıt " +
                 $"(şablon: {printer.TemplateNames}; {_config.Layout.PageSize}; kaydırma {_config.Layout.PrintOffsetXmm:0.0}/{_config.Layout.PrintOffsetYmm:0.0} mm" +
                 (printer.PrintedPaper is { } paper ? $"; yazıcının kağıdı: {paper}" : "") + ").");
             if (printer.PaperMismatch)
             {
-                Log($"⚠ Yazıcı notasyonu {_config.Layout.PageSize} değil {printer.PrintedPaper} olarak bastı: yazılar kağıtta kayar. " +
+                Log($"Uyarı: Yazıcı notasyonu {_config.Layout.PageSize} değil {printer.PrintedPaper} olarak bastı: yazılar kağıtta kayar. " +
                     "Yazıcının tercihlerinde (ve tepsisinde) kağıt boyutunu " + _config.Layout.PageSize + " yapın.");
-                SetStatus($"⚠ Yazıcı kağıdı {_config.Layout.PageSize} değil ({printer.PrintedPaper}) — işlem kaydına bakın.", ok: false);
+                SetStatus($"Yazıcı kağıdı {_config.Layout.PageSize} değil ({printer.PrintedPaper}) — işlem kaydına bakın.", ok: false);
             }
         }
         else SetStatus("Önizleme kapatıldı; baskı yapılmadı.", ok: true);
@@ -1351,7 +1352,7 @@ public partial class MainForm : Form
     private string RenderToPdf(Tournament t, string suffix = "")
     {
         if (!_config.Overlay.IsConfigured)
-            throw new UserMessageException("Önce ⚙ Ayarlar'dan hazır kağıt şablonu tasarlayın.");
+            throw new UserMessageException("Önce Ayarlar'dan hazır kağıt şablonu tasarlayın.");
         var path = Path.Combine(_outputDir, BuildFileName(t, suffix + "_overlay"));
         Overlay.OverlayPdfRenderer.Render(p => _config.TemplateFor(p.System), WithProvinces(t), path, _config.Layout.PageSize);
         return path;
@@ -1465,8 +1466,8 @@ public partial class MainForm : Form
         _config.Save(_configPath);
         if (AppConfig.LastSaveError is { } err)
         {
-            LogOnce($"⚠ Ayarlar kaydedilemedi ({_configPath}): {err}");
-            SetStatus("⚠ Ayarlar kaydedilemedi — işlem kaydına bakın.", ok: false);
+            LogOnce($"Uyarı: Ayarlar kaydedilemedi ({_configPath}): {err}");
+            SetStatus("Ayarlar kaydedilemedi — işlem kaydına bakın.", ok: false);
         }
     }
 

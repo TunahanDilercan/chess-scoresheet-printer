@@ -74,14 +74,14 @@ public sealed class ReportForm : Form
     private bool _busy, _filling;
 
     private readonly ComboBox _cboTemplate = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 360 };
-    private readonly Button _btnUpload = new() { Text = "📂 Kendi şablonumu yükle…", AutoSize = true, Height = 30 };
+    private readonly Button _btnUpload = Icons.Set(new Button { Text = "Kendi şablonumu yükle…", AutoSize = true, Height = 30 }, Ico.Upload);
     private readonly Button _btnRemove = new() { Text = "Kaldır", AutoSize = true, Height = 30 };
     private readonly LinkLabel _lnkExport = new() { Text = "Seçili hazır şablonu Word belgesi olarak al", AutoSize = true };
-    private readonly LinkLabel _lnkFields = new() { Text = "📋 Kullanılabilir alanlar (kendi şablonunuz için)", AutoSize = true };
-    private readonly Button _btnPack = new() { Text = "📦 Tutanak paketi…", AutoSize = true, Height = 40 };
+    private readonly LinkLabel _lnkFields = new() { Text = "Kullanılabilir alanlar (kendi şablonunuz için)", AutoSize = true };
+    private readonly Button _btnPack = Icons.Set(new Button { Text = "Tutanak paketi…", AutoSize = true, Height = 40 }, Ico.Files);
 
     private readonly ComboBox _cboYonerge = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 460 };
-    private readonly Button _btnYonRefresh = new() { Text = "↻", Width = 34, Height = 30 };
+    private readonly Button _btnYonRefresh = Icons.Set(new Button { Text = "", Width = 34, Height = 30 }, Ico.Refresh);
     private readonly Button _btnYonOpen = new() { Text = "Aç", AutoSize = true, Height = 30 };
     private readonly Button _btnYonUse = new() { Text = "Şablon olarak kullan", AutoSize = true, Height = 30 };
     private readonly Label _lblYon = new() { AutoSize = true, ForeColor = Color.DimGray };
@@ -92,8 +92,8 @@ public sealed class ReportForm : Form
     private readonly Button _btnTempo = new() { Text = "Düşünme süresine yaz", AutoSize = true, Height = 28 };
 
     private readonly DataGridView _gridChecks = MakeGrid();
-    private readonly Button _btnSuggest = new() { Text = "⏱ Programı TSF'ye göre öner", AutoSize = true, Height = 28 };
-    private readonly Button _btnSuggest2 = new() { Text = "⏱ Programı öner", AutoSize = true, Height = 28 };
+    private readonly Button _btnSuggest = Icons.Set(new Button { Text = "Programı TSF'ye göre öner", AutoSize = true, Height = 28 }, Ico.Clock);
+    private readonly Button _btnSuggest2 = Icons.Set(new Button { Text = "Programı öner", AutoSize = true, Height = 28 }, Ico.Clock);
     private readonly LinkLabel _lnkProcedure = new() { AutoSize = true };
     private readonly Label _lblProgramHint = new() { AutoSize = true, ForeColor = Color.DimGray };
     private readonly Dictionary<int, CategoryStats> _stats = new();   // kategori tnr → sporcu sayısı, rating, tempo
@@ -103,11 +103,11 @@ public sealed class ReportForm : Form
     private readonly DataGridView _gridProgram = MakeGrid();
     private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
 
-    private readonly Button _btnNext = new() { Text = "▶ Sonraki eksik", AutoSize = true, Height = 40 };
+    private readonly Button _btnNext = Icons.Set(new Button { Text = "Sonraki eksik", AutoSize = true, Height = 40 }, Ico.ArrowRight);
     private readonly Button _btnDocx = new() { Text = "Word (.docx) kaydet", AutoSize = true, Height = 40 };
-    private readonly Button _btnPrint = new() { Text = PrintRouter.IsSilent ? "🖨 Yazdır (doğrudan)" : "👁 Önizle ve Yazdır", Width = 170, Height = 40 };
-    private readonly Button _btnPdf = new() { Text = "📄 PDF Olarak Kaydet", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White };
-    private readonly Button _btnEdit = new() { Text = "✏ Önizle ve Düzenle", Width = 180, Height = 40 };
+    private readonly Button _btnPrint = Icons.Set(new Button { Text = PrintRouter.IsSilent ? "Yazdır (doğrudan)" : "Önizle ve Yazdır", Width = 170, Height = 40 }, Ico.Print);
+    private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Olarak Kaydet", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Pdf);
+    private readonly Button _btnEdit = Icons.Set(new Button { Text = "Önizle ve Düzenle", Width = 180, Height = 40 }, Ico.Edit);
 
     public ReportForm(ReportContext ctx)
     {
@@ -188,11 +188,10 @@ public sealed class ReportForm : Form
         tempoBar.Controls.Add(_cboPreset);
         tempoBar.Controls.Add(_btnTempo);
         _cboTempo.Margin = _cboPreset.Margin = new Padding(0, 2, 6, 0);
-        var legend = new Label
-        {
-            Dock = DockStyle.Top, Height = 22, Padding = new Padding(6, 3, 0, 0), ForeColor = Color.DimGray,
-            Text = "✓ chess-results    • önerilen (Kaynak sütununa bakın)    ✎ eksik — tüm alanları bu tabloda düzenleyin, Enter ile alttakine geçin"
-        };
+        var legend = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 24, Padding = new Padding(4, 3, 0, 0), WrapContents = false };
+        legend.Controls.Add(Icons.Caption(Ico.Ok, Icons.Accent, "chess-results"));
+        legend.Controls.Add(Icons.Caption(Ico.Dot, Color.DarkGoldenrod, "önerilen (Kaynak sütununa bakın)"));
+        legend.Controls.Add(Icons.Caption(Ico.Edit, Color.Gray, "eksik — tüm alanları bu tabloda düzenleyin, Enter ile alttakine geçin"));
         var fieldsPage = new TabPage("Bilgiler") { Padding = new Padding(6), BackColor = Color.White };
         _gridFields.Dock = DockStyle.Fill;
         fieldsPage.Controls.Add(_gridFields);
@@ -233,6 +232,7 @@ public sealed class ReportForm : Form
         _btnPdf.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
 
         _gridFields.Columns.Add(new DataGridViewTextBoxColumn { Name = "Durum", HeaderText = "", Width = 30, ReadOnly = true });
+        Icons.PaintMarks(_gridFields, 0);
         _gridFields.Columns.Add(new DataGridViewTextBoxColumn { Name = "Alan", HeaderText = "Alan", Width = 230, ReadOnly = true });
         _gridFields.Columns.Add(new DataGridViewTextBoxColumn { Name = "Deger", HeaderText = "Değer", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
         _gridFields.Columns.Add(new DataGridViewTextBoxColumn { Name = "Kaynak", HeaderText = "Kaynak", Width = 190, ReadOnly = true });
@@ -251,6 +251,7 @@ public sealed class ReportForm : Form
         _gridProgram.AllowUserToAddRows = _gridProgram.AllowUserToDeleteRows = true;
 
         _gridChecks.Columns.Add(new DataGridViewTextBoxColumn { Name = "Durum", HeaderText = "", Width = 30, ReadOnly = true });
+        Icons.PaintMarks(_gridChecks, 0);
         _gridChecks.Columns.Add(new DataGridViewTextBoxColumn { Name = "Kontrol", HeaderText = "Kontrol", Width = 380, ReadOnly = true });
         _gridChecks.Columns.Add(new DataGridViewTextBoxColumn { Name = "Aciklama", HeaderText = "Açıklama", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, ReadOnly = true });
         _gridChecks.Columns.Add(new DataGridViewTextBoxColumn { Name = "Madde", HeaderText = "Madde", Width = 90, ReadOnly = true });
@@ -680,7 +681,7 @@ public sealed class ReportForm : Form
     private void UpdateNextButton()
     {
         int n = _draft?.Fields.Count(f => f.Source == ReportFieldSource.Missing && !f.Optional) ?? 0;
-        _btnNext.Text = n > 0 ? $"▶ Sonraki eksik ({n})" : "▶ Sonraki eksik";
+        _btnNext.Text = n > 0 ? $"Sonraki eksik ({n})" : "Sonraki eksik";
         _btnNext.Enabled = (_draft?.Fields.Any(f => f.Source == ReportFieldSource.Missing) ?? false);
     }
 
@@ -1041,7 +1042,7 @@ public sealed class ReportForm : Form
         var info = new Label { Text = "Doldurulacak belgeler (bu turnuvanın bilgileriyle):", AutoSize = true, Location = new Point(12, 12) };
         var list = new CheckedListBox { Location = new Point(12, 36), Size = new Size(436, 230), CheckOnClick = true, IntegralHeight = false };
         foreach (var it in items) list.Items.Add(it, it.Resource is not null && it.Resource != BuiltInResource);
-        var ok = new Button { Text = Word() ? "📄 PDF olarak kaydet" : "Word (.docx) olarak kaydet", DialogResult = DialogResult.OK, Location = new Point(218, 280), Size = new Size(150, 36) };
+        var ok = Icons.Set(new Button { Text = Word() ? "PDF olarak kaydet" : "Word (.docx) olarak kaydet", DialogResult = DialogResult.OK, Location = new Point(218, 280), Size = new Size(150, 36) }, Word() ? Ico.Pdf : Ico.Doc);
         var cancel = new Button { Text = "Vazgeç", DialogResult = DialogResult.Cancel, Location = new Point(374, 280), Size = new Size(74, 36) };
         dlg.Controls.AddRange(new Control[] { info, list, ok, cancel });
         dlg.AcceptButton = ok; dlg.CancelButton = cancel;

@@ -12,7 +12,7 @@ public sealed class LogWindow : Form
     private readonly TextBox _details = Box();
     private readonly CheckBox _chkWarnings = new() { Text = "Yalnız uyarılar", AutoSize = true, Margin = new Padding(8, 8, 8, 0) };
     private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
-    private readonly TabPage _detailsPage = new("🔍 Baskı ayrıntıları");
+    private readonly TabPage _detailsPage = new("Baskı ayrıntıları");
     private readonly Func<string> _source;
     private readonly Func<string>? _detailsSource;
 
@@ -40,7 +40,7 @@ public sealed class LogWindow : Form
         // ---- İşlem kaydı ----
         var logPage = new TabPage("İşlem kaydı");
         var bar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38, Padding = new Padding(6, 4, 6, 0), BackColor = Color.FromArgb(242, 242, 236) };
-        var copy = Btn("📋 Kopyala");
+        var copy = Icons.Set(Btn("Kopyala"), Ico.Copy);
         var clr = Btn("Temizle");
         copy.Click += (_, _) => { if (_txt.TextLength > 0) Clipboard.SetText(_txt.Text); };
         clr.Click += (_, _) => { clear(); RefreshText(); };
@@ -54,8 +54,8 @@ public sealed class LogWindow : Form
         if (details is not null)
         {
             var dbar = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 38, Padding = new Padding(6, 4, 6, 0), BackColor = Color.FromArgb(242, 242, 236) };
-            var refresh = Btn("↻ Yenile");
-            var dcopy = Btn("📋 Kopyala (göndermek için)");
+            var refresh = Icons.Set(Btn("Yenile"), Ico.Refresh);
+            var dcopy = Icons.Set(Btn("Kopyala (göndermek için)"), Ico.Copy);
             refresh.Click += (_, _) => RefreshDetails();
             dcopy.Click += (_, _) => { RefreshDetails(); if (_details.TextLength > 0) Clipboard.SetText(_details.Text); };
             dbar.Controls.AddRange(new Control[] { refresh, dcopy });

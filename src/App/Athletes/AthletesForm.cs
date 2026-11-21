@@ -34,18 +34,18 @@ public sealed class AthletesForm : Form
     private readonly RadioButton _rbBadge = new() { Text = "Yaka kartı (95×135 mm, A4'e 4)", AutoSize = true };
     private readonly RadioButton _rbPlate = new() { Text = "İsimlik (190 mm geniş, masaya)", AutoSize = true };
     private readonly ComboBox _cboPlates = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 250 };
-    private readonly Button _btnBanner = new() { Text = "🖼 Afiş seç…", AutoSize = true, Height = 28 };
+    private readonly Button _btnBanner = Icons.Set(new Button { Text = "Afiş seç…", AutoSize = true, Height = 28 }, Ico.Image);
     private readonly Button _btnBannerCards = new() { Text = "Masa kartı afişini kullan", AutoSize = true, Height = 28 };
     private readonly Label _lblBanner = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
     private readonly NumericUpDown _numCrop = new() { Minimum = 0, Maximum = 45, Width = 60 };
     private readonly CheckBox _chkFooter = new() { Text = "Afişin alt bandını kartın altına şerit yap", AutoSize = true };
-    private readonly Button _btnPlateBanner = new() { Text = "🖼 İsimlik şeridi seç…", AutoSize = true, Height = 28 };
+    private readonly Button _btnPlateBanner = Icons.Set(new Button { Text = "İsimlik şeridi seç…", AutoSize = true, Height = 28 }, Ico.Image);
     private readonly Button _btnPlateBannerClear = new() { Text = "Kaldır", AutoSize = true, Height = 28 };
     private readonly Label _lblPlateBanner = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
-    private readonly Button _btnLogo1 = new() { Text = "Sol logo…", AutoSize = true, Height = 28 };
-    private readonly Button _btnLogo1Clear = new() { Text = "✕", AutoSize = true, Height = 28 };
-    private readonly Button _btnLogo2 = new() { Text = "Sağ logo…", AutoSize = true, Height = 28 };
-    private readonly Button _btnLogo2Clear = new() { Text = "✕", AutoSize = true, Height = 28 };
+    private readonly Button _btnLogo1 = Icons.Set(new Button { Text = "Sol logo…", AutoSize = true, Height = 28 }, Ico.Image);
+    private readonly Button _btnLogo1Clear = Icons.Set(new Button { Text = "", Width = 32, Height = 28 }, Ico.Close);
+    private readonly Button _btnLogo2 = Icons.Set(new Button { Text = "Sağ logo…", AutoSize = true, Height = 28 }, Ico.Image);
+    private readonly Button _btnLogo2Clear = Icons.Set(new Button { Text = "", Width = 32, Height = 28 }, Ico.Close);
     private readonly Label _lblLogos = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
     private readonly CheckBox _chkTsf = new() { Text = "Sağ logo seçilmezse TSF il logosu", AutoSize = true };
     private readonly CheckBox _chkTitle = new() { Text = "Unvanı ada ekle (IM, FM, WCM…)", AutoSize = true };
@@ -56,16 +56,16 @@ public sealed class AthletesForm : Form
     private readonly Button _btnFrame = new() { Text = "Çerçeve rengi", AutoSize = true, Height = 28 };
     private readonly Button _btnText = new() { Text = "Yazı rengi", AutoSize = true, Height = 28 };
 
-    private readonly Button _btnFromCr = new() { Text = "⬇ chess-results", AutoSize = true, Height = 32 };
-    private readonly Button _btnFromTsf = new() { Text = "⬇ TSF kayıt listesi", AutoSize = true, Height = 32 };
-    private readonly Button _btnFromXls = new() { Text = "📄 Excel'den al…", AutoSize = true, Height = 32 };
+    private readonly Button _btnFromCr = Icons.Set(new Button { Text = "chess-results", AutoSize = true, Height = 32 }, Ico.Download);
+    private readonly Button _btnFromTsf = Icons.Set(new Button { Text = "TSF kayıt listesi", AutoSize = true, Height = 32 }, Ico.Download);
+    private readonly Button _btnFromXls = Icons.Set(new Button { Text = "Excel'den al…", AutoSize = true, Height = 32 }, Ico.Table);
     private readonly Button _btnClear = new() { Text = "Temizle", AutoSize = true, Height = 32 };
     private readonly ComboBox _cboCat = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160 };
     private readonly DataGridView _grid = new() { Dock = DockStyle.Fill };
     private readonly PictureBox _picPreview = new() { SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill };
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(12, 12, 0, 0) };
-    private readonly Button _btnPdf = new() { Text = "📄 PDF Kaydet", Width = 150, Height = 40 };
-    private readonly Button _btnPrint = new() { Text = "🖨 Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White };
+    private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 150, Height = 40 }, Ico.Pdf);
+    private readonly Button _btnPrint = Icons.Set(new Button { Text = "Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Print);
     private readonly Button _btnAll = new() { Text = "Tümünü seç", AutoSize = true, Height = 40 };
     private readonly Button _btnNone = new() { Text = "Hiçbiri", AutoSize = true, Height = 40 };
     private readonly FlowLayoutPanel _badgeOnly = new() { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty };
@@ -276,7 +276,9 @@ public sealed class AthletesForm : Form
         tip.SetToolTip(_btnFromCr, "Turnuvanın her kategorisinin başlangıç listesi; ELO, UKD ve il TSF kayıt listesiyle eşleştirilir.");
         tip.SetToolTip(_btnFromTsf, "TSF il sitesindeki kayıt listesi (ad, kategori, il, ELO, UKD).");
         tip.SetToolTip(_btnFromXls, "Excel dosyası (.xlsx/.xlsm): ad soyad, kategori, okul/kulüp/il, ELO, UKD sütunları.");
-        tip.SetToolTip(_numCrop, "Afişin altındaki süs ya da logo bandı kartta yer kaplamasın diye kırpılır (Excel şablonunda %22).");
+        tip.SetToolTip(_btnLogo1Clear, "Sol logoyu kaldır");
+        tip.SetToolTip(_btnLogo2Clear, "Sağ logoyu kaldır");
+        tip.SetToolTip(_numCrop,"Afişin altındaki süs ya da logo bandı kartta yer kaplamasın diye kırpılır (Excel şablonunda %22).");
     }
 
     private void UpdateOptionVisibility()

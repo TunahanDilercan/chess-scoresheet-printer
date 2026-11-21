@@ -13,7 +13,7 @@ public sealed class UpdateForm : Form
     private readonly TextBox _txtNotes = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.White, BorderStyle = BorderStyle.None, Font = new Font("Segoe UI", 9.75f) };
     private readonly ProgressBar _bar = new() { Dock = DockStyle.Bottom, Height = 8, Visible = false, Style = ProgressBarStyle.Continuous };
     private readonly Label _lblStatus = new() { AutoSize = false, Dock = DockStyle.Bottom, Height = 26, ForeColor = Color.DimGray, Padding = new Padding(14, 4, 14, 0) };
-    private readonly Button _btnUpdate = new() { Text = "⬆ Güncelle ve yeniden başlat", AutoSize = true, Height = 36, BackColor = Green, ForeColor = Color.White, Enabled = false };
+    private readonly Button _btnUpdate = Icons.Set(new Button { Text = "Güncelle ve yeniden başlat", AutoSize = true, Height = 36, BackColor = Green, ForeColor = Color.White, Enabled = false }, Ico.Update);
     private readonly Button _btnSkip = new() { Text = "Bu sürümü atla", AutoSize = true, Height = 36, Visible = false };
     private readonly Button _btnClose = new() { Text = "Kapat", AutoSize = true, Height = 36, DialogResult = DialogResult.Cancel };
     private readonly LinkLabel _lnkWeb = new() { Text = "GitHub'da aç", AutoSize = true, Margin = new Padding(8, 11, 8, 0) };
@@ -135,7 +135,7 @@ public sealed class UpdateForm : Form
                 _ = PlanAsync();
                 break;
             case Route.Migrate:
-                _btnUpdate.Text = "⬆ Kur ve yeniden başlat";
+                _btnUpdate.Text = "Kur ve yeniden başlat";
                 _lblStatus.Text = $"Tek seferlik kurulum ({_release.SetupSize / 1048576.0:0} MB): sonraki güncellemelerde yalnız değişen kısımlar iner. Ayarlarınız korunur.";
                 _txtNotes.Text = "BU GÜNCELLEMEDE PROGRAM BİLGİSAYARA KURULUR" + Environment.NewLine +
                     "• Bir kez kurulur; masaüstüne ve Başlat menüsüne \"Chess Scoresheet Printer\" kısayolu eklenir." + Environment.NewLine +
