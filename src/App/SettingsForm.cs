@@ -168,7 +168,7 @@ public sealed class SettingsForm : Form
         y = _tabs.Bottom + 10;
         // İmza: adın kendisi GitHub sayfasına götürür (adres metni gösterilmez).
         const string author = "Tunahan Dilercan";
-        const string githubUrl = "https://github.com/lgndist/chess-scoresheet-printer";
+        const string githubUrl = "https://github.com/TunahanDilercan/chess-scoresheet-printer";
         var version = typeof(SettingsForm).Assembly.GetName().Version;
         var credit = new LinkLabel
         {

@@ -2,8 +2,8 @@
 
 [Türkçe](README.md) | English
 
-[![CI](https://github.com/lgndist/chess-scoresheet-printer/actions/workflows/ci.yml/badge.svg)](https://github.com/lgndist/chess-scoresheet-printer/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/lgndist/chess-scoresheet-printer)](https://github.com/lgndist/chess-scoresheet-printer/releases/latest)
+[![CI](https://github.com/TunahanDilercan/chess-scoresheet-printer/actions/workflows/ci.yml/badge.svg)](https://github.com/TunahanDilercan/chess-scoresheet-printer/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/TunahanDilercan/chess-scoresheet-printer)](https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest)
 
 Chess Scoresheet Printer is a Windows desktop tool for placing tournament pairing information on pre-printed chess scoresheets. It works with Chess-Results and Swiss-Manager exports.
 
@@ -71,6 +71,6 @@ The template editor allows tournament, date, category, round, board, player and 
 
 ## Download
 
-The Windows x64 package is available on the [Releases](https://github.com/lgndist/chess-scoresheet-printer/releases/latest) page. After extracting the ZIP archive, run `ChessScoresheetPrinter.exe`. The package includes the .NET runtime and is intended for Windows 10 and Windows 11.
+The Windows x64 package is available on the [Releases](https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest) page. After extracting the ZIP archive, run `ChessScoresheetPrinter.exe`. The package includes the .NET runtime and is intended for Windows 10 and Windows 11.
 
 The published executable is not code-signed, so Windows may display a SmartScreen warning on first launch.

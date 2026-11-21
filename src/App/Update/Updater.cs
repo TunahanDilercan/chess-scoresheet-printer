@@ -20,7 +20,7 @@ public sealed record ReleaseInfo(Version Version, string Tag, string Notes, stri
 /// </summary>
 public static class Updater
 {
-    public const string Repo = "lgndist/chess-scoresheet-printer";
+    public const string Repo = "TunahanDilercan/chess-scoresheet-printer";
     public const string ReleasesPage = "https://github.com/" + Repo + "/releases";
     private const string OldSuffix = ".old";
 

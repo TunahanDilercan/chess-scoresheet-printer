@@ -2,8 +2,8 @@
 
 Türkçe | [English](README.en.md)
 
-[![CI](https://github.com/lgndist/chess-scoresheet-printer/actions/workflows/ci.yml/badge.svg)](https://github.com/lgndist/chess-scoresheet-printer/actions/workflows/ci.yml)
-[![Sürüm](https://img.shields.io/github/v/release/lgndist/chess-scoresheet-printer?label=s%C3%BCr%C3%BCm)](https://github.com/lgndist/chess-scoresheet-printer/releases/latest)
+[![CI](https://github.com/TunahanDilercan/chess-scoresheet-printer/actions/workflows/ci.yml/badge.svg)](https://github.com/TunahanDilercan/chess-scoresheet-printer/actions/workflows/ci.yml)
+[![Sürüm](https://img.shields.io/github/v/release/TunahanDilercan/chess-scoresheet-printer?label=s%C3%BCr%C3%BCm)](https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest)
 
 Chess Scoresheet Printer, turnuva eşleştirme bilgilerini hazır basılı satranç notasyon kâğıtlarına yerleştirmek ve yazdırmak için hazırlanmış bir Windows masaüstü aracıdır. Chess-Results ve Swiss-Manager çıktılarıyla çalışır.
 
@@ -71,6 +71,6 @@ Yazılar hazır kâğıttaki kutulara göre kayıksa **Ayarlar → Yazıcı hiza
 
 ## İndirme
 
-Windows x64 paketi [Releases](https://github.com/lgndist/chess-scoresheet-printer/releases/latest) sayfasından indirilebilir. ZIP arşivini çıkardıktan sonra `ChessScoresheetPrinter.exe` çalıştırılabilir. Paket .NET çalışma zamanını içerir ve Windows 10 ile Windows 11 için hazırlanmıştır.
+Windows x64 paketi [Releases](https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest) sayfasından indirilebilir. ZIP arşivini çıkardıktan sonra `ChessScoresheetPrinter.exe` çalıştırılabilir. Paket .NET çalışma zamanını içerir ve Windows 10 ile Windows 11 için hazırlanmıştır.
 
 Yayımlanan dosya kod imzalı değildir. Windows ilk çalıştırmada SmartScreen uyarısı gösterebilir.
