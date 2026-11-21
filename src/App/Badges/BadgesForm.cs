@@ -58,7 +58,7 @@ public sealed class BadgesForm : Form
         Text = "Hakem Yaka Kartları — " + EventGrouping.BaseName(ctx.EventName);
         Font = new Font("Segoe UI", 9.75f);
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(1220, 720);
+        Size = new Size(1340, 720);   // fotoğraf sütunu açıkken de tüm sütunlar + önizleme sığsın
         MinimumSize = new Size(900, 580);
         this.FitToScreen(); // küçük ekranda / yüksek ölçekte taşmasın
         BackColor = Color.FromArgb(250, 250, 247);
@@ -148,13 +148,13 @@ public sealed class BadgesForm : Form
         _grid.EditMode = DataGridViewEditMode.EditOnEnter;
         _grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Bas", HeaderText = "Bas", Width = 44 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ad", HeaderText = "Ad Soyad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 170 });
-        var role = new DataGridViewComboBoxColumn { Name = "Gorev", HeaderText = "Görev", Width = 170, FlatStyle = FlatStyle.Flat };
+        var role = new DataGridViewComboBoxColumn { Name = "Gorev", HeaderText = "Görev", Width = 160, FlatStyle = FlatStyle.Flat };
         role.Items.AddRange(Arbiters.Roles);
         _grid.Columns.Add(role);
-        var grade = new DataGridViewComboBoxColumn { Name = "Unvan", HeaderText = "Unvan (renk)", Width = 160, FlatStyle = FlatStyle.Flat };
+        var grade = new DataGridViewComboBoxColumn { Name = "Unvan", HeaderText = "Unvan (renk)", Width = 150, FlatStyle = FlatStyle.Flat };
         grade.Items.AddRange(Arbiters.Grades);
         _grid.Columns.Add(grade);
-        _grid.Columns.Add(new DataGridViewButtonColumn { Name = "Foto", HeaderText = "Fotoğraf", Width = 110, FlatStyle = FlatStyle.Flat });
+        _grid.Columns.Add(new DataGridViewButtonColumn { Name = "Foto", HeaderText = "Fotoğraf", Width = 92, FlatStyle = FlatStyle.Flat });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Adet", HeaderText = "Adet", Width = 60 });
         _grid.Columns["Adet"]!.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         _grid.DefaultValuesNeeded += (_, e) =>
@@ -338,7 +338,7 @@ public sealed class BadgesForm : Form
         _btnBanner.Enabled = _btnBannerCards.Enabled = _rbBanner.Checked;
         _btnBannerCards.Visible = CardPoster() is not null;
         _lblBanner.Text = !_rbBanner.Checked ? "Her hakemin fotoğrafı tablodaki \"Fotoğraf\" sütunundan seçilir."
-            : Cfg.BannerPath is { } p && File.Exists(p) ? "✓ " + Path.GetFileName(p) + " — kırpılmadan, kart genişliğinde basılır."
+            : Cfg.BannerPath is { } p && File.Exists(p) ? "✓ " + Path.GetFileName(p) + " — kartın en üstünde, kenardan kenara (kırpılmadan) basılır."
             : "Görsel seçilmedi: kartta boş çerçeve basılır.";
         if (_grid.Columns.Contains("Foto")) _grid.Columns["Foto"]!.Visible = !BannerMode;   // ortak görselde vesikalık gerekmez
     }

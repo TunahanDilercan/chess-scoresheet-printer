@@ -30,7 +30,7 @@ public sealed record ProvinceMatch(RosterPlayer Player, MatchKind Kind, PlayerRe
 /// <item>Türkçe harfler katlanır (İ/I/ı, Ç→C, Ş→S…), noktalama ve boşluk farkı yok sayılır.</item>
 /// <item>chess-results "SOYAD, AD" ile kayıttaki AD + SOYAD karşılaştırılır; soyad mutlaka tutmalı
 /// (kardeşler — aynı soyad, farklı ad — birbirine eşlenmez).</item>
-/// <item>İkinci ad eksikliği ("AVCI, MEHMET" ↔ "MEHMET ARİF AVCI") ve adda tek harf yazım farkı
+/// <item>İkinci ad eksikliği ("KAYA, ALİ" ↔ "ALİ RIZA KAYA") ve adda tek harf yazım farkı
 /// "benzer" sayılır.</item>
 /// <item>Puan (UKD/ELO) ve kategori yaşı yalnız eşitliği bozar; puan değişebildiği için tutmaması
 /// eşleşmeyi düşürmez, farklı yaş kategorisi ise düşürür.</item>

@@ -221,12 +221,43 @@ public sealed class BadgePrinter
     /// aynı yatay afiş / turnuva bilgisi görseli), altında ad soyad ve görev, en altta dereceye göre renkli
     /// şerit. Ölçüler 95 mm genişliğe oranlıdır.
     /// </summary>
+    /// <summary>Dikey kartta üstteki yatay görselin en büyük yüksekliği (kart 95 birim genişlik; 95×135 kartta mm).</summary>
+    public const float BannerMaxMm = 75f;
+
     private static void DrawPortrait(Graphics g, RectangleF r, BadgeSpec b, Image? logo, Image? photo, string eventName, string? font,
                                      bool banner = false, Image? bannerImage = null)
     {
         float u = r.Width / 95f, m = 5 * u;
         using (var white = new SolidBrush(Color.White)) g.FillRectangle(white, r);
         float y = r.Y + m;
+
+        if (banner)
+        {
+            // Yatay görsel kartın en üstünde, kenardan kenara (logo ve turnuva adı afişte zaten var).
+            // Yatay görsel tam genişlikte basılır ve üst tarafı kaplar; kırpılmaz (afişteki yazılar kesilmesin).
+            // Çok dik bir görsel en çok BannerMaxMm yüksekliğe sığdırılıp ortalanır.
+            var slot = new RectangleF(r.X, r.Y, r.Width, BannerMaxMm * u);
+            if (bannerImage is not null)
+            {
+                var fit = CardLayout.FitImage(new SizeF(bannerImage.Width, bannerImage.Height), slot);
+                fit.Y = r.Y;                                  // üste yaslı: kalan yer ada kalsın
+                g.DrawImage(bannerImage, fit);
+                y = fit.Bottom + 4 * u;
+            }
+            else
+            {
+                var box = new RectangleF(r.X + m, r.Y + m, r.Width - 2 * m, (r.Width - 2 * m) * 9 / 16);
+                using var dash = new Pen(Color.FromArgb(160, 160, 160), 0.8f) { DashStyle = DashStyle.Dash };
+                g.DrawRectangle(dash, box.X, box.Y, box.Width, box.Height);
+                using var hint = new Font("Segoe UI", 9f, GraphicsUnit.Point);
+                using var hb = new SolidBrush(Color.FromArgb(150, 150, 150));
+                using var fmt = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                g.DrawString("AFİŞ / TURNUVA BİLGİSİ", hint, hb, box, fmt);
+                y = box.Bottom + 4 * u;
+            }
+            DrawPortraitBottom(g, r, b, font, y, u, m);
+            return;
+        }
 
         // Logo (ortalı) + turnuva adı
         if (logo is not null)
@@ -239,32 +270,6 @@ public sealed class BadgePrinter
         CardLayout.DrawLines(g, CardLayout.Fit(eventName.ToUpper(new System.Globalization.CultureInfo("tr-TR")), titleBox, 13, font, 6, 3),
             titleBox, Color.FromArgb(55, 55, 55), font);
         y = titleBox.Bottom + 3 * u;
-
-        if (banner)
-        {
-            // Yatay görsel: kartın genişliğinde, kırpılmadan (afişteki yazılar kesilmesin); en çok 50 mm yükseklik
-            var slot = new RectangleF(r.X + m, y, r.Width - 2 * m, 50 * u);
-            if (bannerImage is not null)
-            {
-                var fit = CardLayout.FitImage(new SizeF(bannerImage.Width, bannerImage.Height), slot);
-                fit.Y = y;                                    // üste yaslı: kalan yer ada kalsın
-                g.DrawImage(bannerImage, fit);
-                y = fit.Bottom + 3 * u;
-            }
-            else
-            {
-                var box = new RectangleF(slot.X, y, slot.Width, slot.Width * 9 / 16);
-                using var dash = new Pen(Color.FromArgb(160, 160, 160), 0.8f) { DashStyle = DashStyle.Dash };
-                g.DrawRectangle(dash, box.X, box.Y, box.Width, box.Height);
-                using var hint = new Font("Segoe UI", 9f, GraphicsUnit.Point);
-                using var hb = new SolidBrush(Color.FromArgb(150, 150, 150));
-                using var fmt = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
-                g.DrawString("AFİŞ / TURNUVA BİLGİSİ", hint, hb, box, fmt);
-                y = box.Bottom + 3 * u;
-            }
-            DrawPortraitBottom(g, r, b, font, y, u, m);
-            return;
-        }
 
         // Vesikalık (3:4), ortalı; ince derece renginde çerçeve
         float ph = 50 * u, pw = ph * 0.75f;

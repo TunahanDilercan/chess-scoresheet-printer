@@ -108,8 +108,8 @@ public class CustomSpotTests
         var a = DocxTemplate.Analyze(docx);
         Assert.Contains("ALAN_SPORCU", a.Fields);
         Assert.Contains("ALAN_MASA_NO", a.Fields);
-        var text = TestDocx.Text(DocxTemplate.Fill(docx, TestDocx.Data(("ALAN_SPORCU", "EGE YILDIRIM"), ("ALAN_MASA_NO", "3"))));
-        Assert.Equal("Sporcu : EGE YILDIRIM   Masa No : 3", text);
+        var text = TestDocx.Text(DocxTemplate.Fill(docx, TestDocx.Data(("ALAN_SPORCU", "DENİZ ÖRNEK"), ("ALAN_MASA_NO", "3"))));
+        Assert.Equal("Sporcu : DENİZ ÖRNEK   Masa No : 3", text);
     }
 
     [Fact]
@@ -224,7 +224,7 @@ public class ReportListsTests
     private static readonly Dictionary<string, string> Info = new()
     {
         ["Başhakem"] = "NA Mehmet KUTDEMİR",
-        ["Başhakem Yardımcısı"] = "Umut Can BAYAR",
+        ["Başhakem Yardımcısı"] = "Can DENEMECİ",
         ["Hakem"] = "FA Ahmet Burak GUNAYDIN; Suleyman UYMAZ",
         ["Turnuva direktörü"] = "Ramazan DURMUS"
     };
@@ -239,7 +239,7 @@ public class ReportListsTests
         Assert.Equal(("Mehmet KUTDEMİR", "Başhakem", Arbiters.Ulusal), (rows[0]["adi"], rows[0]["gorev"], rows[0]["unvan"]));
         Assert.Equal(Arbiters.Fide, rows.Single(r => r["adi"] == "Ahmet Burak GUNAYDIN")["unvan"]);
         Assert.Equal(Arbiters.Il, rows.Single(r => r["adi"] == "Suleyman UYMAZ")["unvan"]);      // elle seçilen derece
-        Assert.Equal("", rows.Single(r => r["adi"] == "Umut Can BAYAR")["unvan"]);
+        Assert.Equal("", rows.Single(r => r["adi"] == "Can DENEMECİ")["unvan"]);
         Assert.Equal("Turnuva Direktörü", rows[^1]["gorev"]);
     }
 
@@ -248,12 +248,12 @@ public class ReportListsTests
     {
         var lists = new List<(string, IReadOnlyList<Player>)>
         {
-            ("17 Yaş", new[] { new Player(1, "EGE YILDIRIM", Rating: 1678, Club: "İzmir SK"), new Player(null, "ENVER GÜREL", Rating: 0) }),
-            ("14 Yaş", new[] { new Player(3, "ARTUN DEMİRKIRAN", Title: "CM", Rating: 1500, Province: "ISPARTA") })
+            ("17 Yaş", new[] { new Player(1, "DENİZ ÖRNEK", Rating: 1678, Club: "İzmir SK"), new Player(null, "ALİ SINAMA", Rating: 0) }),
+            ("14 Yaş", new[] { new Player(3, "ARDA DENEME", Title: "CM", Rating: 1500, Province: "ISPARTA") })
         };
-        var rows = ReportLists.Players(lists, name => name == "EGE YILDIRIM" ? "İZMİR" : null);
+        var rows = ReportLists.Players(lists, name => name == "DENİZ ÖRNEK" ? "İZMİR" : null);
         Assert.Equal(3, rows.Count);
-        Assert.Equal(("1", "EGE YILDIRIM", "1678", "İzmir SK", "İZMİR", "17 Yaş"), (rows[0]["sira"], rows[0]["adi"], rows[0]["elo"], rows[0]["kulup"], rows[0]["il"], rows[0]["kategori"]));
+        Assert.Equal(("1", "DENİZ ÖRNEK", "1678", "İzmir SK", "İZMİR", "17 Yaş"), (rows[0]["sira"], rows[0]["adi"], rows[0]["elo"], rows[0]["kulup"], rows[0]["il"], rows[0]["kategori"]));
         Assert.Equal(("2", "", ""), (rows[1]["sira"], rows[1]["elo"], rows[1]["il"]));         // sıra no yoksa sırası; 0 rating boş
         Assert.Equal(("CM", "ISPARTA", "14 Yaş"), (rows[2]["unvan"], rows[2]["il"], rows[2]["kategori"]));   // kayıttaki il önce gelir
     }
@@ -277,8 +277,8 @@ public class ReportListsTests
 
     private static List<IncidentRecord> Sample() => new()
     {
-        new() { Kind = IncidentRecord.Penalty, Date = "25.10.2026", Time = "10.40", Round = "3", Category = "17 Yaş", Board = "2", Player = "EGE YILDIRIM", Move = "34", Reason = "Kuraldışı hamle", Decision = "Rakibe 2 dakika eklendi", Arbiter = "Umut Can BAYAR" },
-        new() { Kind = IncidentRecord.Penalty, Date = "24.10.2026", Time = "16.05", Round = "2", Category = "14 Yaş", Board = "1", Player = "ARTUN DEMİRKIRAN", Reason = "Elektronik cihaz", Decision = "Oyunu kaybetti" },
+        new() { Kind = IncidentRecord.Penalty, Date = "25.10.2026", Time = "10.40", Round = "3", Category = "17 Yaş", Board = "2", Player = "DENİZ ÖRNEK", Move = "34", Reason = "Kuraldışı hamle", Decision = "Rakibe 2 dakika eklendi", Arbiter = "Can DENEMECİ" },
+        new() { Kind = IncidentRecord.Penalty, Date = "24.10.2026", Time = "16.05", Round = "2", Category = "14 Yaş", Board = "1", Player = "ARDA DENEME", Reason = "Elektronik cihaz", Decision = "Oyunu kaybetti" },
         new() { Kind = IncidentRecord.Appeal, Date = "25.10.2026", Time = "13.00", Round = "4", Category = "16 Yaş", Board = "1", Player = "Veli (antrenör)", Reason = "Eşleştirmeye itiraz", Decision = "Reddedildi" },
         new() { Kind = IncidentRecord.Penalty },   // boş satır: sayılmaz
     };
@@ -289,7 +289,7 @@ public class ReportListsTests
         var pen = ReportLists.Incidents(Sample(), IncidentRecord.Penalty);
         Assert.Equal(3, pen.Count);                                    // 2 kayıt + 1 boş satır (en az 3)
         Assert.Equal("24.10.2026", pen[0]["tarih"]);                   // tarihe göre
-        Assert.Equal(("EGE YILDIRIM", "34", "Kuraldışı hamle", "Rakibe 2 dakika eklendi"), (pen[1]["sporcu"], pen[1]["hamle"], pen[1]["neden"], pen[1]["ceza"]));
+        Assert.Equal(("DENİZ ÖRNEK", "34", "Kuraldışı hamle", "Rakibe 2 dakika eklendi"), (pen[1]["sporcu"], pen[1]["hamle"], pen[1]["neden"], pen[1]["ceza"]));
         Assert.All(pen[2].Values, v => Assert.Equal("", v));
         Assert.Equal(ReportLists.Catalog["ceza"].Columns.Select(c => c.Column).OrderBy(c => c), pen[2].Keys.OrderBy(k => k));
 
@@ -421,7 +421,7 @@ public class BuiltInTemplateTests
         var bytes = ReportForm.BuiltInTemplate(ReportForm.CezaResource);
         var records = new List<IncidentRecord>
         {
-            new() { Kind = IncidentRecord.Penalty, Date = "25.10.2026", Time = "10.40", Round = "3", Category = "17 Yaş", Board = "2", Player = "EGE YILDIRIM", Move = "34", Reason = "Kuraldışı hamle", Decision = "Rakibe 2 dakika eklendi", Arbiter = "Umut Can BAYAR" },
+            new() { Kind = IncidentRecord.Penalty, Date = "25.10.2026", Time = "10.40", Round = "3", Category = "17 Yaş", Board = "2", Player = "DENİZ ÖRNEK", Move = "34", Reason = "Kuraldışı hamle", Decision = "Rakibe 2 dakika eklendi", Arbiter = "Can DENEMECİ" },
             new() { Kind = IncidentRecord.Appeal, Player = "İtiraz eden", Reason = "Sonuç" }
         };
         var d = ReportBuilder.Build(new Dictionary<string, string> { ["Başhakem"] = "Mehmet KUTDEMİR" }, Array.Empty<(int, DateTime?, string)>(),
@@ -441,7 +441,7 @@ public class BuiltInTemplateTests
         var rows = table.Elements(TestDocx.W + "tr").ToList();
         Assert.Equal(1 + ReportLists.MinIncidentRows, rows.Count);
         var cells = rows[1].Elements(TestDocx.W + "tc").Select(c => string.Concat(c.Descendants(TestDocx.W + "t").Select(t => t.Value))).ToList();
-        Assert.Equal(new[] { "25.10.2026", "10.40", "3", "17 Yaş", "2", "EGE YILDIRIM", "34", "Kuraldışı hamle", "Rakibe 2 dakika eklendi", "Umut Can BAYAR" }, cells);
+        Assert.Equal(new[] { "25.10.2026", "10.40", "3", "17 Yaş", "2", "DENİZ ÖRNEK", "34", "Kuraldışı hamle", "Rakibe 2 dakika eklendi", "Can DENEMECİ" }, cells);
         Assert.DoesNotContain("İtiraz eden", text);                                    // itiraz ceza tutanağına girmez
     }
 
