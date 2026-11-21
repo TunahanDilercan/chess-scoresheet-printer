@@ -94,6 +94,7 @@ internal static class AppPaths
         cfg.Cards.LogoPath = Fix(cfg.Cards.LogoPath, "cards");
         cfg.Cards.LogoSourcePath = Fix(cfg.Cards.LogoSourcePath, "cards");
         cfg.Badges.LogoPath = Fix(cfg.Badges.LogoPath, "badges");
+        cfg.Badges.BannerPath = Fix(cfg.Badges.BannerPath, "badges");
         foreach (var k in cfg.Badges.Photos.Keys.ToList())
             cfg.Badges.Photos[k] = Fix(cfg.Badges.Photos[k], Path.Combine("badges", "photos"))!;
         foreach (var t in cfg.Templates.Append(cfg.Overlay))

@@ -31,6 +31,23 @@ public sealed class ReportForm : Form
     public const string BuiltInResource = "NotasyonOtomasyonu.App.turnuva_yonergesi_sablon.docx";
     public const string TutanakResource = "NotasyonOtomasyonu.App.teknik_toplanti_tutanagi_sablon.docx";
     public const string SonRaporResource = "NotasyonOtomasyonu.App.turnuva_sonu_raporu_sablon.docx";
+    public const string CezaResource = "NotasyonOtomasyonu.App.ceza_tutanagi_sablon.docx";
+    public const string ItirazResource = "NotasyonOtomasyonu.App.itiraz_tutanagi_sablon.docx";
+    public const string HakemResource = "NotasyonOtomasyonu.App.hakem_gorev_cizelgesi_sablon.docx";
+
+    /// <summary>Hazır şablonlar: gömülü kaynak, listede görünen ad, dosya adı kökü.</summary>
+    public static readonly (string Resource, string Label, string Stem)[] BuiltIns =
+    {
+        (BuiltInResource, "Turnuva Yönergesi", "yonerge"),
+        (TutanakResource, "Teknik Toplantı Tutanağı", "teknik_toplanti_tutanagi"),
+        (SonRaporResource, "Turnuva Sonu Raporu", "turnuva_sonu_raporu"),
+        (CezaResource, "Ceza Tutanağı", "ceza_tutanagi"),
+        (ItirazResource, "İtiraz Tutanağı", "itiraz_tutanagi"),
+        (HakemResource, "Hakem Görev Çizelgesi", "hakem_gorev_cizelgesi"),
+    };
+
+    /// <summary>Ağdan çekilen ek tablolar (sporcu listesi, eşleştirmeler); bir kez çekilir.</summary>
+    private readonly Dictionary<string, List<Dictionary<string, string>>> _netLists = new(StringComparer.OrdinalIgnoreCase);
 
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);
@@ -60,6 +77,8 @@ public sealed class ReportForm : Form
     private readonly Button _btnUpload = new() { Text = "📂 Kendi şablonumu yükle…", AutoSize = true, Height = 30 };
     private readonly Button _btnRemove = new() { Text = "Kaldır", AutoSize = true, Height = 30 };
     private readonly LinkLabel _lnkExport = new() { Text = "Seçili hazır şablonu Word belgesi olarak al", AutoSize = true };
+    private readonly LinkLabel _lnkFields = new() { Text = "📋 Kullanılabilir alanlar (kendi şablonunuz için)", AutoSize = true };
+    private readonly Button _btnPack = new() { Text = "📦 Tutanak paketi…", AutoSize = true, Height = 40 };
 
     private readonly ComboBox _cboYonerge = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 460 };
     private readonly Button _btnYonRefresh = new() { Text = "↻", Width = 34, Height = 30 };
@@ -111,6 +130,8 @@ public sealed class ReportForm : Form
         _btnUpload.Click += async (_, _) => await UploadTemplateAsync(null);
         _btnRemove.Click += async (_, _) => await RemoveTemplateAsync();
         _lnkExport.LinkClicked += (_, _) => ExportBuiltIn();
+        _lnkFields.LinkClicked += (_, _) => { PullGrids(); using var f = new FieldListForm(_draft) { Icon = Icon }; f.ShowDialog(this); };
+        _btnPack.Click += async (_, _) => await SavePackAsync();
         _cboYonerge.SelectedIndexChanged += async (_, _) => { if (!_filling) await LoadSelectedYonergeAsync(); };
         _btnYonRefresh.Click += async (_, _) => await LoadYonergelerAsync();
         _btnYonOpen.Click += (_, _) => OpenYonerge();
@@ -143,10 +164,11 @@ public sealed class ReportForm : Form
     {
         var top = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, Padding = new Padding(12, 10, 12, 2), WrapContents = true };
         top.Controls.Add(Caption("Şablon:"));
-        top.Controls.AddRange(new Control[] { _cboTemplate, _btnUpload, _btnRemove, _lnkExport });
+        top.Controls.AddRange(new Control[] { _cboTemplate, _btnUpload, _btnRemove, _lnkExport, _lnkFields });
         _cboTemplate.Margin = new Padding(0, 3, 8, 0);
         _lnkExport.Margin = new Padding(6, 8, 0, 0);
-        top.SetFlowBreak(_lnkExport, true);
+        _lnkFields.Margin = new Padding(14, 8, 0, 0);
+        top.SetFlowBreak(_lnkFields, true);
 
         top.Controls.Add(Caption("TSF yönergesi:"));
         top.Controls.AddRange(new Control[] { _cboYonerge, _btnYonRefresh, _btnYonOpen, _btnYonUse });
@@ -200,13 +222,13 @@ public sealed class ReportForm : Form
 
         var bottom = new Panel { Dock = DockStyle.Bottom, Height = 64, Padding = new Padding(12), BackColor = Color.FromArgb(242, 242, 236) };
         var left = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, WrapContents = false };
-        left.Controls.AddRange(new Control[] { _btnNext, _btnDocx });
+        left.Controls.AddRange(new Control[] { _btnNext, _btnDocx, _btnPack });
         var right = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false };
         right.Controls.AddRange(new Control[] { _btnEdit, _btnPrint, _btnPdf });
         bottom.Controls.Add(left);
         bottom.Controls.Add(right);
 
-        foreach (var b in new[] { _btnUpload, _btnRemove, _btnYonRefresh, _btnYonOpen, _btnYonUse, _btnTempo, _btnNext, _btnDocx, _btnEdit, _btnPrint, _btnPdf, _btnSuggest, _btnSuggest2 }) Style(b);
+        foreach (var b in new[] { _btnUpload, _btnRemove, _btnYonRefresh, _btnYonOpen, _btnYonUse, _btnTempo, _btnNext, _btnDocx, _btnPack, _btnEdit, _btnPrint, _btnPdf, _btnSuggest, _btnSuggest2 }) Style(b);
         _btnEdit.Font = new Font("Segoe UI", 10f, FontStyle.Bold);
         _btnPdf.Font = new Font("Segoe UI", 11f, FontStyle.Bold);
 
@@ -249,6 +271,8 @@ public sealed class ReportForm : Form
         tip.SetToolTip(_btnYonUse, "Sitedeki yönerge Word belgesiyse kendi şablonlarınıza eklenir.");
         tip.SetToolTip(_btnTempo, "Seçili resmi süreyi \"Düşünme süresi\" alanına yazar (FIDE: 60+ dk klasik, 10–60 dk hızlı, ≤10 dk yıldırım).");
         tip.SetToolTip(_btnNext, "Doldurulmamış bir sonraki alana gider.");
+        tip.SetToolTip(_btnPack, "Seçtiğiniz tutanak ve raporları bu turnuvanın bilgileriyle tek seferde doldurup bir klasöre PDF (Word yoksa .docx) olarak kaydeder.");
+        tip.SetToolTip(_lnkFields, "Kendi Word şablonunuza yazabileceğiniz {{…}} işaretleri ve tablolar, bu turnuvadaki değerleriyle.");
         tip.SetToolTip(_btnSuggest, "Düşünme süresine göre tur saatlerini TSF prosedürü EK-B'deki en az tur arasıyla yeniden yazar (günler ve ilk tur saatleri korunur).");
         tip.SetToolTip(_btnSuggest2, "Düşünme süresine göre tur saatlerini TSF prosedürü EK-B'deki en az tur arasıyla yeniden yazar.");
 
@@ -296,9 +320,7 @@ public sealed class ReportForm : Form
     {
         _busy = true;
         _cboTemplate.Items.Clear();
-        _cboTemplate.Items.Add(new TemplateItem("Turnuva Yönergesi (hazır şablon)", null, BuiltInResource));
-        _cboTemplate.Items.Add(new TemplateItem("Teknik Toplantı Tutanağı (hazır şablon)", null, TutanakResource));
-        _cboTemplate.Items.Add(new TemplateItem("Turnuva Sonu Raporu (hazır şablon)", null, SonRaporResource));
+        foreach (var (res, label, _) in BuiltIns) _cboTemplate.Items.Add(new TemplateItem($"{label} (hazır şablon)", null, res));
         foreach (var name in _ctx.Config.ReportTemplates.ToList())
         {
             var path = Path.Combine(_reportsDir, name);
@@ -382,7 +404,7 @@ public sealed class ReportForm : Form
         using var dlg = new SaveFileDialog
         {
             Filter = "Word belgesi (*.docx)|*.docx",
-            FileName = res == TutanakResource ? "teknik_toplanti_tutanagi_sablon.docx" : res == SonRaporResource ? "turnuva_sonu_raporu_sablon.docx" : "turnuva_yonergesi_sablon.docx"
+            FileName = (BuiltIns.FirstOrDefault(b => b.Resource == res).Stem ?? "yonerge") + "_sablon.docx"
         };
         if (dlg.ShowDialog(this) != DialogResult.OK) return;
         File.WriteAllBytes(dlg.FileName, BuiltInTemplate(res));
@@ -518,7 +540,9 @@ public sealed class ReportForm : Form
             var tpl = SelectedTemplate;
             _btnRemove.Enabled = tpl.Path is not null;
             _templateBytes = tpl.Path is null ? BuiltInTemplate(tpl.Resource!) : await File.ReadAllBytesAsync(tpl.Path);
-            if (_endReport is null && NeedsEndReport(DocxTemplate.Analyze(_templateBytes))) await LoadEndReportAsync();
+            var analysis = DocxTemplate.Analyze(_templateBytes);
+            if (_endReport is null && NeedsEndReport(analysis)) await LoadEndReportAsync();
+            await EnsureNetListsAsync(analysis);
         }
         catch (Exception ex)
         {
@@ -572,15 +596,7 @@ public sealed class ReportForm : Form
             PullGrids();
             foreach (var f in _draft.Fields) if (f.Origin == ManualOrigin) manual[f.Key] = f.Value;
         }
-        var analysis = DocxTemplate.Analyze(_templateBytes);
-        _draft = ReportBuilder.Build(_info, _schedule, _cats, _ctx.EventName, _ctx.Province, analysis, new ReportSources
-        {
-            Remembered = _ctx.Config.ReportAnswers,
-            EventMemory = _ctx.Config.ReportEventValues.GetValueOrDefault(_ctx.EventTnr.ToString()),
-            Yonerge = _yonerge,
-            YonergeSameEvent = _yonergeSame,
-            EndReport = _endReport
-        });
+        _draft = BuildDraftFor(DocxTemplate.Analyze(_templateBytes));
         foreach (var f in _draft.Fields)
             if (manual.TryGetValue(f.Key, out var v))
             { f.Value = v; f.Origin = ManualOrigin; f.Source = v.Length > 0 ? ReportFieldSource.Suggested : ReportFieldSource.Missing; }
@@ -929,9 +945,146 @@ public sealed class ReportForm : Form
         if (string.IsNullOrWhiteSpace(name)) name = EventGrouping.BaseName(_ctx.EventName);
         var slug = Slug(name);
         var t = SelectedTemplate;
-        var kind = t.Resource == BuiltInResource ? "yonerge" : t.Resource == TutanakResource ? "teknik_toplanti_tutanagi" : t.Resource == SonRaporResource ? "turnuva_sonu_raporu" : Slug(t.Label);
-        return $"{(slug.Length == 0 ? "turnuva" : slug)}_{kind}.{ext}";
+        return $"{(slug.Length == 0 ? "turnuva" : slug)}_{StemOf(t)}.{ext}";
     }
+
+    private static string StemOf(TemplateItem t)
+        => t.Resource is { } r && BuiltIns.FirstOrDefault(b => b.Resource == r).Stem is { } stem ? stem : Slug(t.Label);
+
+    // ================= Ek tablolar: hakem, sporcu, eşleştirme, ceza, itiraz =================
+    /// <summary>Şablonun istediği ağ tablolarını (sporcu listesi, eşleştirmeler) bir kez çeker.</summary>
+    private async Task EnsureNetListsAsync(TemplateAnalysis a)
+    {
+        bool Wants(string l) => a.Lists.Contains(l, StringComparer.OrdinalIgnoreCase) && !_netLists.ContainsKey(l);
+        if (Wants("sporcu"))
+        {
+            var lists = new List<(string, IReadOnlyList<Player>)>();
+            foreach (var (cat, _, _) in _cats)
+            {
+                _lblStatus.Text = $"Sporcu listesi: {cat.Name}…";
+                try { lists.Add((cat.Name, await _ctx.Service.GetStartingListAsync(cat.Tnr))); }
+                catch { lists.Add((cat.Name, Array.Empty<Player>())); }
+            }
+            var roster = lists.SelectMany(l => l.Item2.Select(p => new RosterPlayer(p.Name, p.Rating, l.Item1)));
+            var province = Registration.ProvinceBook.Resolver(_ctx.Config, _ctx.EventTnr, roster, _ctx.EventName);
+            _netLists["sporcu"] = ReportLists.Players(lists, province);
+        }
+        if (Wants("eslesme"))
+        {
+            var rounds = new List<(string, Tournament)>();
+            foreach (var (cat, _, sys) in _cats)
+            {
+                _lblStatus.Text = $"Eşleştirme: {cat.Name}…";
+                try
+                {
+                    var ev = await _ctx.Service.GetEventAsync(cat.Tnr);
+                    if (ev.CurrentRound > 0) rounds.Add((cat.Name, await _ctx.Service.GetPairingsAsync(cat.Tnr, ev.CurrentRound, sys)));
+                }
+                catch { /* eşleştirmesi olmayan kategori atlanır */ }
+            }
+            _netLists["eslesme"] = ReportLists.Pairings(rounds);
+        }
+    }
+
+    /// <summary>Ek tablolar ve sayıları: ceza / itiraz kayıtları her seferinde güncel okunur.</summary>
+    private (Dictionary<string, List<Dictionary<string, string>>> Lists, Dictionary<string, string> Values) Extras(TemplateAnalysis a)
+    {
+        var lists = new Dictionary<string, List<Dictionary<string, string>>>(StringComparer.OrdinalIgnoreCase);
+        var incidents = _ctx.Config.Incidents.GetValueOrDefault(_ctx.EventTnr.ToString());
+        var values = ReportLists.IncidentValues(incidents);
+        bool Wants(string l) => a.Lists.Contains(l, StringComparer.OrdinalIgnoreCase);
+        if (Wants("hakem") && _info is null) lists["hakem"] = ReportLists.Padded(new(), "hakem", 4);
+        if (Wants("ceza")) lists["ceza"] = ReportLists.Incidents(incidents, IncidentRecord.Penalty);
+        if (Wants("itiraz")) lists["itiraz"] = ReportLists.Incidents(incidents, IncidentRecord.Appeal);
+        if (_info is not null)
+        {
+            var arbiters = ReportLists.Arbiters(_info, _ctx.Config.Badges.Grades);
+            if (arbiters.Count > 0) values["HAKEM_SAYISI"] = arbiters.Count.ToString();
+            if (Wants("hakem")) lists["hakem"] = ReportLists.Padded(arbiters, "hakem", 4);   // liste boşsa elle yazılır
+        }
+        foreach (var (k, rows) in _netLists) if (Wants(k)) lists[k] = rows;
+        return (lists, values);
+    }
+
+    /// <summary>Şablon için taslak: chess-results, yönerge, önceki cevaplar, turnuva sonu ve ek tablolar.</summary>
+    private ReportDraft BuildDraftFor(TemplateAnalysis analysis)
+    {
+        var (extraLists, extraValues) = Extras(analysis);
+        return ReportBuilder.Build(_info!, _schedule, _cats, _ctx.EventName, _ctx.Province, analysis, new ReportSources
+        {
+            Remembered = _ctx.Config.ReportAnswers,
+            EventMemory = _ctx.Config.ReportEventValues.GetValueOrDefault(_ctx.EventTnr.ToString()),
+            Yonerge = _yonerge,
+            YonergeSameEvent = _yonergeSame,
+            EndReport = _endReport,
+            ExtraLists = extraLists,
+            ExtraValues = extraValues
+        });
+    }
+
+    // ================= Tutanak paketi =================
+    /// <summary>
+    /// Seçilen şablonları bu turnuvanın bilgileriyle tek seferde doldurup bir klasöre kaydeder: Word varsa
+    /// PDF, yoksa .docx. Açık şablon tablodaki düzenlemelerle, diğerleri bu turnuvada girilen değerlerle dolar.
+    /// </summary>
+    private async Task SavePackAsync()
+    {
+        if (_info is null || _draft is null) return;
+        PullGrids();
+        RememberAnswers();   // tablodaki değerler diğer belgelere de geçsin
+        var items = _cboTemplate.Items.Cast<TemplateItem>().ToList();
+        using var dlg = new Form
+        {
+            Text = "Tutanak paketi", FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterParent,
+            MaximizeBox = false, MinimizeBox = false, Font = Font, ClientSize = new Size(460, 330), BackColor = BackColor
+        };
+        var info = new Label { Text = "Doldurulacak belgeler (bu turnuvanın bilgileriyle):", AutoSize = true, Location = new Point(12, 12) };
+        var list = new CheckedListBox { Location = new Point(12, 36), Size = new Size(436, 230), CheckOnClick = true, IntegralHeight = false };
+        foreach (var it in items) list.Items.Add(it, it.Resource is not null && it.Resource != BuiltInResource);
+        var ok = new Button { Text = Word() ? "📄 PDF olarak kaydet" : "Word (.docx) olarak kaydet", DialogResult = DialogResult.OK, Location = new Point(218, 280), Size = new Size(150, 36) };
+        var cancel = new Button { Text = "Vazgeç", DialogResult = DialogResult.Cancel, Location = new Point(374, 280), Size = new Size(74, 36) };
+        dlg.Controls.AddRange(new Control[] { info, list, ok, cancel });
+        dlg.AcceptButton = ok; dlg.CancelButton = cancel;
+        if (dlg.ShowDialog(this) != DialogResult.OK || list.CheckedItems.Count == 0) return;
+        var chosen = list.CheckedItems.Cast<TemplateItem>().ToList();
+
+        var name = _draft.Fields.FirstOrDefault(f => f.Key == "TURNUVA_ADI")?.Value;
+        var slug = Slug(string.IsNullOrWhiteSpace(name) ? EventGrouping.BaseName(_ctx.EventName) : name);
+        var folder = Path.Combine(_ctx.OutputDir, $"{(slug.Length == 0 ? "turnuva" : slug)}_tutanaklar_{DateTime.Now:yyyyMMdd_HHmm}");
+        Directory.CreateDirectory(folder);
+        var current = SelectedTemplate;
+        var empty = new List<string>();
+        await RunExport("Tutanak paketi hazırlanıyor…", async () =>
+        {
+            int n = 0;
+            foreach (var it in chosen)
+            {
+                n++;
+                _lblStatus.Text = $"Tutanak paketi: {n}/{chosen.Count} — {it.Label}…";
+                var bytes = it.Path is null ? BuiltInTemplate(it.Resource!) : await File.ReadAllBytesAsync(it.Path);
+                var a = DocxTemplate.Analyze(bytes);
+                if (_endReport is null && NeedsEndReport(a)) await LoadEndReportAsync();
+                await EnsureNetListsAsync(a);
+                var draft = it == current ? _draft! : BuildDraftFor(a);
+                var missing = draft.Fields.Where(f => !f.Optional && string.IsNullOrWhiteSpace(f.Value)).Select(f => f.Label).ToList();
+                if (missing.Count > 0) empty.Add($"{it.Label}: {string.Join(", ", missing.Take(3))}{(missing.Count > 3 ? "…" : "")}");
+                var docx = Path.Combine(folder, StemOf(it) + ".docx");
+                await File.WriteAllBytesAsync(docx, DocxTemplate.Fill(bytes, draft.ToReportData()));
+                if (Word())
+                {
+                    await WordExport.ToPdfAsync(docx, Path.ChangeExtension(docx, ".pdf"));
+                    File.Delete(docx);
+                }
+            }
+            _lblStatus.Text = $"Tutanak paketi kaydedildi: {chosen.Count} belge → {folder}";
+            OpenWithShell(folder);
+        });
+        if (empty.Count > 0)
+            MessageBox.Show(this, "Bazı belgelerde boş kalan bilgiler var (elle doldurabilir ya da şablonu seçip tamamlayabilirsiniz):\n\n" +
+                                  string.Join("\n", empty), "Tutanak paketi", MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private static bool Word() => WordExport.IsAvailable;
 
     private string WriteTempDocx(byte[] bytes)
     {
@@ -1073,12 +1226,17 @@ public sealed class ReportForm : Form
     };
 
     private static string ColumnTitle(string list, string col)
-        => ColumnTitles.TryGetValue(list + "." + col, out var t) || ColumnTitles.TryGetValue(col, out t) ? t : col;
+        => ColumnTitles.TryGetValue(list + "." + col, out var t) ? t
+         : ReportLists.Catalog.TryGetValue(list, out var c) && c.Columns.FirstOrDefault(x => x.Column.Equals(col, StringComparison.OrdinalIgnoreCase)).Title is { } ct ? ct
+         : ColumnTitles.TryGetValue(col, out t) ? t : col;
+
+    private static string ListTitle(string list)
+        => ListTitles.TryGetValue(list, out var lt) ? lt : ReportLists.Catalog.TryGetValue(list, out var c) ? c.Title : list;
 
     private static EditTarget Cell(string list, int row, string col, Func<string> get, Action<string> set) => new()
     {
         Key = $"{list}[{row}].{col}",
-        Label = $"{(ListTitles.TryGetValue(list, out var lt) ? lt : list)} {row + 1} · {ColumnTitle(list, col)}",
+        Label = $"{ListTitle(list)} {row + 1} · {ColumnTitle(list, col)}",
         Placeholder = ColumnTitle(list, col),
         Optional = true,
         Get = get,

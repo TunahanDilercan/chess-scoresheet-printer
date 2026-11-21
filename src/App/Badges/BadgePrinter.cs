@@ -31,11 +31,16 @@ public sealed class BadgePrinter
     private int _pageIndex;
     private readonly Dictionary<string, Image?> _images = new();
     private readonly Image? _fallbackLogo;     // logo dosyası yoksa (TSF il logosu)
+    private readonly bool _banner;             // dikey kartta vesikalık yerine ortak yatay görsel
+    private readonly string? _bannerPath;
 
+    /// <param name="banner">Dikey kartta hakem fotoğrafı yerine tüm kartlarda aynı yatay görsel (afiş / turnuva bilgisi).</param>
     public BadgePrinter(IEnumerable<BadgeSpec> badges, string? logoPath, string eventName, string size = "85x54", bool cropMarks = true, string? font = null,
-                        Image? fallbackLogo = null)
+                        Image? fallbackLogo = null, bool banner = false, string? bannerPath = null)
     {
         _fallbackLogo = fallbackLogo;
+        _banner = banner;
+        _bannerPath = !string.IsNullOrWhiteSpace(bannerPath) && File.Exists(bannerPath) ? bannerPath : null;
         _cards = badges.SelectMany(b => Enumerable.Repeat(b, Math.Max(0, b.Copies))).ToList();
         _logoPath = !string.IsNullOrWhiteSpace(logoPath) && File.Exists(logoPath) ? logoPath : null;
         _eventName = eventName;
@@ -126,7 +131,8 @@ public sealed class BadgePrinter
         {
             int r = i / Cols, c = i % Cols;
             var rect = new RectangleF(o.X + c * CardW, o.Y + r * CardH, CardW, CardH);
-            DrawCard(g, rect, _cards[start + i], Img(_logoPath) ?? _fallbackLogo, Img(_cards[start + i].PhotoPath), _eventName, _font);
+            DrawCard(g, rect, _cards[start + i], Img(_logoPath) ?? _fallbackLogo, Img(_cards[start + i].PhotoPath), _eventName, _font,
+                     _banner, Img(_bannerPath));
         }
         DrawCutLines(g, o, Math.Min(Rows, (Math.Min(PerPage, _cards.Count - start) + Cols - 1) / Cols));
     }
@@ -157,9 +163,11 @@ public sealed class BadgePrinter
     }
 
     /// <summary>Tek kart (punto). Ölçüler kart boyutuna oranlıdır; 85×54 ve 90×60 aynı düzeni kullanır.</summary>
-    public static void DrawCard(Graphics g, RectangleF r, BadgeSpec b, Image? logo, Image? photo, string eventName, string? font)
+    /// <param name="banner">Dikey kartta vesikalık yerine <paramref name="bannerImage"/> (ortak yatay görsel) basılır.</param>
+    public static void DrawCard(Graphics g, RectangleF r, BadgeSpec b, Image? logo, Image? photo, string eventName, string? font,
+                                bool banner = false, Image? bannerImage = null)
     {
-        if (r.Height > r.Width) { DrawPortrait(g, r, b, logo, photo, eventName, font); return; }
+        if (r.Height > r.Width) { DrawPortrait(g, r, b, logo, photo, eventName, font, banner, bannerImage); return; }
         float u = r.Height / 54f;                     // 1 "mm" (54 mm yüksekliğe göre)
         float m = 3 * u;
         using (var white = new SolidBrush(Color.White)) g.FillRectangle(white, r);
@@ -209,10 +217,12 @@ public sealed class BadgePrinter
     }
 
     /// <summary>
-    /// Büyük dikey kart (95×135 mm): üstte logo ve turnuva adı, ortada büyük vesikalık, altında
-    /// ad soyad ve görev, en altta dereceye göre renkli şerit. Ölçüler 95 mm genişliğe oranlıdır.
+    /// Büyük dikey kart (95×135 mm): üstte logo ve turnuva adı, ortada büyük vesikalık (ya da tüm kartlarda
+    /// aynı yatay afiş / turnuva bilgisi görseli), altında ad soyad ve görev, en altta dereceye göre renkli
+    /// şerit. Ölçüler 95 mm genişliğe oranlıdır.
     /// </summary>
-    private static void DrawPortrait(Graphics g, RectangleF r, BadgeSpec b, Image? logo, Image? photo, string eventName, string? font)
+    private static void DrawPortrait(Graphics g, RectangleF r, BadgeSpec b, Image? logo, Image? photo, string eventName, string? font,
+                                     bool banner = false, Image? bannerImage = null)
     {
         float u = r.Width / 95f, m = 5 * u;
         using (var white = new SolidBrush(Color.White)) g.FillRectangle(white, r);
@@ -229,6 +239,32 @@ public sealed class BadgePrinter
         CardLayout.DrawLines(g, CardLayout.Fit(eventName.ToUpper(new System.Globalization.CultureInfo("tr-TR")), titleBox, 13, font, 6, 3),
             titleBox, Color.FromArgb(55, 55, 55), font);
         y = titleBox.Bottom + 3 * u;
+
+        if (banner)
+        {
+            // Yatay görsel: kartın genişliğinde, kırpılmadan (afişteki yazılar kesilmesin); en çok 50 mm yükseklik
+            var slot = new RectangleF(r.X + m, y, r.Width - 2 * m, 50 * u);
+            if (bannerImage is not null)
+            {
+                var fit = CardLayout.FitImage(new SizeF(bannerImage.Width, bannerImage.Height), slot);
+                fit.Y = y;                                    // üste yaslı: kalan yer ada kalsın
+                g.DrawImage(bannerImage, fit);
+                y = fit.Bottom + 3 * u;
+            }
+            else
+            {
+                var box = new RectangleF(slot.X, y, slot.Width, slot.Width * 9 / 16);
+                using var dash = new Pen(Color.FromArgb(160, 160, 160), 0.8f) { DashStyle = DashStyle.Dash };
+                g.DrawRectangle(dash, box.X, box.Y, box.Width, box.Height);
+                using var hint = new Font("Segoe UI", 9f, GraphicsUnit.Point);
+                using var hb = new SolidBrush(Color.FromArgb(150, 150, 150));
+                using var fmt = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Center };
+                g.DrawString("AFİŞ / TURNUVA BİLGİSİ", hint, hb, box, fmt);
+                y = box.Bottom + 3 * u;
+            }
+            DrawPortraitBottom(g, r, b, font, y, u, m);
+            return;
+        }
 
         // Vesikalık (3:4), ortalı; ince derece renginde çerçeve
         float ph = 50 * u, pw = ph * 0.75f;
@@ -254,8 +290,12 @@ public sealed class BadgePrinter
             g.DrawString("FOTOĞRAF", hint, hb, photoBox, fmt);
         }
         y = photoBox.Bottom + 3 * u;
+        DrawPortraitBottom(g, r, b, font, y, u, m);
+    }
 
-        // Ad soyad (en çok 2 satır) ve görev
+    /// <summary>Dikey kartın alt yarısı: ad soyad (en çok 2 satır), görev ve dereceye göre renkli şerit.</summary>
+    private static void DrawPortraitBottom(Graphics g, RectangleF r, BadgeSpec b, string? font, float y, float u, float m)
+    {
         var strip = RectangleF.FromLTRB(r.X, r.Bottom - 14 * u, r.Right, r.Bottom);
         var roleBox = new RectangleF(r.X + m, strip.Top - 3 * u - 9 * u, r.Width - 2 * m, 9 * u);
         var nameBox = RectangleF.FromLTRB(r.X + m, y, r.Right - m, roleBox.Top - 1 * u);

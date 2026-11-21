@@ -13,8 +13,8 @@
     <Product>Chess Scoresheet Printer</Product>
     <Authors>Tunahan Dilercan</Authors>
     <Description>Satranç turnuvaları için hazır notasyon kâğıdı yazdırma aracı.</Description>
-    <Version>1.6.9</Version>
-    <FileVersion>1.6.9.0</FileVersion>
+    <Version>1.6.10</Version>
+    <FileVersion>1.6.10.0</FileVersion>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
     <ApplicationIcon>..\..\assets\app.ico</ApplicationIcon>
@@ -45,6 +45,15 @@
     </EmbeddedResource>
     <EmbeddedResource Include="..\..\assets\teknik_toplanti_tutanagi_sablon.docx">
       <LogicalName>NotasyonOtomasyonu.App.teknik_toplanti_tutanagi_sablon.docx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\assets\ceza_tutanagi_sablon.docx">
+      <LogicalName>NotasyonOtomasyonu.App.ceza_tutanagi_sablon.docx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\assets\itiraz_tutanagi_sablon.docx">
+      <LogicalName>NotasyonOtomasyonu.App.itiraz_tutanagi_sablon.docx</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\..\assets\hakem_gorev_cizelgesi_sablon.docx">
+      <LogicalName>NotasyonOtomasyonu.App.hakem_gorev_cizelgesi_sablon.docx</LogicalName>
     </EmbeddedResource>
   </ItemGroup>
 

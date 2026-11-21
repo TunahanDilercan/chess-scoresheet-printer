@@ -15,7 +15,7 @@ public partial class MainForm
     private GroupBox? _grpLists;
     private FlowLayoutPanel? _flowPairLists, _flowResultLists;
     private Label? _lblPairLists, _lblResultLists, _lblArbiter;
-    private Button? _btnArbiter;
+    private Button? _btnArbiter, _btnIncidents;
     private Button? _btnGridList;
     private readonly ContextMenuStrip _gridListMenu = new();
     private readonly ToolTip _listTip = new();
@@ -43,7 +43,11 @@ public partial class MainForm
         _btnArbiter.Click += (_, _) => OpenArbiterSheets();
         _listTip.SetToolTip(_btnArbiter, "Tur başında hakemlere verilen eşleştirme kağıtları (Ctrl+H): iri yazı, her masada sonuç kutusu; " +
                                          "kategoriler ayrı sayfaya, sığdıkça aynı sayfaya ya da seçtiğiniz gruplara göre.");
-        _grpLists.Controls.AddRange(new Control[] { _lblPairLists, _flowPairLists, _lblResultLists, _flowResultLists, _lblArbiter, _btnArbiter });
+        _btnIncidents = new Button { Text = "📝 Ceza / itiraz kayıtları…", AutoSize = true, BackColor = Color.White, Font = new Font("Segoe UI", 8.5f) };
+        StyleButton(_btnIncidents);
+        _btnIncidents.Click += (_, _) => OpenIncidents();
+        _listTip.SetToolTip(_btnIncidents, "Turnuvada verilen cezalar ve yapılan itirazlar: Ceza Tutanağı, İtiraz Tutanağı ve Turnuva Sonu Raporu bunlarla dolar.");
+        _grpLists.Controls.AddRange(new Control[] { _lblPairLists, _flowPairLists, _lblResultLists, _flowResultLists, _lblArbiter, _btnArbiter, _btnIncidents });
         Controls.Add(_grpLists);
 
         // Sağdaki listenin altında: ekranda seçili kategori + tur için liste.
@@ -63,6 +67,7 @@ public partial class MainForm
         _gridListMenu.Items.Add("🏁 Bu turun sonuçları ve sıralama", null, async (_, _) => await PrintGridListAsync(results: true));
         _gridListMenu.Items.Add(new ToolStripSeparator());
         _gridListMenu.Items.Add("🧑‍⚖️ Hakem eşleştirme kağıtları…", null, (_, _) => OpenArbiterSheets());
+        _gridListMenu.Items.Add("📝 Ceza / itiraz kayıtları…", null, (_, _) => OpenIncidents());
         _btnGridList.Click += (_, _) => _gridListMenu.Show(_btnGridList, new Point(0, _btnGridList.Height));
         _listTip.SetToolTip(_btnGridList, "Listede görünen kategori ve turun eşleştirme ya da sonuç listesini A4 olarak bas (salon panosu için).");
 
@@ -176,6 +181,7 @@ public partial class MainForm
         if (_lblArbiter is not null && _btnArbiter is not null)
         {
             _btnArbiter.Location = new Point(flowLeft + 2, _flowResultLists.Bottom + 4);
+            if (_btnIncidents is not null) _btnIncidents.Location = new Point(_btnArbiter.Right + 6, _btnArbiter.Top);
             _lblArbiter.SetBounds(pad, _btnArbiter.Top + (_btnArbiter.Height - _lblArbiter.Height) / 2, labelW, _lblArbiter.Height);
             bottom = _btnArbiter.Bottom + 2;
         }
@@ -268,6 +274,35 @@ public partial class MainForm
         }
         else SetStatus("Önizleme kapatıldı; liste basılmadı.", ok: true);
         return Task.CompletedTask;
+    }
+
+    // ================= Ceza / itiraz kayıtları =================
+    /// <summary>Kayıtlarda kullanılan kategori adı: kısa ad ("17 Yaş"), yoksa tam ad.</summary>
+    private static string IncidentCategoryName(CategoryRef c)
+        => EventGrouping.ShortCategory(c.Name) is { Length: > 0 } s ? s : c.Name;
+
+    private void OpenIncidents()
+    {
+        if (_eventTnr is not int tnr) { SetStatus("Önce bir turnuva seçin.", ok: false); return; }
+        UpdateConfigFromUi();
+        var sel = SelectedCategory();
+        var ctx = new IncidentsContext(tnr, CurrentEventName(), CurrentCategories().Select(IncidentCategoryName).Distinct().ToList(),
+            sel is null ? null : IncidentCategoryName(sel), IsTsfEvent ? 0 : SelectedRound(), null,
+            IsTsfEvent ? null : LookupBoardAsync, _config, SaveConfig);
+        using var f = new IncidentsForm(ctx) { Icon = Icon };
+        f.ShowDialog(this);
+        var n = _config.Incidents.GetValueOrDefault(tnr.ToString())?.Count ?? 0;
+        SetStatus(n == 0 ? "Ceza / itiraz kaydı yok." : $"Ceza / itiraz kayıtları: {n} kayıt (tutanaklara kendiliğinden gelir).", ok: true);
+    }
+
+    /// <summary>Kategori + tur + masa → beyaz ve siyah oyuncu (eşleştirmeden); bulunamazsa null.</summary>
+    private async Task<(string White, string Black)?> LookupBoardAsync(string category, int round, string board)
+    {
+        var cat = CurrentCategories().FirstOrDefault(c => IncidentCategoryName(c) == category);
+        if (cat is null || cat.Tnr <= 0) return null;
+        var t = await _online.GetPairingsAsync(cat.Tnr, round, SystemOf(cat.Tnr));
+        var p = t.Pairings.FirstOrDefault(x => x.BoardText == board);
+        return p is null || p.IsBye ? null : (p.White.Name, p.Black!.Name);
     }
 
     // ================= Hakem eşleştirme kağıtları =================

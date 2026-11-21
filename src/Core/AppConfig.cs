@@ -43,6 +43,12 @@ public sealed class AppConfig
     /// <summary>Turnuva bazında son rapor/tutanak değerleri (etkinlik tnr → alan → değer); tutanağa aktarılır.</summary>
     public Dictionary<string, Dictionary<string, string>> ReportEventValues { get; set; } = new();
 
+    /// <summary>
+    /// Turnuva bazında ceza ve itiraz kayıtları (etkinlik tnr → kayıtlar). Ceza / itiraz tutanaklarına
+    /// ve turnuva sonu raporuna ({{ceza.…}}, {{itiraz.…}}, CEZA_SAYISI, ITIRAZ_SAYISI) kendiliğinden gelir.
+    /// </summary>
+    public Dictionary<string, List<IncidentRecord>> Incidents { get; set; } = new();
+
     /// <summary>TSF il sitesi adresini değiştirmek için (il → "https://…tsf.org.tr"); boşsa gömülü liste.</summary>
     public Dictionary<string, string> TsfSites { get; set; } = new();
 
@@ -143,6 +149,7 @@ public sealed class AppConfig
             // Kalıcı seçimler sınırsız büyümesin: en eski kayıtları at.
             while (Online.Selections.Count > 400) Online.Selections.Remove(Online.Selections.Keys.First());
             while (ReportEventValues.Count > 40) ReportEventValues.Remove(ReportEventValues.Keys.First());
+            while (Incidents.Count > 60) Incidents.Remove(Incidents.Keys.First());
             var json = JsonSerializer.Serialize(this, JsonOpts);
             // Önce geçici dosyaya yaz, sonra yerine koy (önceki kayıt .bak olarak kalır): yazarken
             // elektrik kesilse ya da program kapansa bile ayarlar ve şablonlar yarım kalmaz.
@@ -405,8 +412,41 @@ public sealed class BadgeConfig
     /// <summary>Hakem adı (katlanmış) → vesikalık fotoğraf yolu.</summary>
     public Dictionary<string, string> Photos { get; set; } = new();
 
+    /// <summary>
+    /// Büyük dikey kartta fotoğraf alanı: "Photo" (her hakemin vesikalığı) ya da "Banner" (tüm kartlarda
+    /// aynı yatay görsel: turnuva afişi ya da turnuva bilgisi, kırpılmadan).
+    /// </summary>
+    public string PortraitImage { get; set; } = "Photo";
+
+    /// <summary>Dikey kartta fotoğraf yerine basılan yatay görsel (afiş / turnuva bilgisi).</summary>
+    public string? BannerPath { get; set; }
+
     /// <summary>Hakem adı (katlanmış) → elle seçilen unvan (chess-results'ta olmayan TSF dereceleri için).</summary>
     public Dictionary<string, string> Grades { get; set; } = new();
+}
+
+/// <summary>
+/// Turnuvada kayda geçen ceza ya da itiraz. <see cref="Kind"/>: "Ceza" ya da "İtiraz".
+/// <see cref="Player"/>: cezada ceza alan sporcu, itirazda itiraz eden; <see cref="Reason"/>: ceza nedeni ya da
+/// itirazın konusu; <see cref="Decision"/>: verilen ceza ya da itiraz kararı.
+/// </summary>
+public sealed class IncidentRecord
+{
+    public const string Penalty = "Ceza", Appeal = "İtiraz";
+    public string Kind { get; set; } = Penalty;
+    public string Date { get; set; } = "";
+    public string Time { get; set; } = "";
+    public string Round { get; set; } = "";
+    public string Category { get; set; } = "";
+    public string Board { get; set; } = "";
+    public string Player { get; set; } = "";
+    public string Move { get; set; } = "";
+    public string Reason { get; set; } = "";
+    public string Decision { get; set; } = "";
+    public string Arbiter { get; set; } = "";
+
+    /// <summary>Hiçbir bilgi girilmemiş (boş satır) mı.</summary>
+    public bool IsEmpty => new[] { Date, Time, Round, Category, Board, Player, Move, Reason, Decision, Arbiter }.All(string.IsNullOrWhiteSpace);
 }
 
 /// <summary>Yazıcı ayarları: hedef, tepsi, kopya, yazıcının kendi tercihleri (sessiz mod vb.) ve doğrudan yazdırma.</summary>

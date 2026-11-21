@@ -32,6 +32,10 @@ public sealed class ReportSources
     public IReadOnlyDictionary<string, string>? Yonerge { get; init; }
     /// <summary>Yönerge bu turnuvanınsa tarih/son başvuru gibi değişen bilgiler de kullanılır.</summary>
     public bool YonergeSameEvent { get; init; }
+    /// <summary>Şablonun istediği ek tablolar (hakem, sporcu, eşleştirme, ceza, itiraz; bkz. <see cref="ReportLists"/>).</summary>
+    public IReadOnlyDictionary<string, List<Dictionary<string, string>>>? ExtraLists { get; init; }
+    /// <summary>Bu tablolardan hesaplanan değerler (CEZA_SAYISI, ITIRAZ_SAYISI, HAKEM_SAYISI …).</summary>
+    public IReadOnlyDictionary<string, string>? ExtraValues { get; init; }
 }
 
 public enum ReportFieldSource { Automatic, Suggested, Missing }
@@ -131,12 +135,19 @@ public static class ReportBuilder
             ["IL_SAYISI"] = ("Katılan il sayısı", "TSF kayıt listesindeki illerden (📋 Kayıt / İl)", true, false),
             ["RAPOR_TARIHI"] = ("Rapor tarihi", "Örn. 04.10.2026", false, false),
             ["DEGERLENDIRME"] = ("Genel değerlendirme / itirazlar", "Turnuvanın işleyişi, itirazlar, olağanüstü durumlar", false, true),
+            ["CEZA_SAYISI"] = ("Verilen ceza sayısı", "Ceza / itiraz kayıtlarından", true, false),
+            ["ITIRAZ_SAYISI"] = ("İtiraz sayısı", "Ceza / itiraz kayıtlarından", true, false),
+            ["HAKEM_SAYISI"] = ("Görevli hakem sayısı", "chess-results görevlilerinden", true, false),
+            ["ITIRAZ_KURULU"] = ("İtiraz kurulu üyeleri", "Örn. Başhakem, yarışma direktörü ve bir antrenör temsilcisi", true, true),
         };
+
+    /// <summary>Şablondaki "Etiket : ………" ya da "Etiket | (boş)" yerlerinden türetilen alanların öneki.</summary>
+    public const string CustomPrefix = "ALAN_";
 
     /// <summary>Kullanıcıdan alınıp bir sonraki raporda önerilecek alanlar.</summary>
     public static readonly HashSet<string> Remembered = new(StringComparer.OrdinalIgnoreCase)
     {
-        "ILCE", "ORGANIZASYON", "BASVURU_ADRESI", "TELEFON", "EPOSTA", "PROGRAM_KAYIT", "PROGRAM_TEKNIK", "PROGRAM_ILAN"
+        "ILCE", "ORGANIZASYON", "BASVURU_ADRESI", "TELEFON", "EPOSTA", "PROGRAM_KAYIT", "PROGRAM_TEKNIK", "PROGRAM_ILAN", "ITIRAZ_KURULU"
     };
 
     /// <summary>Her turnuvada değişen, belgedeki eski değeri önerilmeyecek alanlar.</summary>
@@ -219,6 +230,9 @@ public static class ReportBuilder
             ["TUR_SAYISI"] = cats.Count > 0 ? cats.Max(c => c.Max).ToString() : Info("Tur Sayısı"),
             ["SEZON"] = first is { } f ? Season(f) : "",
         };
+        // Şablonun istediği ek tablolar ve sayıları (hakem, sporcu, eşleştirme, ceza, itiraz)
+        if (sources.ExtraLists is { } extra) foreach (var (k, rows) in extra) draft.Lists[k] = rows;
+        if (sources.ExtraValues is { } ev) foreach (var (k, v) in ev) if (!string.IsNullOrWhiteSpace(v)) auto[k] = v;
         // Turnuva sonu raporu: final sıralamalarından hesaplananlar
         if (sources.EndReport is { } end)
         {
@@ -292,8 +306,12 @@ public static class ReportBuilder
             }
         if (sources.EventMemory is { } mem) foreach (var (k, v) in mem) Suggest(k, v, "bu turnuvada girilen");
 
-        // Turnuva sonu raporu: değerlendirme için başlangıç metni
-        Suggest("DEGERLENDIRME", "Turnuva, yönergesine ve TSF kurallarına uygun olarak sorunsuz tamamlanmıştır. Turnuva süresince itiraz olmamıştır.", "öneri");
+        // Turnuva sonu raporu: değerlendirme için başlangıç metni (ceza / itiraz kayıtlarına göre)
+        int.TryParse(auto.GetValueOrDefault("ITIRAZ_SAYISI"), out var appeals);
+        int.TryParse(auto.GetValueOrDefault("CEZA_SAYISI"), out var penalties);
+        Suggest("DEGERLENDIRME", "Turnuva, yönergesine ve TSF kurallarına uygun olarak " + (appeals + penalties == 0 ? "sorunsuz " : "") + "tamamlanmıştır. " +
+                (appeals == 0 ? "Turnuva süresince itiraz olmamıştır." : $"Turnuva süresince {appeals} itiraz yapılmış, itiraz tutanağında belirtildiği şekilde karara bağlanmıştır.") +
+                (penalties > 0 ? $" {penalties} ceza verilmiştir (ceza tutanağı ektedir)." : ""), "öneri");
         // Teknik toplantı saati, programdaki teknik toplantı kaleminden
         if (!suggested.ContainsKey("TOPLANTI_SAATI") && suggested.TryGetValue("PROGRAM_TEKNIK", out var tek))
             Suggest("TOPLANTI_SAATI", tek.Value, tek.Origin);
@@ -312,7 +330,11 @@ public static class ReportBuilder
         int Rank(string k) { int i = order.FindIndex(o => o.Equals(k, StringComparison.OrdinalIgnoreCase)); return i < 0 ? int.MaxValue : i; }
         foreach (var key in keys.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(Rank))
         {
-            var (label, hint, optional, multi) = Catalog.TryGetValue(key, out var c) ? c : (Humanize(key), "", false, false);
+            var (label, hint, optional, multi) = Catalog.TryGetValue(key, out var c) ? c
+                : key.StartsWith(CustomPrefix, StringComparison.OrdinalIgnoreCase)
+                    // Şablondaki "Etiket : ………" yeri: belgedeki etiketiyle sorulur; boş bırakılırsa noktalı yer kalır.
+                    ? (analysis.FieldLabels.GetValueOrDefault(key) ?? Humanize(key[CustomPrefix.Length..]), "Şablondaki noktalı / boş yer. Boş bırakılırsa elle yazılmak üzere kalır.", true, false)
+                    : (analysis.FieldLabels.GetValueOrDefault(key) ?? Humanize(key), "", false, false);
             var field = new ReportField { Key = key, Label = label, Hint = hint, Optional = optional, Multiline = multi };
             if (auto.TryGetValue(key, out var a) && a.Length > 0) { field.Value = a; field.Source = ReportFieldSource.Automatic; field.Origin = "chess-results"; }
             else if (suggested.TryGetValue(key, out var s)) { field.Value = s.Value; field.Source = ReportFieldSource.Suggested; field.Origin = s.Origin; }

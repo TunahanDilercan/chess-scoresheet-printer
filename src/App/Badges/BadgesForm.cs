@@ -35,6 +35,13 @@ public sealed class BadgesForm : Form
     private static readonly string[] Sizes = { "85x54", "90x60", "95x135" };
     private readonly CheckBox _chkCrop = new() { Text = "Kesim (crop) işaretleri", AutoSize = true };
     private readonly CheckBox _chkTsfLogo = new() { Text = "Logo seçilmezse TSF il logosu", AutoSize = true };
+    // Büyük dikey kartta fotoğraf alanı: hakem vesikalığı ya da tüm kartlarda aynı yatay görsel
+    private readonly RadioButton _rbPhoto = new() { Text = "Hakem fotoğrafı (vesikalık)", AutoSize = true };
+    private readonly RadioButton _rbBanner = new() { Text = "Afiş / turnuva bilgisi (yatay, tüm kartlarda)", AutoSize = true };
+    private readonly Button _btnBanner = new() { Text = "🖼 Görsel seç…", AutoSize = true, Height = 28 };
+    private readonly Button _btnBannerCards = new() { Text = "Masa kartı afişini kullan", AutoSize = true, Height = 28 };
+    private readonly Label _lblBanner = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
+    private readonly FlowLayoutPanel _portraitBox = new() { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0) };
     private Image? _tsfLogo;   // otomatik il logosu (özel logo yokken)
     private readonly PictureBox _picPreview = new() { SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill };
     private readonly DataGridView _grid = new();
@@ -51,7 +58,7 @@ public sealed class BadgesForm : Form
         Text = "Hakem Yaka Kartları — " + EventGrouping.BaseName(ctx.EventName);
         Font = new Font("Segoe UI", 9.75f);
         StartPosition = FormStartPosition.CenterParent;
-        Size = new Size(1080, 700);
+        Size = new Size(1220, 720);
         MinimumSize = new Size(900, 580);
         this.FitToScreen(); // küçük ekranda / yüksek ölçekte taşmasın
         BackColor = Color.FromArgb(250, 250, 247);
@@ -62,7 +69,12 @@ public sealed class BadgesForm : Form
         _chkSimpleRoles.Checked = Cfg.SimpleRoles;
         _chkSimpleRoles.CheckedChanged += (_, _) => { Cfg.SimpleRoles = _chkSimpleRoles.Checked; _ctx.SaveConfig(); UpdatePreview(); };
         _chkCrop.Checked = Cfg.CropMarks;
-        _cboSize.SelectedIndexChanged += (_, _) => { Cfg.Size = Sizes[Math.Max(0, _cboSize.SelectedIndex)]; _ctx.SaveConfig(); UpdateSummary(); UpdatePreview(); };
+        _cboSize.SelectedIndexChanged += (_, _) => { Cfg.Size = Sizes[Math.Max(0, _cboSize.SelectedIndex)]; _ctx.SaveConfig(); UpdatePortraitOptions(); UpdateSummary(); UpdatePreview(); };
+        (Cfg.PortraitImage == "Banner" ? _rbBanner : _rbPhoto).Checked = true;
+        _rbBanner.CheckedChanged += (_, _) => { Cfg.PortraitImage = _rbBanner.Checked ? "Banner" : "Photo"; _ctx.SaveConfig(); UpdatePortraitOptions(); UpdatePreview(); };
+        _btnBanner.Click += (_, _) => ChooseBanner();
+        _btnBannerCards.Click += (_, _) => UseCardPoster();
+        UpdatePortraitOptions();
         _chkCrop.CheckedChanged += (_, _) => { Cfg.CropMarks = _chkCrop.Checked; _ctx.SaveConfig(); };
         _chkTsfLogo.Checked = Cfg.AutoTsfLogo;
         _chkTsfLogo.CheckedChanged += (_, _) => { Cfg.AutoTsfLogo = _chkTsfLogo.Checked; _ctx.SaveConfig(); LoadLogo(); UpdatePreview(); };
@@ -96,6 +108,11 @@ public sealed class BadgesForm : Form
         left.Controls.Add(Header("Kart ölçüsü"));
         left.Controls.Add(_cboSize);
         left.Controls.Add(_chkCrop);
+        var bannerBtns = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(18, 2, 0, 0) };
+        bannerBtns.Controls.AddRange(new Control[] { _btnBanner, _btnBannerCards });
+        _lblBanner.Margin = new Padding(20, 2, 0, 0);
+        _portraitBox.Controls.AddRange(new Control[] { Header("Dikey kartta görsel"), _rbPhoto, _rbBanner, bannerBtns, _lblBanner });
+        left.Controls.Add(_portraitBox);
         left.Controls.Add(Header("Görev yazımı"));
         left.Controls.Add(_chkSimpleRoles);
         left.Controls.Add(Header("Unvan renkleri"));
@@ -108,11 +125,15 @@ public sealed class BadgesForm : Form
                 Font = new Font(Font, FontStyle.Bold), TextAlign = ContentAlignment.MiddleLeft, Margin = new Padding(0, 1, 0, 1)
             });
         }
-        left.Controls.Add(Header("Önizleme"));
-        var previewHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14, 0, 10, 10) };
-        previewHost.Controls.Add(_picPreview);
-        leftHost.Controls.Add(previewHost);
+        leftHost.AutoScroll = true;   // küçük ekranda seçeneklerin hepsine ulaşılsın
         leftHost.Controls.Add(left);
+
+        // Önizleme sağda, tablonun yanında: dikey kart da büyük görünsün
+        var previewSide = new Panel { Dock = DockStyle.Right, Width = 270, Padding = new Padding(4, 12, 14, 8) };
+        var previewTitle = Header("Önizleme (seçili satır)");
+        previewTitle.Dock = DockStyle.Top;
+        previewSide.Controls.Add(_picPreview);
+        previewSide.Controls.Add(previewTitle);
 
         _grid.Dock = DockStyle.Fill;
         _grid.AllowUserToAddRows = true;               // listede olmayan görevli elle eklenebilir
@@ -126,7 +147,7 @@ public sealed class BadgesForm : Form
         _grid.RowTemplate.Height = 32;
         _grid.EditMode = DataGridViewEditMode.EditOnEnter;
         _grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Bas", HeaderText = "Bas", Width = 44 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ad", HeaderText = "Ad Soyad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ad", HeaderText = "Ad Soyad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 170 });
         var role = new DataGridViewComboBoxColumn { Name = "Gorev", HeaderText = "Görev", Width = 170, FlatStyle = FlatStyle.Flat };
         role.Items.AddRange(Arbiters.Roles);
         _grid.Columns.Add(role);
@@ -169,7 +190,7 @@ public sealed class BadgesForm : Form
         gridPanel.Controls.Add(_grid);
         gridPanel.Controls.Add(new Label
         {
-            Dock = DockStyle.Top, Height = 44, ForeColor = Color.DimGray,
+            Dock = DockStyle.Top, Height = 62, ForeColor = Color.DimGray,
             Text = "Görevliler chess-results'tan gelir. Unvan, FIDE unvanından (IA/FA/NA) önerilir; TSF derecesini seçebilirsiniz (hatırlanır). " +
                    "Listede olmayan görevliyi en alttaki boş satıra yazarak ekleyin."
         });
@@ -182,10 +203,11 @@ public sealed class BadgesForm : Form
         br.Controls.AddRange(new Control[] { _btnPdf, _btnPrint });
         bottom.Controls.Add(bl);
         bottom.Controls.Add(br);
-        foreach (var b in new[] { _btnLogo, _btnLogoClear, _btnPdf, _btnPrint, _btnAll, _btnNone }) Style(b);
+        foreach (var b in new[] { _btnLogo, _btnLogoClear, _btnPdf, _btnPrint, _btnAll, _btnNone, _btnBanner, _btnBannerCards }) Style(b);
         _btnPrint.Font = new Font("Segoe UI", 10.5f, FontStyle.Bold);
 
         Controls.Add(gridPanel);
+        Controls.Add(previewSide);
         Controls.Add(leftHost);
         Controls.Add(bottom);
     }
@@ -306,6 +328,56 @@ public sealed class BadgesForm : Form
         catch (Exception ex) { MessageBox.Show(this, "Resim açılamadı: " + ex.Message, "Logo", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 
+    private bool IsPortrait => Cfg.Size == "95x135";
+    private bool BannerMode => IsPortrait && Cfg.PortraitImage == "Banner";
+
+    /// <summary>Dikey kart seçenekleri yalnız büyük dikey kartta; seçili görselin adı ve fotoğraf sütunu.</summary>
+    private void UpdatePortraitOptions()
+    {
+        _portraitBox.Visible = IsPortrait;
+        _btnBanner.Enabled = _btnBannerCards.Enabled = _rbBanner.Checked;
+        _btnBannerCards.Visible = CardPoster() is not null;
+        _lblBanner.Text = !_rbBanner.Checked ? "Her hakemin fotoğrafı tablodaki \"Fotoğraf\" sütunundan seçilir."
+            : Cfg.BannerPath is { } p && File.Exists(p) ? "✓ " + Path.GetFileName(p) + " — kırpılmadan, kart genişliğinde basılır."
+            : "Görsel seçilmedi: kartta boş çerçeve basılır.";
+        if (_grid.Columns.Contains("Foto")) _grid.Columns["Foto"]!.Visible = !BannerMode;   // ortak görselde vesikalık gerekmez
+    }
+
+    /// <summary>Masa kartlarında seçilmiş afiş (kırpılmamış asıl hâli varsa o).</summary>
+    private string? CardPoster()
+    {
+        var c = _ctx.Config.Cards;
+        return c.LogoSourcePath is { } s && File.Exists(s) ? s : c.LogoPath is { } l && File.Exists(l) ? l : null;
+    }
+
+    private void SetBanner(string source)
+    {
+        using (Image.FromFile(source)) { } // geçerli resim mi
+        var dir = Path.Combine(_ctx.BaseDir, "badges");
+        Directory.CreateDirectory(dir);
+        var dest = Path.Combine(dir, "afis_" + DateTime.Now.ToString("yyyyMMddHHmmss") + Path.GetExtension(source).ToLowerInvariant());
+        File.Copy(source, dest, overwrite: true);
+        Cfg.BannerPath = dest;
+        _ctx.SaveConfig();
+        UpdatePortraitOptions();
+        UpdatePreview();
+    }
+
+    private void ChooseBanner()
+    {
+        using var dlg = new OpenFileDialog { Title = "Afiş ya da turnuva bilgisi görseli (yatay)", Filter = "Resim (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp" };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        try { SetBanner(dlg.FileName); }
+        catch (Exception ex) { MessageBox.Show(this, "Resim açılamadı: " + ex.Message, "Görsel", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+
+    private void UseCardPoster()
+    {
+        if (CardPoster() is not { } p) return;
+        try { SetBanner(p); }
+        catch (Exception ex) { MessageBox.Show(this, "Afiş açılamadı: " + ex.Message, "Görsel", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+
     /// <summary>Seçilen logo; yoksa (seçenek açıksa) turnuva ilinin TSF logosu.</summary>
     private void LoadLogo()
     {
@@ -339,10 +411,16 @@ public sealed class BadgesForm : Form
             g.PageUnit = GraphicsUnit.Point;
             float k = scale * 72f / bmp.HorizontalResolution;
             g.ScaleTransform(k, k);
-            Image? photo = null;
-            try { if (spec.PhotoPath is not null) { using var fs = File.OpenRead(spec.PhotoPath); using var src = Image.FromStream(fs); photo = new Bitmap(src); } } catch { }
-            BadgePrinter.DrawCard(g, new RectangleF(0, 0, p.CardW, p.CardH), spec, _picLogo.Image, photo, EventGrouping.BaseName(_ctx.EventName), CardFonts.Default);
-            photo?.Dispose();
+            static Image? Load(string? path)
+            {
+                try { if (path is not null && File.Exists(path)) { using var fs = File.OpenRead(path); using var src = Image.FromStream(fs); return new Bitmap(src); } }
+                catch { }
+                return null;
+            }
+            using var photo = Load(spec.PhotoPath);
+            using var banner = BannerMode ? Load(Cfg.BannerPath) : null;
+            BadgePrinter.DrawCard(g, new RectangleF(0, 0, p.CardW, p.CardH), spec, _picLogo.Image, photo, EventGrouping.BaseName(_ctx.EventName), CardFonts.Default,
+                                  BannerMode, banner);
             using var pen = new Pen(Color.FromArgb(180, 180, 180), 0.5f);
             g.DrawRectangle(pen, 0, 0, p.CardW, p.CardH);
         }
@@ -353,7 +431,7 @@ public sealed class BadgesForm : Form
 
     // ================= Çıktı =================
     private BadgePrinter NewPrinter(IEnumerable<BadgeSpec> specs)
-        => new(specs, Cfg.LogoPath, EventGrouping.BaseName(_ctx.EventName), Cfg.Size, Cfg.CropMarks, null, FallbackLogo);
+        => new(specs, Cfg.LogoPath, EventGrouping.BaseName(_ctx.EventName), Cfg.Size, Cfg.CropMarks, null, FallbackLogo, BannerMode, Cfg.BannerPath);
 
     private BadgePrinter? Printer()
     {

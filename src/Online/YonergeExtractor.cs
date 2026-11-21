@@ -176,13 +176,35 @@ public static class YonergeExtractor
         Set("PROGRAM_ILAN", M(@"(\d{1,2}[.:]\d{2})\s+1\.\s*Tur\s+Eşleştirme", t).Groups[1].Value.Replace(':', '.'));
 
         // --- eski tablo düzeni ("İLİ | Isparta | İLÇESİ | Merkez") ---
+        // Değer hücresi boşsa PDF metninde hemen sonraki başlık gelir ("İLÇESİ BAŞLAMA-BİTİŞ TARİHİ …"):
+        // değer bir sonraki tablo başlığında kesilir, yalnız başlıktan oluşuyorsa alınmaz.
         var oil = M(@"\bİLİ\s+(\p{L}+)\s+İLÇESİ\s+(\p{L}+)", t);
-        if (oil.Success) { Set("IL", oil.Groups[1].Value); Set("ILCE", oil.Groups[2].Value); }
-        Set("YER", M(@"\bYERİ\s+(.+)", t).Groups[1].Value);
-        Set("ORGANIZASYON", M(@"\bORGANİZASYON\s+(.+)", t).Groups[1].Value);
-        Set("DUSUNME_SURESI", M(@"\bDÜŞÜNME SÜRESİ\s+(.+)", t).Groups[1].Value);
+        if (oil.Success) { Set("IL", CutAtLabel(oil.Groups[1].Value)); Set("ILCE", CutAtLabel(oil.Groups[2].Value)); }
+        Set("YER", CutAtLabel(M(@"\bYERİ\s+(.+)", t).Groups[1].Value));
+        Set("ORGANIZASYON", CutAtLabel(M(@"\bORGANİZASYON\s+(.+)", t).Groups[1].Value));
+        Set("DUSUNME_SURESI", CutAtLabel(M(@"\bDÜŞÜNME SÜRESİ\s+(.+)", t).Groups[1].Value));
 
         return d;
+    }
+
+    /// <summary>Eski tablo düzenindeki başlıklar (büyük harfle yazılır).</summary>
+    private static readonly string[] TableLabels =
+    {
+        "BAŞLAMA", "BİTİŞ", "SON BAŞVURU", "SİSTEM", "DÜŞÜNME SÜRESİ", "YERİ", "TARİHİ", "ORGANİZASYON", "İLÇESİ", "İLİ",
+        "KATEGORİ", "TEMPO", "TUR SAYISI", "BAŞHAKEM", "YARIŞMA DİREKTÖRÜ", "TURNUVA DİREKTÖRÜ"
+    };
+
+    /// <summary>Değeri, içindeki ilk tablo başlığında keser ("SON BAŞVURU TARİHİ 18.09 …" → ""; "Spor Salonu SİSTEM …" → "Spor Salonu").</summary>
+    public static string CutAtLabel(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return "";
+        int cut = value.Length;
+        foreach (var label in TableLabels)
+        {
+            var m = Regex.Match(value, $@"(?:^|[\s,;/|-]){Regex.Escape(label)}(?![\p{{L}}])", RegexOptions.CultureInvariant);
+            if (m.Success) cut = Math.Min(cut, m.Index);
+        }
+        return value[..cut].Trim(' ', ',', ';', '/', '-', '|');
     }
 
     /// <summary>PDF'ten "@" düşmüş e-postayı onarır: "aydintsf.org.tr" → "aydin@tsf.org.tr".</summary>

@@ -32,6 +32,8 @@ public sealed record TemplateAnalysis(
     public IReadOnlyDictionary<string, string> Existing { get; init; } = new Dictionary<string, string>();
     /// <summary>Kategori/program dışındaki tablo önekleri ({{il.adi}} → "il").</summary>
     public IReadOnlyList<string> Lists { get; init; } = Array.Empty<string>();
+    /// <summary>Belgedeki etiketinden türetilen alanların görünen adı (ALAN_ITIRAZ_EDEN → "İtiraz Eden").</summary>
+    public IReadOnlyDictionary<string, string> FieldLabels { get; init; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -83,10 +85,18 @@ public static class DocxTemplate
         var existing = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         bool cats = false, prog = false;
         var lists = new List<string>();
+        var customLabels = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var counter = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var customKeys = new List<string>();
         foreach (var name in Parts(zip))
         {
             var x = Load(zip, name);
             NormalizeParagraphs(x);
+            foreach (var spot in CustomSpots(x, counter))
+            {
+                if (!customKeys.Contains(spot.Key, StringComparer.OrdinalIgnoreCase)) customKeys.Add(spot.Key);
+                if (spot.Key.StartsWith(CustomPrefix, StringComparison.OrdinalIgnoreCase)) customLabels[spot.Key] = spot.Label;
+            }
             foreach (var t in x.Descendants(W + "t"))
                 foreach (Match m in Token.Matches(t.Value))
                 {
@@ -109,7 +119,15 @@ public static class DocxTemplate
                 if (!existing.ContainsKey(key) && Regex.IsMatch(v, @"[\p{L}\d]{2,}")) existing[key] = v; // "…", "-" değer sayılmaz
             }
         }
-        return new TemplateAnalysis(fields.Concat(labels).ToList(), cats, prog, labels) { Existing = existing, Lists = lists };
+        // Etiketinden tanınan noktalı / boş yerler: bilinen alansa (Turnuva Adı : …) o alan, değilse ALAN_…
+        var known = fields.Concat(labels).ToList();
+        foreach (var k in customKeys)
+            if (!known.Contains(k, StringComparer.OrdinalIgnoreCase))
+            {
+                known.Add(k);
+                if (!k.StartsWith(CustomPrefix, StringComparison.OrdinalIgnoreCase) && !labels.Contains(k)) labels.Add(k);
+            }
+        return new TemplateAnalysis(known, cats, prog, labels) { Existing = existing, Lists = lists, FieldLabels = customLabels };
     }
 
     /// <param name="marker">Düzenleme önizlemesi: alanlar renk koduyla işaretlenir, boşlar yer tutucuyla görünür (bkz. <see cref="FieldMarker"/>).</param>
@@ -120,6 +138,7 @@ public static class DocxTemplate
         using (var outZip = new ZipArchive(output, ZipArchiveMode.Create, leaveOpen: true))
         {
             var parts = Parts(input).ToHashSet();
+            var counter = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);   // aynı etiket ikinci kez: _2
             foreach (var entry in input.Entries)
             {
                 var target = outZip.CreateEntry(entry.FullName, CompressionLevel.Optimal);
@@ -128,6 +147,7 @@ public static class DocxTemplate
                 {
                     var x = Load(input, entry.FullName);
                     NormalizeParagraphs(x);
+                    FillCustomSpots(CustomSpots(x, counter), data.Values, marker);
                     // Etiketli hücreler satırlar çoğaltılmadan ÖNCE bulunur: liste tablosu başlıkları ("İL | SPORCU SAYISI")
                     // alttaki {{il.…}} satırından tanınıp atlanabilsin.
                     var labelCells = LabelCells(x).ToList();
@@ -151,6 +171,137 @@ public static class DocxTemplate
         }
         input.Dispose();
         return output.ToArray();
+    }
+
+    // ================= Noktalı / boş yerler =================
+    /// <summary>Şablondaki etiketinden türetilen alanların öneki (ReportBuilder.CustomPrefix ile aynı).</summary>
+    public const string CustomPrefix = "ALAN_";
+
+    /// <summary>"Etiket : ………" — etiket, iki nokta ve en az 4 nokta / alt çizgi ya da 2 üç nokta (…).</summary>
+    private static readonly Regex DotSpot = new(@"(?<label>[^:.…_\t\r\n]{2,60}?)\s*:\s*(?<dots>(?:[._…] ?){3,}[._…]|…{2,})");
+    private static readonly Regex OnlyDots = new(@"^[\s.…_:\-–]*$");
+
+    /// <summary>İmza / paraf / mühür yerleri doldurulmaz (elle imzalanır).</summary>
+    private static readonly string[] StopLabels = { "imza", "paraf", "muhur", "kase" };
+
+    /// <summary>
+    /// Belgedeki etiketli boş yer: paragrafta "Etiket : ………" (<see cref="Paragraph"/>, noktaların yeri) ya da
+    /// tabloda "Etiket | (boş ya da noktalı hücre)" (<see cref="Cell"/>). Etiket bilinen bir alansa (Turnuva Adı,
+    /// Tarih, Başhakem …) o alan, değilse ALAN_ETIKET; aynı etiket tekrar ederse ALAN_ETIKET_2.
+    /// </summary>
+    private sealed record CustomSpot(string Key, string Label, XElement? Paragraph, int Start, int Length, XElement? Cell);
+
+    private static IEnumerable<CustomSpot> CustomSpots(XDocument x, Dictionary<string, int> counter)
+    {
+        var spots = new List<CustomSpot>();
+        // 1) Tablo: etiket hücresi + boş / noktalı değer hücresi
+        foreach (var row in x.Descendants(W + "tr"))
+        {
+            if (row.ElementsAfterSelf(W + "tr").FirstOrDefault() is { } below &&
+                ListToken.IsMatch(string.Concat(below.Descendants(W + "t").Select(t => t.Value)))) continue;   // liste tablosu başlığı
+            var cells = row.Elements(W + "tc").ToList();
+            for (int i = 0; i + 1 < cells.Count; i++)
+            {
+                if (IsColumnHeader(row, i)) continue;
+                var raw = CellText(cells[i]);
+                if (raw.Contains("{{") || OnlyDots.IsMatch(raw)) continue;
+                var label = raw.Trim(' ', ':', ' ');
+                var fold = Fold(label).Trim();
+                if (LabelMap.ContainsKey(fold) || HeaderWords.Contains(fold) || !LooksLikeLabel(label)) continue;
+                var next = CellText(cells[i + 1]);
+                if (next.Contains("{{") || !OnlyDots.IsMatch(next)) continue;
+                spots.Add(new CustomSpot(KeyOf(label, counter, out var shown), shown, null, 0, 0, cells[i + 1]));
+            }
+        }
+        // 2) Paragraf: "Etiket : ………"
+        foreach (var p in x.Descendants(W + "p").Where(p => !p.Descendants(W + "p").Any()))
+        {
+            var text = string.Concat(p.Descendants(W + "t").Select(t => t.Value));
+            if (text.Length < 6 || text.Contains("{{")) continue;
+            foreach (Match m in DotSpot.Matches(text))
+            {
+                var label = m.Groups["label"].Value.Trim(' ', ' ', '-', '–', '•');
+                if (!LooksLikeLabel(label)) continue;
+                var dots = m.Groups["dots"];
+                spots.Add(new CustomSpot(KeyOf(label, counter, out var shown), shown, p, dots.Index, dots.Length, null));
+            }
+        }
+        return spots;
+    }
+
+    /// <summary>Etiket gibi görünüyor mu: harf içerir, kısa (en çok 6 sözcük), imza/paraf yeri değil.</summary>
+    private static bool LooksLikeLabel(string label)
+    {
+        if (label.Length < 2 || label.Length > 50 || !label.Any(char.IsLetter)) return false;
+        if (label.Split(' ', StringSplitOptions.RemoveEmptyEntries).Length > 6) return false;
+        var f = Fold(label);
+        return !StopLabels.Any(f.Contains);
+    }
+
+    /// <summary>Etiketten alan anahtarı: bilinen etiket → o alan; değilse ALAN_ETIKET (tekrarda _2, _3).</summary>
+    private static string KeyOf(string label, Dictionary<string, int> counter, out string shown)
+    {
+        var fold = Fold(label).Trim();
+        shown = label.Trim();
+        if (LabelMap.TryGetValue(fold, out var known)) return known;
+        var slug = Regex.Replace(fold.ToUpperInvariant(), @"[^A-Z0-9]+", "_").Trim('_');
+        if (slug.Length > 40) slug = slug[..40].TrimEnd('_');
+        var key = CustomPrefix + (slug.Length == 0 ? "ALAN" : slug);
+        int n = counter.TryGetValue(key, out var c) ? c + 1 : 1;
+        counter[key] = n;
+        if (n == 1) return key;
+        shown = $"{shown} ({n})";
+        return $"{key}_{n}";
+    }
+
+    /// <summary>
+    /// Noktalı / boş yerleri doldurur. Değer boşsa yer olduğu gibi kalır (elle yazılır). Paragraftaki noktalar
+    /// sondan başa değiştirilir: önceki yerlerin konumu kaymasın; yalnız noktaların bulunduğu koşular değişir
+    /// (etiketin kalın yazısı vb. korunur).
+    /// </summary>
+    private static void FillCustomSpots(IEnumerable<CustomSpot> spots, IReadOnlyDictionary<string, string> values, FieldMarker? marker)
+    {
+        var list = spots.ToList();
+        foreach (var spot in list.Where(s => s.Cell is not null))
+        {
+            if (Display(spot.Key, values, marker) is not var (v, color)) continue;
+            var cell = spot.Cell!;
+            var ts = cell.Descendants(W + "t").ToList();
+            if (ts.Count == 0)
+            {
+                var p = cell.Element(W + "p") ?? new XElement(W + "p");
+                if (p.Parent is null) cell.Add(p);
+                p.Add(MakeRun(null, v, color));
+                continue;
+            }
+            ts[0].Value = v; Preserve(ts[0]);
+            foreach (var t in ts.Skip(1)) t.Value = "";
+            ColorRuns(cell.Descendants(W + "r"), color);
+        }
+        foreach (var group in list.Where(s => s.Paragraph is not null).GroupBy(s => s.Paragraph!))
+            foreach (var spot in group.OrderByDescending(s => s.Start))
+            {
+                if (Display(spot.Key, values, marker) is not var (v, color)) continue;
+                ReplaceRange(group.Key, spot.Start, spot.Length, v, color);
+            }
+    }
+
+    /// <summary>Paragraf metninin [start, start+length) aralığını, koşu sınırlarını gözeterek <paramref name="value"/> ile değiştirir.</summary>
+    private static void ReplaceRange(XElement paragraph, int start, int length, string value, string? color)
+    {
+        int pos = 0, end = start + length;
+        bool written = false;
+        foreach (var t in paragraph.Descendants(W + "t").ToList())
+        {
+            int len = t.Value.Length, from = pos, to = pos + len;
+            pos = to;
+            if (to <= start || from >= end) continue;
+            int a = Math.Max(start, from) - from, b = Math.Min(end, to) - from;
+            t.Value = t.Value[..a] + (written ? "" : value) + t.Value[b..];
+            Preserve(t);
+            if (!written && color is not null && t.Parent is { } run && run.Name == W + "r") SetColor(run, color);
+            written = true;
+        }
     }
 
     private static XDocument Load(ZipArchive zip, string name)
@@ -431,6 +582,7 @@ public static class DocxTemplate
             var cells = row.Elements(W + "tc").ToList();
             for (int i = 0; i + 1 < cells.Count; i++)
             {
+                if (IsColumnHeader(row, i)) continue;   // "Başhakem | Yarışma Direktörü" başlık satırı: değerler altta
                 var label = Fold(CellText(cells[i])).Trim(' ', ':', ' ');
                 if (!LabelMap.TryGetValue(label, out var key)) continue;
                 var next = CellText(cells[i + 1]);
@@ -461,6 +613,11 @@ public static class DocxTemplate
             ColorRuns(cell.Descendants(W + "r"), color);
         }
     }
+
+    /// <summary>Hücre bir sütun başlığı mı: hemen altındaki hücrede {{…}} işareti var (değer başlığın altında).</summary>
+    private static bool IsColumnHeader(XElement row, int index)
+        => row.ElementsAfterSelf(W + "tr").FirstOrDefault()?.Elements(W + "tc").ElementAtOrDefault(index) is { } below
+           && CellText(below).Contains("{{");
 
     private static string CellText(XElement tc) => string.Concat(tc.Descendants(W + "t").Select(t => t.Value)).Trim();
 
