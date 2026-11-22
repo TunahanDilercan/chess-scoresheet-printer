@@ -68,6 +68,14 @@ public class DpiScalingTests : IDisposable
     [InlineData(1.5f)]
     public void ScaledWindows_HaveNoClippedText(float factor)
     {
+        // Windows bir pencereyi gerçek ekrandan büyük açtırmaz: taklit edilen ekran (1920×1080) gerçek ekrana sığmıyorsa
+        // (ör. 1024×768 CI makinesi) ölçüm anlamsızdır, test atlanır. Geliştirme bilgisayarında tam çalışır.
+        var screen = Screen.PrimaryScreen?.Bounds ?? Rectangle.Empty;
+        if (screen.Width < 1920 || screen.Height < 1040)
+        {
+            _out.WriteLine($"Ekran {screen.Width}×{screen.Height}: 1920×1080 benzetimi için küçük, ölçek testi atlandı.");
+            return;
+        }
         var shots = Environment.GetEnvironmentVariable("CSP_FORM_SHOTS");
         var all = new List<string>();
         foreach (var (name, make) in Forms())
