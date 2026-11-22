@@ -20,7 +20,7 @@ public sealed record AthleteImages(Image? Banner, Image? PlateBanner, Image? Log
 /// </list>
 /// Kartlar arasına ince kesim çizgisi, ızgara dışına köşe işaretleri konur.
 /// </summary>
-public sealed class AthleteSheetPrinter : IDisposable
+public sealed class AthleteSheetPrinter : IPagedOutput, IDisposable
 {
     public const float Mm = 72f / 25.4f;
     private const float PageW = 595.28f, PageH = 841.89f;
@@ -29,7 +29,7 @@ public sealed class AthleteSheetPrinter : IDisposable
     private readonly AthleteCardConfig _cfg;
     private readonly AthleteImages _img;
     private readonly string _eventName;
-    private int _pageIndex;
+    private readonly Func<string, string?>? _categoryColor;   // kategori adı → renk (null = tek çerçeve rengi)
 
     public bool IsPlate { get; }
     public float CardW { get; }
@@ -40,12 +40,14 @@ public sealed class AthleteSheetPrinter : IDisposable
     public int CardCount => _items.Count;
     public int PageCount => (_items.Count + PerPage - 1) / PerPage;
 
-    public AthleteSheetPrinter(IEnumerable<Athlete> items, AthleteCardConfig cfg, AthleteImages images, string eventName)
+    public AthleteSheetPrinter(IEnumerable<Athlete> items, AthleteCardConfig cfg, AthleteImages images, string eventName,
+                               Func<string, string?>? categoryColor = null)
     {
         _items = items.ToList();
         _cfg = cfg;
         _img = images;
         _eventName = eventName;
+        _categoryColor = categoryColor;
         IsPlate = cfg.Kind == AthleteCardConfig.Plate;
         if (IsPlate)
         {
@@ -61,7 +63,7 @@ public sealed class AthleteSheetPrinter : IDisposable
     /// Kart çizimleri bu kilitle yapılır: aynı görsel ve yazı tipi nesneleri arka planda PDF hazırlanırken
     /// pencerede önizleme de çizebilir (GDI+ nesneleri aynı anda iki iş parçacığında kullanılamaz).
     /// </summary>
-    internal static readonly object RenderLock = new();
+    internal static object RenderLock => PagedOutput.Gate;
 
     // ================= Görseller: baskı boyutuna bir kez küçültülür =================
     private const float PrintDpi = 300f;
@@ -129,49 +131,14 @@ public sealed class AthleteSheetPrinter : IDisposable
     }
 
     // ================= Önizleme, yazıcı, PDF =================
-    public bool PrintWithPreview(IWin32Window owner)
-    {
-        if (PrintRouter.IsSilent) { using var direct = BuildDocument(); return PrintRouter.Print(direct, owner, PreparePaper); }
-        var what = IsPlate ? "isimlik" : "yaka kartı";
-        // Önizleme yalnız görünen sayfayı çizer; belge ancak "Yazdır"a basılınca hazırlanır.
-        return PagePreviewDialog.Show(owner, $"{_eventName} - sporcu {(IsPlate ? "isimlikleri" : "yaka kartları")}", PageCount,
-                                      new SizeF(PageW, PageH), (g, p) => { Prepare(g); DrawPage(g, p); },
-                                      $"{CardCount} {what} • {PageCount} sayfa A4 • {Cols}×{Rows} dizilim",
-                                      f => { using var doc = BuildDocument(); return PrintRouter.Print(doc, f, PreparePaper); });
-    }
+    // Önizleme, yazdırma ve PDF ortak yoldan (PagedOutput): önizleme tembel, yazdırma ve PDF arka planda.
+    public string DocumentName => $"{_eventName} - sporcu {(IsPlate ? "isimlikleri" : "yaka kartları")}";
+    public SizeF PageSizePt => new(PageW, PageH);
+    public bool Landscape => false;
+    public object PageKey(int page) => page;
 
-    private static bool PreparePaper(PrintDocument doc, IWin32Window owner)
-    {
-        try
-        {
-            foreach (PaperSize ps in doc.PrinterSettings.PaperSizes)
-                if (ps.Kind == PaperKind.A4) { doc.DefaultPageSettings.PaperSize = ps; break; }
-        }
-        catch (InvalidPrinterException) { }
-        doc.DefaultPageSettings.Landscape = false;
-        return true;
-    }
-
-    private PrintDocument BuildDocument()
-    {
-        var doc = new PrintDocument { DocumentName = $"{_eventName} - sporcu {(IsPlate ? "isimlikleri" : "yaka kartları")}" };
-        PrintRouter.ApplyTarget(doc);
-        PreparePaper(doc, null!);
-        doc.OriginAtMargins = false;
-        doc.BeginPrint += (_, _) => _pageIndex = 0;
-        doc.PrintPage += (s, e) =>
-        {
-            var g = e.Graphics!;
-            g.PageUnit = GraphicsUnit.Point;
-            Prepare(g);
-            bool preview = (s as PrintDocument)?.PrintController?.IsPreview == true;
-            if (!preview) g.TranslateTransform(-e.PageSettings.HardMarginX / 100f * 72f, -e.PageSettings.HardMarginY / 100f * 72f);
-            DrawPage(g, _pageIndex);
-            _pageIndex++;
-            e.HasMorePages = _pageIndex < PageCount;
-        };
-        return doc;
-    }
+    /// <summary>Önizleme penceresinin altındaki bilgi.</summary>
+    public string Hint => $"{CardCount} {(IsPlate ? "isimlik" : "yaka kartı")} • {PageCount} sayfa A4 • {Cols}×{Rows} dizilim";
 
     /// <summary>PDF (300 dpi). Arka planda çalıştırılabilir; ilerleme sayfa sayısıyla bildirilir.</summary>
     public void SavePdf(string path, IProgress<(int Done, int Total)>? progress = null, CancellationToken ct = default)
@@ -197,8 +164,10 @@ public sealed class AthleteSheetPrinter : IDisposable
             {
                 int r = i / Cols, c = i % Cols;
                 var rect = new RectangleF(o.X + c * CardW, o.Y + r * CardH, CardW, CardH);
-                if (IsPlate) DrawPlate(g, rect, _items[start + i], _cfg, img);
-                else DrawBadge(g, rect, _items[start + i], _cfg, img);
+                var a = _items[start + i];
+                var color = _categoryColor?.Invoke(a.Category);
+                if (IsPlate) DrawPlate(g, rect, a, _cfg, img, color);
+                else DrawBadge(g, rect, a, _cfg, img, color);
             }
             DrawCutLines(g, o, (n + Cols - 1) / Cols);
         }
@@ -233,11 +202,12 @@ public sealed class AthleteSheetPrinter : IDisposable
     private static RectangleF PosterSource(Image img, int cropBottomPercent)
         => new(0, 0, img.Width, img.Height * (1 - Math.Clamp(cropBottomPercent, 0, 45) / 100f));
 
-    public static void DrawBadge(Graphics g, RectangleF r, Athlete a, AthleteCardConfig cfg, AthleteImages img)
+    /// <param name="categoryColor">Kategorinin rengi ("#RRGGBB"): çerçeve, çizgi ve kategori yazısı bu renkte; null = tek çerçeve rengi.</param>
+    public static void DrawBadge(Graphics g, RectangleF r, Athlete a, AthleteCardConfig cfg, AthleteImages img, string? categoryColor = null)
     {
         float mm = r.Width / 95f;               // 95 mm genişliğe göre ölçek (önizlemede de aynı oran)
         float vy = r.Height / 135f;
-        var frame = CardLayout.ParseColor(cfg.FrameColor, Color.FromArgb(0, 112, 192));
+        var frame = CardLayout.ParseColor(categoryColor ?? cfg.FrameColor, Color.FromArgb(0, 112, 192));
         var text = CardLayout.ParseColor(cfg.TextColor, Color.FromArgb(31, 56, 100));
         using (var white = new SolidBrush(Color.White)) g.FillRectangle(white, r);
         float inset = 0.6f * mm;
@@ -296,7 +266,7 @@ public sealed class AthleteSheetPrinter : IDisposable
         var l3Box = new RectangleF(inner.X + 3 * mm, y0 + area * 0.68f, inner.Width - 6 * mm, area * 0.30f);
         AthleteText.Draw(g, a.Name, nameBox, AthleteText.Black, 20, 9, 2, text, StringAlignment.Center);
         if (!string.IsNullOrWhiteSpace(a.Category))
-            AthleteText.Draw(g, Upper(a.Category), catBox, AthleteText.Narrow, 14, 7, 2, text, StringAlignment.Center);
+            AthleteText.Draw(g, Upper(a.Category), catBox, AthleteText.Narrow, 14, 7, 2, categoryColor is null ? text : Readable(frame), StringAlignment.Center);
         if (!string.IsNullOrWhiteSpace(a.Line3))
             AthleteText.Draw(g, Upper(a.Line3), l3Box, AthleteText.Narrow, 16, 7, 2, text, StringAlignment.Center);
 
@@ -332,10 +302,10 @@ public sealed class AthleteSheetPrinter : IDisposable
     }
 
     // ================= İsimlik =================
-    public static void DrawPlate(Graphics g, RectangleF r, Athlete a, AthleteCardConfig cfg, AthleteImages img)
+    public static void DrawPlate(Graphics g, RectangleF r, Athlete a, AthleteCardConfig cfg, AthleteImages img, string? categoryColor = null)
     {
         float mm = r.Width / 190f;
-        var frame = CardLayout.ParseColor(cfg.FrameColor, Color.FromArgb(0, 32, 96));
+        var frame = CardLayout.ParseColor(categoryColor ?? cfg.FrameColor, Color.FromArgb(0, 32, 96));
         var text = CardLayout.ParseColor(cfg.TextColor, Color.FromArgb(31, 56, 100));
         using (var white = new SolidBrush(Color.White)) g.FillRectangle(white, r);
 
@@ -377,7 +347,7 @@ public sealed class AthleteSheetPrinter : IDisposable
         float lowTop = strip.Bottom, lowH = r.Bottom - lowTop;
         var catBox = new RectangleF(r.X + 1.5f * mm, lowTop + 1.5f * mm, 30 * mm, lowH - 3 * mm);
         if (!string.IsNullOrWhiteSpace(a.Category))
-            AthleteText.Draw(g, Upper(a.Category), catBox, AthleteText.NarrowRegular, 16, 7, 3, text, StringAlignment.Center);
+            AthleteText.Draw(g, Upper(a.Category), catBox, AthleteText.NarrowRegular, 16, 7, 3, categoryColor is null ? text : Readable(frame), StringAlignment.Center);
         using (var v = new Pen(Color.FromArgb(40, 40, 40), 0.3f * mm))
             g.DrawLine(v, r.X + 33.6f * mm, lowTop + lowH * 0.24f, r.X + 33.6f * mm, lowTop + lowH * 0.76f);
 
@@ -406,6 +376,15 @@ public sealed class AthleteSheetPrinter : IDisposable
 
         using var outer = new Pen(frame, 0.35f * mm);
         g.DrawRectangle(outer, r.X + 0.2f * mm, r.Y + 0.2f * mm, r.Width - 0.4f * mm, r.Height - 0.4f * mm);
+    }
+
+    /// <summary>Beyaz zeminde okunur yazı rengi: açık renkler (ör. sarı) koyulaştırılır.</summary>
+    internal static Color Readable(Color c)
+    {
+        double lum = (0.299 * c.R + 0.587 * c.G + 0.114 * c.B) / 255;
+        if (lum <= 0.55) return c;
+        double k = 0.55 / lum;
+        return Color.FromArgb((int)(c.R * k), (int)(c.G * k), (int)(c.B * k));
     }
 
     private static string Upper(string s) => s.Trim().ToUpper(new System.Globalization.CultureInfo("tr-TR"));

@@ -14,7 +14,7 @@ public sealed record BadgeSpec(string Name, string Role, string Grade, Color Gra
 /// Kart: üstte logo + turnuva adı + vesikalık fotoğraf; ortada ad soyad ve görev; altta dereceye göre
 /// renkli şerit ve unvan.
 /// </summary>
-public sealed class BadgePrinter
+public sealed class BadgePrinter : IPagedOutput, IDisposable
 {
     public const float Mm = 72f / 25.4f;
     private const float PageW = 595.28f, PageH = 841.89f;
@@ -28,7 +28,6 @@ public sealed class BadgePrinter
     public float CardH { get; }
     public int Cols { get; }
     public int Rows { get; }
-    private int _pageIndex;
     private readonly Dictionary<string, Image?> _images = new();
     private readonly Image? _fallbackLogo;     // logo dosyası yoksa (TSF il logosu)
     private readonly bool _banner;             // dikey kartta vesikalık yerine ortak yatay görsel
@@ -63,47 +62,17 @@ public sealed class BadgePrinter
     /// <summary>Kartların sayfadaki sol üst köşesi (ızgara sayfaya ortalı).</summary>
     private PointF Origin => new((PageW - Cols * CardW) / 2, (PageH - Rows * CardH) / 2);
 
-    // ================= Önizleme + yazıcı =================
-    public bool PrintWithPreview(IWin32Window owner)
-    {
-        using var doc = BuildDocument();
-        if (PrintRouter.IsSilent) return PrintRouter.Print(doc, owner, PreparePaper);
-        return PreviewDialog.Show(owner, doc, PageCount, $"{CardCount} kart • {PageCount} sayfa A4 • {Cols}×{Rows} dizilim",
-                                  f => PrintRouter.Print(doc, f, PreparePaper));
-    }
+    // ================= Önizleme, yazıcı, PDF (PagedOutput: önizleme tembel, yazdırma ve PDF arka planda) =================
+    public string DocumentName => $"{_eventName} - hakem yaka kartları";
+    public SizeF PageSizePt => new(PageW, PageH);
+    public bool Landscape => false;
+    public object PageKey(int page) => page;
+    public string Hint => $"{CardCount} kart • {PageCount} sayfa A4 • {Cols}×{Rows} dizilim";
 
-    private static bool PreparePaper(PrintDocument doc, IWin32Window owner)
+    /// <summary>Yüklenen fotoğraf ve logoları bırakır.</summary>
+    public void Dispose()
     {
-        try
-        {
-            foreach (PaperSize ps in doc.PrinterSettings.PaperSizes)
-                if (ps.Kind == PaperKind.A4) { doc.DefaultPageSettings.PaperSize = ps; break; }
-        }
-        catch (InvalidPrinterException) { }
-        doc.DefaultPageSettings.Landscape = false;
-        return true;
-    }
-
-    private PrintDocument BuildDocument()
-    {
-        var doc = new PrintDocument { DocumentName = $"{_eventName} - hakem yaka kartları" };
-        PrintRouter.ApplyTarget(doc);
-        PreparePaper(doc, null!);
-        doc.OriginAtMargins = false;
-        doc.BeginPrint += (_, _) => _pageIndex = 0;
-        doc.EndPrint += (_, _) => { foreach (var i in _images.Values) i?.Dispose(); _images.Clear(); _pageIndex = 0; };
-        doc.PrintPage += (s, e) =>
-        {
-            var g = e.Graphics!;
-            g.PageUnit = GraphicsUnit.Point;
-            Prepare(g);
-            bool preview = (s as PrintDocument)?.PrintController?.IsPreview == true;
-            if (!preview) g.TranslateTransform(-e.PageSettings.HardMarginX / 100f * 72f, -e.PageSettings.HardMarginY / 100f * 72f);
-            DrawPage(g, _pageIndex);
-            _pageIndex++;
-            e.HasMorePages = _pageIndex < PageCount;
-        };
-        return doc;
+        lock (PagedOutput.Gate) { foreach (var i in _images.Values) i?.Dispose(); _images.Clear(); }
     }
 
     private static void Prepare(Graphics g)
@@ -319,8 +288,8 @@ public sealed class BadgePrinter
     {
         try
         {
-            GdiPdf.Save(path, Enumerable.Range(0, PageCount).ToList(), PageW, PageH, (g, p) => { Prepare(g); DrawPage(g, p); }, dpi: 300, format: GdiPdf.PageFormat.Photo);
+            GdiPdf.Save(path, Enumerable.Range(0, PageCount).ToList(), PageW, PageH, (g, p) => PagedOutput.Draw(this, g, p), dpi: 300, format: GdiPdf.PageFormat.Photo);
         }
-        finally { foreach (var i in _images.Values) i?.Dispose(); _images.Clear(); }
+        finally { Dispose(); }
     }
 }

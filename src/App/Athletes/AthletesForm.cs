@@ -1,3 +1,4 @@
+using NotasyonOtomasyonu.App.Overlay;
 using System.Text.Json;
 using NotasyonOtomasyonu.App.Cards;
 using NotasyonOtomasyonu.Core;
@@ -54,6 +55,9 @@ public sealed class AthletesForm : AppForm
     private readonly CheckBox _chkUkd = new() { Text = "UKD kutusu", AutoSize = true };
     private readonly CheckBox _chkCrop = new() { Text = "Kesim (crop) işaretleri", AutoSize = true };
     private readonly Button _btnFrame = new() { Text = "Çerçeve rengi", AutoSize = true, Height = 28 };
+    private readonly CheckBox _chkCatColors = new() { Text = "Kategori renkleri", AccessibleDescription = "Her kategori kendi renginde; renkler masa kartlarıyla aynı", AutoSize = true };
+    /// <summary>Listedeki kategorilerin renk düğmeleri (tıklayınca renk değişir).</summary>
+    private readonly FlowLayoutPanel _catColors = new() { AutoSize = true, WrapContents = true, MaximumSize = new Size(300, 0), Margin = new Padding(0, 2, 0, 4) };
     private readonly Button _btnText = new() { Text = "Yazı rengi", AutoSize = true, Height = 28 };
 
     private readonly Button _btnFromCr = Icons.Set(new Button { Text = "chess-results", AutoSize = true, Height = 32 }, Ico.Download);
@@ -72,11 +76,7 @@ public sealed class AthletesForm : AppForm
     private readonly FlowLayoutPanel _plateOnly = new() { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty };
 
     // Uzun işler (liste çekme, PDF) arka planda: ilerleme çubuğu + iptal; pencere ve ana program kullanılabilir.
-    private readonly FlowLayoutPanel _busy = new() { AutoSize = true, WrapContents = false, Visible = false, Margin = new Padding(12, 8, 0, 0) };
-    private readonly ProgressBar _bar = new() { AccessibleName = "İşlemin ilerlemesi", Width = 220, Height = 18, Margin = new Padding(0, 3, 8, 0) };
-    private readonly Label _lblBusy = new() { AccessibleName = "İşlem durumu", AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(0, 3, 8, 0) };
-    private readonly LinkLabel _lnkCancel = new() { Text = "İptal", AutoSize = true, Margin = new Padding(0, 3, 0, 0) };
-    private CancellationTokenSource? _work;
+    private readonly BusyStrip _busy = new();
 
     private AthleteImages _images = new(null, null, null, null);
     /// <summary>Pencere önizlemesi için küçültülmüş kopyalar (her satır seçiminde tam boy afiş çizilmesin).</summary>
@@ -106,7 +106,8 @@ public sealed class AthletesForm : AppForm
         UpdateOptionVisibility();
         UpdatePreview();
         UpdateSummary();
-        FormClosing += (_, _) => _work?.Cancel();
+        FormClosing += (_, _) => _busy.Cancel();
+        _busy.BusyChanged += SetBusy;
         FormClosed += (_, _) => { SaveList(); lock (AthleteSheetPrinter.RenderLock) { DisposeImages(); _tsfLogo?.Dispose(); } };
     }
 
@@ -145,7 +146,7 @@ public sealed class AthletesForm : AppForm
             Row(new Label { Text = "Afişin altından kırp:", AutoSize = true, Margin = new Padding(0, 4, 4, 0) }, _numCrop, new Label { Text = "%", AutoSize = true, Margin = new Padding(0, 4, 0, 0) }),
             _badgeOnly, _plateOnly,
             Head("Yazılar"), _chkTitle, _cboLine3,
-            Head("Görünüm"), Row(_btnFrame, _btnText), _chkCrop,
+            Head("Görünüm"), _chkCatColors, _catColors, Row(_btnFrame, _btnText), _chkCrop,
         });
         foreach (var b in left.Controls.OfType<FlowLayoutPanel>().SelectMany(p => p.Controls.OfType<Button>())
                      .Concat(new[] { _btnFromCr, _btnFromTsf, _btnFromXls, _btnClear, _btnPdf, _btnAll, _btnNone }))
@@ -184,8 +185,6 @@ public sealed class AthletesForm : AppForm
 
         var bottom = new Panel { Dock = DockStyle.Bottom, Height = 64, Padding = new Padding(12), BackColor = Color.FromArgb(242, 242, 236) };
         var bl = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, WrapContents = false };
-        _busy.Controls.AddRange(new Control[] { _bar, _lblBusy, _lnkCancel });
-        _lnkCancel.LinkClicked += (_, _) => { _work?.Cancel(); _lblBusy.Text = "İptal ediliyor…"; };
         bl.Controls.AddRange(new Control[] { _btnAll, _btnNone, _lblStatus, _busy });
         var br = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false };
         br.Controls.AddRange(new Control[] { _btnPdf, _btnPrint });
@@ -236,6 +235,7 @@ public sealed class AthletesForm : AppForm
         _chkElo.Checked = Cfg.ShowElo;
         _chkUkd.Checked = Cfg.ShowUkd;
         _chkCrop.Checked = Cfg.CropMarks;
+        _chkCatColors.Checked = Cfg.UseCategoryColors;
     }
 
     private void Changed(Action apply)
@@ -261,6 +261,7 @@ public sealed class AthletesForm : AppForm
         _chkElo.CheckedChanged += (_, _) => Changed(() => Cfg.ShowElo = _chkElo.Checked);
         _chkUkd.CheckedChanged += (_, _) => Changed(() => Cfg.ShowUkd = _chkUkd.Checked);
         _chkCrop.CheckedChanged += (_, _) => Changed(() => Cfg.CropMarks = _chkCrop.Checked);
+        _chkCatColors.CheckedChanged += (_, _) => Changed(() => { Cfg.UseCategoryColors = _chkCatColors.Checked; RefreshCategoryColors(); });
         _btnBanner.Click += (_, _) => PickImage("Turnuva afişi", p => Cfg.BannerPath = p, "afis");
         _btnBannerCards.Click += (_, _) => { if (CardPoster() is { } p) SetImage(p, v => Cfg.BannerPath = v, "afis"); };
         _btnPlateBanner.Click += (_, _) => PickImage("İsimlik şeridi (geniş, yatay görsel)", p => Cfg.PlateBannerPath = p, "isimlik_serit");
@@ -299,6 +300,7 @@ public sealed class AthletesForm : AppForm
         tip.SetToolTip(_btnFromCr, "Turnuvanın her kategorisinin başlangıç listesi; ELO, UKD ve il TSF kayıt listesiyle eşleştirilir.");
         tip.SetToolTip(_btnFromTsf, "TSF il sitesindeki kayıt listesi (ad, kategori, il, ELO, UKD).");
         tip.SetToolTip(_btnFromXls, "Excel dosyası (.xlsx/.xlsm): ad soyad, kategori, okul/kulüp/il, ELO, UKD sütunları.");
+        tip.SetToolTip(_chkCatColors, "Her kategorinin çerçevesi kendi renginde basılır (masa kartlarıyla aynı renkler). Rengi değiştirmek için kategorinin renk düğmesine tıklayın.");
         tip.SetToolTip(_btnLogo1Clear, "Sol logoyu kaldır");
         tip.SetToolTip(_btnLogo2Clear, "Sağ logoyu kaldır");
         tip.SetToolTip(_numCrop,"Afişin altındaki süs ya da logo bandı kartta yer kaplamasın diye kırpılır (Excel şablonunda %22).");
@@ -339,6 +341,8 @@ public sealed class AthletesForm : AppForm
             : "Seçilmezse afiş kullanılır. Geniş bir şerit görseli (ör. 1800×360) şeridi tam doldurur.";
         string L(string? p, string none) => p is not null && File.Exists(p) ? Path.GetFileName(p) : none;
         _lblLogos.Text = $"Sol: {L(Cfg.Logo1Path, "yok")} • Sağ: {L(Cfg.Logo2Path, Cfg.AutoTsfLogo ? "TSF il logosu" : "yok")}";
+        _btnFrame.Visible = !Cfg.UseCategoryColors;
+        _catColors.Visible = Cfg.UseCategoryColors;
         _btnFrame.BackColor = CardLayout.ParseColor(Cfg.FrameColor, Color.White);
         _btnFrame.ForeColor = CardLayout.TextColorFor(_btnFrame.BackColor);
         _btnText.BackColor = CardLayout.ParseColor(Cfg.TextColor, Color.White);
@@ -450,40 +454,8 @@ public sealed class AthletesForm : AppForm
     /// Uzun işi arka planda yürütür: alttaki şeritte ilerleme çubuğu ve "İptal" görünür, liste/çıktı düğmeleri
     /// kapanır; pencere ve ana program kullanılmaya devam eder. İptal ya da hatada null döner.
     /// </summary>
-    private async Task<T?> RunBusy<T>(string title, string unit, Func<IProgress<(int Done, int Total)>, CancellationToken, Task<T>> work)
-    {
-        if (_work is not null) return default;
-        using var cts = new CancellationTokenSource();
-        _work = cts;
-        SetBusy(true);
-        _bar.Style = ProgressBarStyle.Marquee;
-        _lblBusy.Text = title + "…";
-        var progress = new Progress<(int Done, int Total)>(p =>
-        {
-            if (IsDisposed || p.Total <= 0) return;
-            _bar.Style = ProgressBarStyle.Continuous;
-            _bar.Maximum = p.Total;
-            _bar.Value = Math.Clamp(p.Done, 0, p.Total);
-            _lblBusy.Text = $"{title}: {p.Done} / {p.Total} {unit}";
-        });
-        try { return await work(progress, cts.Token); }
-        catch (OperationCanceledException) { if (!IsDisposed) Note("İşlem iptal edildi."); return default; }
-        catch (Exception ex)
-        {
-            if (!IsDisposed) _lblStatus.Text = "İşlem tamamlanamadı: " + ex switch
-            {
-                HttpRequestException => "internet bağlantısını kontrol edin.",
-                IOException => "dosya başka bir programda açık olabilir (PDF görüntüleyiciyi kapatıp yeniden deneyin).",
-                _ => ex.Message
-            };
-            return default;
-        }
-        finally
-        {
-            _work = null;
-            if (!IsDisposed) SetBusy(false);
-        }
-    }
+    private Task<T?> RunBusy<T>(string title, string unit, Func<IProgress<(int Done, int Total)>, CancellationToken, Task<T>> work)
+        => _busy.RunAsync(title, unit, work, ex => _lblStatus.Text = "İşlem tamamlanamadı: " + BusyStrip.Friendly(ex));
 
     private void FromRegistrations()
     {
@@ -495,24 +467,28 @@ public sealed class AthletesForm : AppForm
         Note($"TSF kayıt listesi: {athletes.Count} sporcu");
     }
 
-    private void FromExcel()
+    private async void FromExcel()
     {
-        using var dlg = new OpenFileDialog { Title = "Sporcu listesi (Excel)", Filter = "Excel (*.xlsx;*.xlsm)|*.xlsx;*.xlsm" };
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        string path;
+        using (var dlg = new OpenFileDialog { Title = "Sporcu listesi (Excel)", Filter = "Excel (*.xlsx;*.xlsm)|*.xlsx;*.xlsm" })
+        {
+            if (dlg.ShowDialog(this) != DialogResult.OK) return;
+            path = dlg.FileName;
+        }
         if (!ConfirmReplace()) return;
-        try
+        // büyük çalışma kitapları birkaç saniye sürebilir: arka planda okunur, pencere donmaz
+        Exception? error = null;
+        var r = await _busy.RunAsync("Excel okunuyor", "", (_, ct) => Task.Run(() => AthleteImport.Read(path), ct), ex => error = ex);
+        if (IsDisposed) return;
+        if (r is null)
         {
-            UseWaitCursor = true;
-            var r = AthleteImport.Read(dlg.FileName);
-            Fill(r.Athletes);
-            Note($"Excel: {r.Athletes.Count} sporcu ({r.Sheet} sayfası)");
-            new ToolTip().SetToolTip(_lblStatus, "Okunan sütunlar: " + r.Columns);
+            if (error is not null)
+                MessageBox.Show(this, "Excel okunamadı: " + (error is IOException ? "dosya açık olabilir; Excel'de kapatıp yeniden deneyin." : error.Message), "Excel", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
         }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, "Excel okunamadı: " + (ex is IOException ? "dosya açık olabilir; Excel'de kapatıp yeniden deneyin." : ex.Message), "Excel", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
-        finally { UseWaitCursor = false; }
+        Fill(r.Athletes);
+        Note($"Excel: {r.Athletes.Count} sporcu ({r.Sheet} sayfası)");
+        new ToolTip().SetToolTip(_lblStatus, "Okunan sütunlar: " + r.Columns);
     }
 
     private bool ConfirmReplace()
@@ -521,8 +497,7 @@ public sealed class AthletesForm : AppForm
 
     private void SetBusy(bool busy)
     {
-        // bekleme imleci yok: pencere kullanılabilir kalır, ilerleme alttaki şeritte görünür
-        _busy.Visible = busy;
+        // bekleme imleci yok: pencere kullanılabilir kalır, ilerleme alttaki şeritte (BusyStrip) görünür
         _lblStatus.Visible = !busy;
         foreach (var b in new[] { _btnFromCr, _btnFromTsf, _btnFromXls, _btnClear, _btnPrint, _btnPdf }) b.Enabled = !busy;
         if (!busy)
@@ -561,6 +536,81 @@ public sealed class AthletesForm : AppForm
         _cboCat.SelectedItem = keep is not null && _cboCat.Items.Contains(keep) ? keep : AllCats;
         _cboCat.EndUpdate();
         ApplyFilter();
+        RefreshCategoryColors();
+    }
+
+    // ================= Kategori renkleri =================
+    /// <summary>
+    /// Kategorinin rengi: chess-results kategorisiyse masa kartlarındaki rengi (aynı palet, aynı kayıt; burada
+    /// değiştirilirse orada da değişir); değilse (Excel'den gelen ad) bu listede kullanılmamış ilk palet rengi.
+    /// </summary>
+    private const string SampleCategory = "KATEGORİ";
+
+    private string? CategoryColor(string category)
+    {
+        if (!Cfg.UseCategoryColors || string.IsNullOrWhiteSpace(category)) return null;
+        var tnrs = _ctx.Categories.Select(c => c.Tnr).ToList();
+        if (CategoryRefOf(category) is { } cat) return _ctx.Config.Cards.ColorFor(cat.Tnr, tnrs);
+        if (category == SampleCategory) return null;   // boş satırın örnek önizlemesi: renk atanmaz, kaydedilmez
+        var key = CategoryKey(category);
+        if (Cfg.CategoryColors.TryGetValue(key, out var c)) return c;
+        var used = tnrs.Select(t => _ctx.Config.Cards.CategoryColors.GetValueOrDefault(t.ToString()))
+                       .Concat(Cfg.CategoryColors.Values).Where(x => x is not null).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var pick = CardConfig.Palette.FirstOrDefault(x => !used.Contains(x)) ?? CardConfig.Palette[Cfg.CategoryColors.Count % CardConfig.Palette.Length];
+        Cfg.CategoryColors[key] = pick;
+        return pick;
+    }
+
+    private CategoryRef? CategoryRefOf(string category)
+        => _ctx.Categories.FirstOrDefault(c => CategoryKey(c.Name) == CategoryKey(category)
+                                             || CategoryKey(EventGrouping.ShortCategory(c.Name)) == CategoryKey(category));
+
+    private static string CategoryKey(string s) => s.Trim().ToUpper(new System.Globalization.CultureInfo("tr-TR"));
+
+    /// <summary>Listedeki her kategori için renkli düğme; tıklayınca renk seçilir (kalıcı).</summary>
+    private void RefreshCategoryColors()
+    {
+        _catColors.SuspendLayout();
+        foreach (Control c in _catColors.Controls) c.Dispose();
+        _catColors.Controls.Clear();
+        if (Cfg.UseCategoryColors)
+        {
+            bool assigned = false;
+            foreach (var cat in _cboCat.Items.Cast<object>().Select(o => o.ToString()!).Where(c => c != AllCats))
+            {
+                int before = Cfg.CategoryColors.Count + _ctx.Config.Cards.CategoryColors.Count;
+                var color = CardLayout.ParseColor(CategoryColor(cat), Color.Gray);
+                assigned |= Cfg.CategoryColors.Count + _ctx.Config.Cards.CategoryColors.Count != before;
+                var b = new Button
+                {
+                    Text = cat, AutoSize = true, Height = 26, FlatStyle = FlatStyle.Flat, BackColor = color,
+                    ForeColor = CardLayout.TextColorFor(color), Margin = new Padding(0, 0, 4, 4), Cursor = Cursors.Hand,
+                    AccessibleName = $"{cat} kategorisinin rengi"
+                };
+                b.FlatAppearance.BorderColor = Color.FromArgb(120, 120, 120);
+                b.Click += (_, _) => PickCategoryColor(cat);
+                new ToolTip().SetToolTip(b, "Rengi değiştirmek için tıklayın (masa kartlarında da aynı renk kullanılır).");
+                _catColors.Controls.Add(b);
+            }
+            if (assigned) _ctx.SaveConfig();
+        }
+        _catColors.ResumeLayout();
+    }
+
+    private void PickCategoryColor(string category)
+    {
+        using var dlg = new ColorDialog
+        {
+            Color = CardLayout.ParseColor(CategoryColor(category), Color.Gray), FullOpen = true,
+            CustomColors = CardConfig.Palette.Select(h => { var k = ColorTranslator.FromHtml(h); return k.R | (k.G << 8) | (k.B << 16); }).ToArray()
+        };
+        if (dlg.ShowDialog(this) != DialogResult.OK) return;
+        var hex = CardLayout.ToHex(dlg.Color);
+        if (CategoryRefOf(category) is { } cat) _ctx.Config.Cards.CategoryColors[cat.Tnr.ToString()] = hex;
+        else Cfg.CategoryColors[CategoryKey(category)] = hex;
+        _ctx.SaveConfig();
+        RefreshCategoryColors();
+        UpdatePreview();
     }
 
     private void ApplyFilter()
@@ -670,13 +720,20 @@ public sealed class AthletesForm : AppForm
     private void Note(string text) { _note = text; UpdateSummary(); }
 
     private AthleteSheetPrinter NewPrinter(IEnumerable<Athlete> items)
-        => new(items, Cfg, _images, EventGrouping.BaseName(_ctx.EventName));
+    {
+        var list = items.ToList();
+        if (!Cfg.UseCategoryColors) return new(list, Cfg, _images, EventGrouping.BaseName(_ctx.EventName));
+        // renkler burada (arayüzde) çözülür: yazdırma/PDF arka planda ayara dokunmadan sabit tablodan okur
+        var colors = list.Select(a => a.Category).Distinct(StringComparer.OrdinalIgnoreCase)
+                         .ToDictionary(c => c, c => CategoryColor(c), StringComparer.OrdinalIgnoreCase);
+        return new(list, Cfg, _images, EventGrouping.BaseName(_ctx.EventName), c => colors.GetValueOrDefault(c));
+    }
 
     private void UpdatePreview()
     {
         var row = _grid.SelectedRows.Count > 0 ? _grid.SelectedRows[0] : _grid.CurrentRow;
         var a = row is null || row.IsNewRow ? null : AthleteOf(row);
-        a ??= new Athlete("Ad SOYAD", "KATEGORİ", "OKUL / KULÜP / İL", 1850, 1720);
+        a ??= new Athlete("Ad SOYAD", SampleCategory, "OKUL / KULÜP / İL", 1850, 1720);
         var p = NewPrinter(new[] { a });
         // önizleme kutusunun boyutunda (ekran ölçeği dahil) çizilir; küçültülmüş görsellerle
         float boxW = Math.Max(120, _picPreview.ClientSize.Width), boxH = Math.Max(120, _picPreview.ClientSize.Height);
@@ -691,8 +748,9 @@ public sealed class AthletesForm : AppForm
             g.ScaleTransform(k, k);
             AthleteSheetPrinter.Prepare(g);
             var rect = new RectangleF(0, 0, p.CardW, p.CardH);
-            if (p.IsPlate) AthleteSheetPrinter.DrawPlate(g, rect, a, Cfg, _previewImages);
-            else AthleteSheetPrinter.DrawBadge(g, rect, a, Cfg, _previewImages);
+            var color = CategoryColor(a.Category);
+            if (p.IsPlate) AthleteSheetPrinter.DrawPlate(g, rect, a, Cfg, _previewImages, color);
+            else AthleteSheetPrinter.DrawBadge(g, rect, a, Cfg, _previewImages, color);
         }
         var old = _picPreview.Image;
         _picPreview.Image = bmp;
@@ -707,11 +765,20 @@ public sealed class AthletesForm : AppForm
         return p;
     }
 
-    private void Print()
+    /// <summary>Önizleme (yalnız görünen sayfa çizilir), yazıcı seçimi; sayfalar arka planda gönderilir, pencere donmaz.</summary>
+    private async void Print()
     {
-        using var p = Printer();
+        var p = Printer();
         if (p is null) return;
-        if (p.PrintWithPreview(this)) _lblStatus.Text = $"{p.CardCount} {(p.IsPlate ? "isimlik" : "yaka kartı")} ({p.PageCount} sayfa) yazıcıya gönderildi.";
+        try
+        {
+            if (!PrintRouter.IsSilent && !PagedOutput.Preview(p, this, p.Hint)) return;
+            if (IsDisposed || PagedOutput.PreparePrint(p, this) is not { } doc) return;
+            _ = p.Images;   // görseller arayüzde küçültülür; arka plan yalnız kopyaları kullanır
+            var ok = await RunBusy($"Yazıcıya gönderiliyor ({p.PageCount} sayfa)", "sayfa", (progress, ct) => PagedOutput.PrintAsync(p, doc, progress, ct));
+            if (ok && !IsDisposed) Note($"{p.CardCount} {(p.IsPlate ? "isimlik" : "yaka kartı")} ({p.PageCount} sayfa) yazıcıya gönderildi.");
+        }
+        finally { p.Dispose(); }
     }
 
     /// <summary>PDF arka planda hazırlanır (ilerleme alttaki şeritte); bu sırada pencere ve ana program kullanılabilir.</summary>

@@ -1,3 +1,4 @@
+using NotasyonOtomasyonu.App.Overlay;
 using System.Globalization;
 using NotasyonOtomasyonu.Core;
 using NotasyonOtomasyonu.Online;
@@ -43,6 +44,8 @@ public sealed class CardsForm : AppForm
     private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 150, Height = 40 }, Ico.Pdf);
     private readonly Button _btnPrint = Icons.Set(new Button { Text = "Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Print);
     private readonly Button _btnAll = new() { Text = "Tümünü seç", AutoSize = true, Height = 40 };
+    /// <summary>Uzun işlerin (yazdırma, PDF) ilerlemesi; iş arka planda yürür.</summary>
+    private readonly BusyStrip _busy = new();
     private readonly Button _btnNone = new() { Text = "Hiçbiri", AutoSize = true, Height = 40 };
     private readonly ComboBox _cboFont = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
     private readonly RadioButton _rbLandscape = new() { Text = "Yatay", AutoSize = true };
@@ -89,6 +92,8 @@ public sealed class CardsForm : AppForm
         _picPreview.DoubleClick += (_, _) => OpenDesigner();
         _picPreview.Cursor = Cursors.Hand;
         new ToolTip().SetToolTip(_picPreview, "Logoları yerleştirmek için çift tıklayın (kart tasarımı).");
+        FormClosing += (_, _) => _busy.Cancel();
+        _busy.BusyChanged += busy => { _btnPrint.Enabled = _btnPdf.Enabled = !busy; _lblStatus.Visible = !busy; };
         FormClosed += (_, _) => { _gsbImg?.Dispose(); _tsfImg?.Dispose(); };
         _btnLogo.Click += (_, _) => ChooseLogo();
         _btnCrop.Click += (_, _) => CropLogo();
@@ -201,7 +206,7 @@ public sealed class CardsForm : AppForm
 
         var bottom = new Panel { Dock = DockStyle.Bottom, Height = 64, Padding = new Padding(12), BackColor = Color.FromArgb(242, 242, 236) };
         var bl = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, WrapContents = false };
-        bl.Controls.AddRange(new Control[] { _btnAll, _btnNone, _lblStatus });
+        bl.Controls.AddRange(new Control[] { _btnAll, _btnNone, _lblStatus, _busy });
         _lblStatus.Margin = new Padding(10, 11, 0, 0);
         var br = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false };
         br.Controls.AddRange(new Control[] { _btnPdf, _btnPrint });
@@ -477,6 +482,7 @@ public sealed class CardsForm : AppForm
             // Önizleme de baskıdaki ortak puntoyu kullanır (seçili tüm kategorilerin sığdığı en büyük)
             var names = Selected().Select(c => c.Category).Append(name);
             var pt = CardPrinter.CommonBandPt(layout, names, font);
+            lock (PagedOutput.Gate)   // arka planda yazdırma/PDF sürerken de güvenle çizilsin
             CardPrinter.Draw(g, layout, new CardSpec(name, color, 1), _picLogo.Image,
                              eventName, font, _rbFilled.Checked, _chkFullWidth.Checked, pt, branding, _gsbImg, _tsfImg);
             using var pen = new Pen(Color.FromArgb(200, 200, 200), 1f / k);
@@ -498,35 +504,43 @@ public sealed class CardsForm : AppForm
                                _cboFont.SelectedItem as string, _rbLandscape.Checked, _rbFilled.Checked, _chkFullWidth.Checked, Branding());
     }
 
-    private void Print()
+    /// <summary>Önizleme (yalnız görünen sayfa), yazıcı seçimi; sayfalar arka planda gönderilir, pencere donmaz.</summary>
+    private async void Print()
     {
         var p = Printer();
         if (p is null) return;
-        if (p.PrintWithPreview(this)) _lblStatus.Text = $"{p.PageCount} kart yazıcıya gönderildi.";
-    }
-
-    private void SavePdf()
-    {
-        var p = Printer();
-        if (p is null) return;
-        Directory.CreateDirectory(_ctx.OutputDir);
-        using var dlg = new SaveFileDialog
-        {
-            Title = "Masa kartlarını PDF olarak kaydet", Filter = "PDF belgesi (*.pdf)|*.pdf",
-            InitialDirectory = _ctx.OutputDir, FileName = "masa_kartlari.pdf"
-        };
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
         try
         {
-            UseWaitCursor = true;
-            p.SavePdf(dlg.FileName);
-            _lblStatus.Text = "PDF kaydedildi: " + Path.GetFileName(dlg.FileName);
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true }); } catch { }
+            if (!PrintRouter.IsSilent && !PagedOutput.Preview(p.PreviewPages, this, p.Hint)) return;
+            if (IsDisposed || PagedOutput.PreparePrint(p, this) is not { } doc) return;
+            var ok = await _busy.RunAsync($"Yazıcıya gönderiliyor ({p.PageCount} kart)", "kart", (progress, ct) => PagedOutput.PrintAsync(p, doc, progress, ct), ShowError);
+            if (ok && !IsDisposed) _lblStatus.Text = $"{p.PageCount} kart yazıcıya gönderildi.";
         }
-        catch (Exception ex)
+        finally { p.Dispose(); }
+    }
+
+    private void ShowError(Exception ex) => _lblStatus.Text = "İşlem tamamlanamadı: " + BusyStrip.Friendly(ex);
+
+    /// <summary>PDF arka planda hazırlanır (ilerleme alttaki şeritte); bu sırada pencere ve program kullanılabilir.</summary>
+    private async void SavePdf()
+    {
+        var p = Printer();
+        if (p is null) return;
+        try
         {
-            MessageBox.Show(this, "PDF oluşturulamadı: " + ex.Message, "PDF", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            Directory.CreateDirectory(_ctx.OutputDir);
+            string path;
+            using (var dlg = new SaveFileDialog { Title = "Masa kartlarını PDF olarak kaydet", Filter = "PDF belgesi (*.pdf)|*.pdf", InitialDirectory = _ctx.OutputDir, FileName = "masa_kartlari.pdf" })
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                path = dlg.FileName;
+            }
+            var ok = await _busy.RunAsync($"PDF ({p.PageCount} kart)", "sayfa",
+                                          async (progress, ct) => { await PagedOutput.SavePdfAsync(p, path, progress, ct); return true; }, ShowError);
+            if (!ok || IsDisposed) return;
+            _lblStatus.Text = "PDF kaydedildi: " + Path.GetFileName(path);
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); } catch { }
         }
-        finally { UseWaitCursor = false; }
+        finally { p.Dispose(); }
     }
 }

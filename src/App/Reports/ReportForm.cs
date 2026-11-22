@@ -1404,8 +1404,8 @@ public sealed class ReportForm : AppForm
     private async Task RunExport(string status, Func<Task> work)
     {
         SetEnabled(false);
-        UseWaitCursor = true;
         _lblStatus.Text = status;
+        var bar = StatusBusy.Show(_lblStatus);
         try { await work(); }
         catch (Exception ex)
         {
@@ -1414,7 +1414,7 @@ public sealed class ReportForm : AppForm
                                   "\n\nBelgeyi \"Word (.docx) kaydet\" ile alıp elle dönüştürebilirsiniz.",
                             "Hata", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
-        finally { UseWaitCursor = false; SetEnabled(true); }
+        finally { bar.Dispose(); SetEnabled(true); }
     }
 
     private void SetEnabled(bool on)

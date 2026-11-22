@@ -114,16 +114,17 @@ public sealed class ReportPreviewForm : AppForm
     {
         try
         {
-            UseWaitCursor = true;
-            bool printed = await PrintPdfAsync(this, _pdfPath, _sizesPt, Text);
-            UseWaitCursor = false;
+            bool printed;
+            var info = _lblInfo.Text;
+            _lblInfo.Text = "Yazıcıya gönderiliyor…";
+            using (StatusBusy.Show(_lblInfo)) printed = await PrintPdfAsync(this, _pdfPath, _sizesPt, Text);
+            if (!IsDisposed) _lblInfo.Text = info;
             if (!printed) return;
             Printed = true;
             Close();
         }
         catch (Exception ex)
         {
-            UseWaitCursor = false;
             MessageBox.Show(this, "Yazdırılamadı: " + ex.Message, "Yazdır", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }

@@ -25,9 +25,11 @@ public sealed class ListPrinter
 {
     private const float PageW = 595.28f, PageH = 841.89f, Margin = 34f;
     private const float RowH = 19f, HeadRowH = 21f, BlockHeadH = 58f, SectionHeadH = 30f, FooterH = 18f;
-    private static readonly Color Green = Color.FromArgb(95, 122, 70);
-    private static readonly Color Zebra = Color.FromArgb(243, 246, 239);
-    private static readonly Color Line = Color.FromArgb(200, 205, 192);
+    // Siyah beyaz: listeler çoğunlukla tek renkli yazıcıda basılır.
+    private static readonly Color Ink = Color.Black;
+    private static readonly Color Zebra = Color.FromArgb(244, 244, 244);
+    private static readonly Color Line = Color.FromArgb(190, 190, 190);
+    private static readonly Color HeadFill = Color.FromArgb(222, 222, 222);
 
     private sealed record Slice(ListSection Section, int From, int To, bool Continued);
     private sealed record Page(ListBlock Block, List<Slice> Slices, bool BlockContinued);
@@ -153,12 +155,12 @@ public sealed class ListPrinter
         using (var fEvent = new Font("Segoe UI", 11f, FontStyle.Bold, GraphicsUnit.Point))
         using (var fCat = new Font("Segoe UI", 18f, FontStyle.Bold, GraphicsUnit.Point))
         using (var gray = new SolidBrush(Color.FromArgb(90, 90, 90)))
-        using (var green = new SolidBrush(Green))
+        using (var ink = new SolidBrush(Ink))
         {
             DrawText(g, page.Block.EventName, fEvent, gray, new RectangleF(x, y, w, 18), StringAlignment.Near);
-            DrawText(g, page.Block.Category + (page.BlockContinued ? "  (devam)" : ""), fCat, green, new RectangleF(x, y + 18, w, 30), StringAlignment.Near);
+            DrawText(g, page.Block.Category + (page.BlockContinued ? "  (devam)" : ""), fCat, ink, new RectangleF(x, y + 18, w, 30), StringAlignment.Near);
         }
-        using (var pen = new Pen(Green, 1.5f)) g.DrawLine(pen, x, y + BlockHeadH - 8, x + w, y + BlockHeadH - 8);
+        using (var pen = new Pen(Ink, 1.5f)) g.DrawLine(pen, x, y + BlockHeadH - 8, x + w, y + BlockHeadH - 8);
         y += BlockHeadH;
 
         foreach (var s in page.Slices)
@@ -185,7 +187,7 @@ public sealed class ListPrinter
         using var black = new SolidBrush(Color.Black);
         using var gray = new SolidBrush(Color.FromArgb(110, 110, 110));
         using var white = new SolidBrush(Color.White);
-        using var green = new SolidBrush(Green);
+        using var ink = new SolidBrush(Ink);
         using var zebra = new SolidBrush(Zebra);
         using var line = new Pen(Line, 0.5f);
 
@@ -201,9 +203,20 @@ public sealed class ListPrinter
         xs[0] = x;
         for (int i = 0; i < s.Columns.Count; i++) xs[i + 1] = xs[i] + w * s.Columns[i].Weight / total;
 
-        g.FillRectangle(green, x, y, w, HeadRowH);
+        using (var headFill = new SolidBrush(HeadFill)) g.FillRectangle(headFill, x, y, w, HeadRowH);
         for (int i = 0; i < s.Columns.Count; i++)
-            DrawText(g, s.Columns[i].Header, fCol, white, Cell(xs, i, y, HeadRowH), s.Columns[i].Align);
+        {
+            var cell = Cell(xs, i, y, HeadRowH);
+            var head = s.Columns[i].Header;
+            if (head is "Beyaz" or "Siyah")
+            {
+                // beyaz: boş kare, siyah: dolu kare (siyah beyaz baskıda hangi tarafın kim olduğu net)
+                float m = ArbiterSheetPrinter.PieceMark(g, cell, head == "Siyah", fCol.Size);
+                cell = new RectangleF(cell.X + m, cell.Y, cell.Width - m, cell.Height);
+                head = head == "Beyaz" ? "BEYAZ" : "SİYAH";
+            }
+            DrawText(g, head, fCol, black, cell, s.Columns[i].Align);
+        }
         y += HeadRowH;
 
         for (int r = sl.From; r < sl.To; r++)
@@ -211,7 +224,7 @@ public sealed class ListPrinter
             var row = s.Rows[r];
             if ((r - sl.From) % 2 == 1) g.FillRectangle(zebra, x, y, w, RowH);
             if (row.Group is not null)
-                DrawText(g, row.Group, fCellB, green, new RectangleF(x + 4, y, w - 8, RowH), StringAlignment.Near);
+                DrawText(g, row.Group, fCellB, ink, new RectangleF(x + 4, y, w - 8, RowH), StringAlignment.Near);
             else
                 for (int i = 0; i < s.Columns.Count && i < row.Cells.Count; i++)
                 {

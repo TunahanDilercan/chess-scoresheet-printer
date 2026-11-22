@@ -47,8 +47,10 @@ public sealed class ArbiterSheetPrinter
     // Ceza bildirim formu (punto): 34 pt ≈ 1,2 cm satır
     private const float PenRowH = 34f, PenTitleH = 26f, PenSubH = 16f, PenHeadH = 26f, PenSignH = 40f, FoldGap = 14f;
     private const int PenMinRows = 3;
-    private static readonly Color Green = Color.FromArgb(95, 122, 70);
-    private static readonly Color Zebra = Color.FromArgb(245, 247, 242);
+    // Siyah beyaz: hakem kağıtları ve ceza formları çoğunlukla tek renkli yazıcıda basılır; renk gerekmez.
+    private static readonly Color Ink = Color.Black;
+    private static readonly Color Zebra = Color.FromArgb(244, 244, 244);
+    private static readonly Color HeadFill = Color.FromArgb(222, 222, 222);
     private static readonly System.Globalization.CultureInfo Tr = new("tr-TR");
 
     private sealed record Slice(ArbiterSheet Sheet, int From, int To, bool Continued);
@@ -343,20 +345,20 @@ public sealed class ArbiterSheetPrinter
         using var fDash = new Font("Segoe UI", _pt, FontStyle.Bold, GraphicsUnit.Point);
         using var black = new SolidBrush(Color.Black);
         using var gray = new SolidBrush(Color.FromArgb(100, 100, 100));
-        using var green = new SolidBrush(Green);
+        using var ink = new SolidBrush(Ink);
         using var white = new SolidBrush(Color.White);
         using var zebra = new SolidBrush(Zebra);
         using var faint = new SolidBrush(Color.FromArgb(150, 150, 150));
-        using var line = new Pen(Color.FromArgb(185, 190, 178), 0.6f);
+        using var line = new Pen(Color.FromArgb(175, 175, 175), 0.6f);
         using var box = new Pen(Color.Black, 1.4f);
 
         // Kategori başlığı: sol kenarda renkli şerit, büyük kalın ad, sağda tur
-        g.FillRectangle(green, x, y + 4, 5, CatHeadH - 12);
+        g.FillRectangle(ink, x, y + 4, 5, CatHeadH - 12);
         var round = $"{s.Round}. TUR";
         var roundW = g.MeasureString(round, fRound).Width + 4;
         Text(g, s.Category.ToUpper(Tr) + (sl.Continued ? "  (devam)" : ""), fCat, black,
              new RectangleF(x + 12, y, w - roundW - 16, CatHeadH - 6), StringAlignment.Near);
-        Text(g, round, fRound, green, new RectangleF(x + w - roundW, y - 2, roundW, 24), StringAlignment.Far);
+        Text(g, round, fRound, ink, new RectangleF(x + w - roundW, y - 2, roundW, 24), StringAlignment.Far);
         if (!string.IsNullOrWhiteSpace(s.When) && !sl.Continued)
             Text(g, s.When!, fWhen, gray, new RectangleF(x + w - 200, y + 20, 200, 14), StringAlignment.Far);
         y += CatHeadH;
@@ -365,20 +367,29 @@ public sealed class ArbiterSheetPrinter
         var xs = new float[Weights.Length + 1];
         xs[0] = x;
         for (int i = 0; i < Weights.Length; i++) xs[i + 1] = xs[i] + w * Weights[i] / total;
-        string[] heads = { "Masa", "Beyaz", "ELO", "SONUÇ", "Siyah", "ELO" };
-        g.FillRectangle(green, x, y, w, ColHeadH);
+        string[] heads = { "Masa", "BEYAZ", "ELO", "SONUÇ", "SİYAH", "ELO" };
+        using (var headFill = new SolidBrush(HeadFill)) g.FillRectangle(headFill, x, y, w, ColHeadH);
         for (int i = 0; i < heads.Length; i++)
-            Text(g, heads[i], fCol, white, Cell(xs, i, y, ColHeadH), i is 1 or 4 ? StringAlignment.Near : StringAlignment.Center);
+        {
+            var cell = Cell(xs, i, y, ColHeadH);
+            if (i is 1 or 4)
+            {
+                // beyaz: boş kare, siyah: dolu kare (siyah beyaz baskıda da hangi tarafın kim olduğu net)
+                float m = PieceMark(g, cell, i == 4, fCol.Size);
+                cell = new RectangleF(cell.X + m, cell.Y, cell.Width - m, cell.Height);
+            }
+            Text(g, heads[i], fCol, black, cell, i is 1 or 4 ? StringAlignment.Near : StringAlignment.Center);
+        }
         y += ColHeadH;
 
         using var fMatch = new Font("Segoe UI", _pt - 1, FontStyle.Bold, GraphicsUnit.Point);
-        using var matchBg = new SolidBrush(Color.FromArgb(232, 240, 224));
+        using var matchBg = new SolidBrush(Color.FromArgb(232, 232, 232));
         for (int r = sl.From; r < sl.To; r++)
         {
             if (rows[r].Match is { } match)
             {
                 g.FillRectangle(matchBg, x, y, w, _rowH);
-                Text(g, match, fMatch, green, new RectangleF(x + 6, y, w - 12, _rowH), StringAlignment.Near);
+                Text(g, match, fMatch, ink, new RectangleF(x + 6, y, w - 12, _rowH), StringAlignment.Near);
                 g.DrawLine(line, x, y + _rowH, x + w, y + _rowH);
                 y += _rowH;
                 continue;
@@ -386,7 +397,7 @@ public sealed class ArbiterSheetPrinter
             var p = rows[r].Pairing!;
             if ((r - sl.From) % 2 == 1) g.FillRectangle(zebra, x, y, w, _rowH);
             Text(g, p.IsBye ? "" : p.BoardText, fBoard, black, Cell(xs, 0, y, _rowH), StringAlignment.Center);
-            Player(g, p.White.Name, p.WhitePoints, fName, fSmall, black, gray, Cell(xs, 1, y, _rowH));
+            Player(g, p.White.Name, p.WhitePoints, fName, fSmall, black, gray, Cell(xs, 1, y, _rowH), blackPiece: false);
             Text(g, p.White.Rating?.ToString() ?? "", fSmall, gray, Cell(xs, 2, y, _rowH), StringAlignment.Center);
             var res = Cell(xs, 3, y, _rowH);
             if (p.IsBye)
@@ -401,13 +412,13 @@ public sealed class ArbiterSheetPrinter
             }
             if (!p.IsBye)
             {
-                Player(g, p.Black!.Name, p.BlackPoints, fName, fSmall, black, gray, Cell(xs, 4, y, _rowH));
+                Player(g, p.Black!.Name, p.BlackPoints, fName, fSmall, black, gray, Cell(xs, 4, y, _rowH), blackPiece: true);
                 Text(g, p.Black.Rating?.ToString() ?? "", fSmall, gray, Cell(xs, 5, y, _rowH), StringAlignment.Center);
             }
             g.DrawLine(line, x, y + _rowH, x + w, y + _rowH);
             y += _rowH;
         }
-        using var frame = new Pen(Green, 0.8f);
+        using var frame = new Pen(Ink, 0.8f);
         float top = y - (sl.To - sl.From) * _rowH - ColHeadH;
         g.DrawRectangle(frame, x, top, w, y - top);
     }
@@ -425,8 +436,8 @@ public sealed class ArbiterSheetPrinter
         using var fCell = new Font("Segoe UI", 11f, GraphicsUnit.Point);
         using var fSign = new Font("Segoe UI", 9f, FontStyle.Bold, GraphicsUnit.Point);
         using var black = new SolidBrush(Color.Black);
-        using var green = new SolidBrush(Green);
-        using var headBg = new SolidBrush(Color.FromArgb(236, 238, 232));
+        using var ink = new SolidBrush(Ink);
+        using var headBg = new SolidBrush(HeadFill);
         using var grid = new Pen(Color.FromArgb(90, 90, 90), 0.6f);
         using var frame = new Pen(Color.Black, 1.1f);
 
@@ -434,7 +445,7 @@ public sealed class ArbiterSheetPrinter
         y += PenTitleH;
         if (pb.Subtitle is { } sub)
         {
-            Text(g, sub, fSub, green, new RectangleF(x, y - 4, w, PenSubH), StringAlignment.Center);
+            Text(g, sub, fSub, ink, new RectangleF(x, y - 4, w, PenSubH), StringAlignment.Center);
             y += PenSubH;
         }
 
@@ -476,8 +487,13 @@ public sealed class ArbiterSheetPrinter
     private static RectangleF PenCell(float[] xs, int i, float y) => new(xs[i] + 5, y, xs[i + 1] - xs[i] - 10, PenRowH);
 
     /// <summary>Oyuncu adı ve (varsa) tur başı puanı: "AD SOYAD  (2½)".</summary>
-    private static void Player(Graphics g, string name, string? points, Font f, Font fSmall, Brush brush, Brush gray, RectangleF r)
+    private static void Player(Graphics g, string name, string? points, Font f, Font fSmall, Brush brush, Brush gray, RectangleF r, bool? blackPiece = null)
     {
+        if (blackPiece is { } bp)
+        {
+            float m = PieceMark(g, r, bp, f.Size * 0.85f);
+            r = new RectangleF(r.X + m, r.Y, r.Width - m, r.Height);
+        }
         float pw = 0;
         if (!string.IsNullOrWhiteSpace(points))
         {
@@ -489,6 +505,24 @@ public sealed class ArbiterSheetPrinter
     }
 
     private static RectangleF Cell(float[] xs, int i, float y, float h) => new(xs[i] + 3, y, xs[i + 1] - xs[i] - 6, h);
+
+    /// <summary>
+    /// Taş işareti: beyaz oyuncuya boş kare (□), siyah oyuncuya dolu kare (■); satırın solunda, dikeyde ortalı.
+    /// Döndürdüğü genişlik kadar yazı sağa kaydırılır.
+    /// </summary>
+    internal static float PieceMark(Graphics g, RectangleF r, bool blackPiece, float pt)
+    {
+        float size = Math.Clamp(pt * 0.62f, 5f, 9f);
+        var box = new RectangleF(r.X + 1, r.Y + (r.Height - size) / 2, size, size);
+        if (blackPiece) using (var b = new SolidBrush(Color.Black)) g.FillRectangle(b, box);
+        else
+        {
+            using (var w = new SolidBrush(Color.White)) g.FillRectangle(w, box);
+            using var pen = new Pen(Color.Black, 0.9f);
+            g.DrawRectangle(pen, box.X, box.Y, box.Width, box.Height);
+        }
+        return size + 5;
+    }
 
     /// <summary>Tek satır; sığmazsa puntoyu 7'ye kadar küçültür, yine sığmazsa "…" ile kısaltır.</summary>
     private static void Text(Graphics g, string text, Font font, Brush brush, RectangleF r, StringAlignment align)

@@ -250,6 +250,7 @@ public sealed class CardDesignForm : AppForm
         g.TranslateTransform(px.X * u, px.Y * u);
         g.ScaleTransform(s * u, s * u);
         g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
+        lock (Overlay.PagedOutput.Gate)
         CardPrinter.Draw(g, l, _ctx.Sample, _ctx.Poster, _ctx.EventName, _ctx.Font, _ctx.Filled, _ctx.FullWidth, BandPt(l),
                          branding ?? Branding(), _gsbImg, _tsfImg);
         g.Restore(state);

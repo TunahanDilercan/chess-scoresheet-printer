@@ -53,6 +53,17 @@ public static class PrintRouter
     /// <returns>true = yazıcıya gönderildi.</returns>
     public static bool Print(PrintDocument doc, IWin32Window owner, Func<PrintDocument, IWin32Window, bool>? preparePaper = null)
     {
+        if (!Prepare(doc, owner, preparePaper)) return false;
+        doc.Print();
+        return true;
+    }
+
+    /// <summary>
+    /// Baskıya hazırlar (arayüzde): hedef yazıcı, yazıcı penceresi ("doğrudan yazdır" kapalıysa), kâğıt ve tepsi.
+    /// false = kullanıcı vazgeçti. Ardından <c>doc.Print()</c> arka planda çağrılabilir.
+    /// </summary>
+    public static bool Prepare(PrintDocument doc, IWin32Window owner, Func<PrintDocument, IWin32Window, bool>? preparePaper = null)
+    {
         ApplyTarget(doc);
         if (!IsSilent)
         {
@@ -61,8 +72,7 @@ public static class PrintRouter
         }
         if (preparePaper is not null && !preparePaper(doc, owner)) return false;
         ApplySource(doc);
-        doc.PrintController = new StandardPrintController(); // önizleme değil, gerçek baskı
-        doc.Print();
+        doc.PrintController = new StandardPrintController(); // önizleme değil, gerçek baskı; durum penceresi yok (ilerleme pencerede)
         return true;
     }
 

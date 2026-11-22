@@ -173,7 +173,7 @@ public sealed class ReportEditorForm : AppForm
         if (_rendering) { _renderAgain = true; return; }
         _rendering = true;
         _status.Text = _render is null ? "Belge hazırlanıyor (Word başlatılıyor, ilk açılış biraz sürebilir)…" : "⟳ Sayfa güncelleniyor…";
-        UseWaitCursor = _render is null;
+        var busy = StatusBusy.Show(_status);
         try
         {
             var r = await _ctx.Render(_word);
@@ -196,7 +196,7 @@ public sealed class ReportEditorForm : AppForm
         finally
         {
             _rendering = false;
-            if (!IsDisposed) UseWaitCursor = false;
+            busy.Dispose(); // tekrar çizim başlamadan önce kalksın
         }
         if (_renderAgain) { _renderAgain = false; await RenderAsync(); }
     }
@@ -561,10 +561,9 @@ public sealed class ReportEditorForm : AppForm
     {
         var before = _status.Text;
         _status.Text = busy;
-        UseWaitCursor = true;
+        using var bar = StatusBusy.Show(_status);
         try { _status.Text = await work() ?? before; }
         catch (Exception ex) { _status.Text = "İşlem tamamlanamadı: " + (ex.InnerException?.Message ?? ex.Message); }
-        finally { UseWaitCursor = false; }
     }
 
     /// <summary>Sayfaların çizildiği tuval (çift tamponlu).</summary>

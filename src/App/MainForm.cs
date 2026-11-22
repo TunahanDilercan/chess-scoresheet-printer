@@ -233,6 +233,8 @@ public partial class MainForm : Form
     {
         Shown -= MainForm_Shown; // yalnızca ilk açılışta
         _ = CheckForUpdateOnStartAsync(); // arka planda; turnuva yüklemesini bekletmez
+        // Açılıştaki yükleme adım adım durum satırında: "Açılış • 2. adım: Turnuva bilgisi çekiliyor…"
+        _startup = rbOnline.Checked;
         try { if (rbOnline.Checked) await AutoSelectLatestAsync(); }
         finally { AnnounceUpdate(); }
         OpenForUiTest();
@@ -1490,11 +1492,38 @@ public partial class MainForm : Form
         if (_grpLists is not null) _grpLists.Enabled = !busy;
         if (_btnGridList is not null) _btnGridList.Enabled = !busy;
         _busy = busy;
-        Cursor = busy ? Cursors.WaitCursor : Cursors.Default;
+        // Dönen bekleme imleci yerine durum satırının üstünde ince ilerleme çubuğu; hangi adımın yüklendiği
+        // durum satırında yazar. Pencere kullanılabilir kalır (yalnız işle çakışan düğmeler kapanır).
+        if (busy) PlaceBusyBar();
+        _busyBar.Visible = busy;
     }
+
+    private readonly ProgressBar _busyBar = new()
+    {
+        Style = ProgressBarStyle.Marquee, MarqueeAnimationSpeed = 25, Visible = false, AccessibleName = "Yükleniyor",
+        Anchor = AnchorStyles.Top | AnchorStyles.Left
+    };
+
+    /// <summary>Çubuk durum satırının hemen üstüne, onun genişliğinde yerleşir.</summary>
+    private void PlaceBusyBar()
+    {
+        if (_busyBar.Parent is null) { Controls.Add(_busyBar); lblStatus.LocationChanged += (_, _) => PlaceBusyBar(); lblStatus.SizeChanged += (_, _) => PlaceBusyBar(); }
+        int h = UiScale.Px(4);
+        _busyBar.SetBounds(lblStatus.Left, lblStatus.Top - h - 1, lblStatus.Width, h);
+        _busyBar.BringToFront();
+    }
+
+    private bool _startup;
+    private int _startupStep;
 
     private void SetStatus(string text, bool ok)
     {
+        if (_startup)
+        {
+            // açılışta süren adımlar numaralanır; ilk sonuç iletisiyle (… ile bitmeyen) açılış biter
+            if (ok && text.EndsWith('…')) text = $"Açılış • {++_startupStep}. adım: {text}";
+            else _startup = false;
+        }
         lblStatus.Text = text;
         lblStatus.ForeColor = ok ? System.Drawing.Color.FromArgb(95, 122, 70) : System.Drawing.Color.FromArgb(160, 60, 60);
     }

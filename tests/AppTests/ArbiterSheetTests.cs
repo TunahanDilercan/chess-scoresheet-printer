@@ -8,7 +8,7 @@ namespace NotasyonOtomasyonu.AppTests;
 /// <summary>Hakem eşleştirme kağıtları: sayfa düzenleri, uzun kategori, BAY, PDF.</summary>
 public class ArbiterSheetTests
 {
-    private static Tournament Pairings(int boards, bool bye = false)
+    internal static Tournament Pairings(int boards, bool bye = false)
     {
         var list = Enumerable.Range(1, boards).Select(b => new Pairing(
             b, new Player(b, $"BEYAZ {b}", Rating: 1500 + b), new Player(b + 100, $"SİYAH {b}", Rating: 1400 + b),
@@ -246,11 +246,32 @@ public class ArbiterTeamTests
         var p = new ArbiterSheetPrinter(new[] { new ArbiterSheet("Okul Takım", 2, null, Team(5, 4)) }, "Turnuva", SheetLayout.Fit);
         Assert.Equal(1, p.PageCount); // 20 masa + 5 maç başlığı tek sayfaya sığar
         using var bmp = p.RenderPage(0, 600);
-        // Maç başlığı satırının açık yeşil zemini çizilmiş olmalı
+        // Maç başlığı satırının açık gri zemini çizilmiş olmalı (siyah beyaz baskı)
         bool found = false;
         for (int y = 0; y < bmp.Height && !found; y += 2)
-            if (bmp.GetPixel(300, y) is { R: 232, G: 240, B: 224 }) found = true;
+            if (bmp.GetPixel(300, y) is { R: 232, G: 232, B: 232 }) found = true;
         Assert.True(found, "maç ara başlığı çizilmedi");
+    }
+
+    /// <summary>Hakem kağıdı ve ceza formu siyah beyaz basılır: hiçbir pikselde renk (doygunluk) olmamalı.</summary>
+    [Theory]
+    [InlineData(PenaltyForm.None)]
+    [InlineData(PenaltyForm.Below)]
+    [InlineData(PenaltyForm.FilledPage)]
+    public void Sheets_AreBlackAndWhite(PenaltyForm penalty)
+    {
+        var p = new ArbiterSheetPrinter(new[] { new ArbiterSheet("12 Yaş", 3, null, Team(3, 4)) }, "Turnuva", SheetLayout.Fit, penalty: penalty);
+        for (int i = 0; i < p.PageCount; i++)
+        {
+            using var bmp = p.RenderPage(i, 100);
+            for (int y = 0; y < bmp.Height; y += 3)
+                for (int x = 0; x < bmp.Width; x += 3)
+                {
+                    var c = bmp.GetPixel(x, y);
+                    int spread = Math.Max(c.R, Math.Max(c.G, c.B)) - Math.Min(c.R, Math.Min(c.G, c.B));
+                    Assert.True(spread <= 12, $"sayfa {i + 1} ({x},{y}) renkli: {c}");
+                }
+        }
     }
 
     [Fact]

@@ -4,12 +4,11 @@ using NotasyonOtomasyonu.App.Overlay;
 namespace NotasyonOtomasyonu.App.Cards;
 
 /// <summary>Kategori masa kartlarını A4'e (varsayılan yatay) basar (önizlemeli) veya PDF olarak kaydeder.</summary>
-public sealed class CardPrinter
+public sealed class CardPrinter : IPagedOutput, IDisposable
 {
 
     private readonly List<CardSpec> _pages;   // adet kadar açılmış
     private readonly List<CardSpec> _distinct; // önizlemede her karttan bir sayfa
-    private List<CardSpec> _active = new();    // bu geçişte çizilen sayfalar
     private readonly string? _logoPath;
     private readonly string _eventName;
     private readonly string _font;
@@ -20,7 +19,6 @@ public sealed class CardPrinter
     private readonly CardBranding _branding;
     private Image? _logo;
     private Image? _gsb, _tsf;
-    private int _pageIndex;
 
     public CardPrinter(IEnumerable<CardSpec> cards, string? logoPath, string eventName, string? font = null, bool landscape = true,
                        bool filled = false, bool fullWidth = false, CardBranding? branding = null)
@@ -47,52 +45,53 @@ public sealed class CardPrinter
 
     public int PageCount => _pages.Count;
 
-    // ================= Önizleme + yazıcı =================
-    /// <summary>Önizleme açar ("doğrudan yazdır" açıksa önizlemesiz basar). true = yazıcıya gönderildi.</summary>
-    public bool PrintWithPreview(IWin32Window owner)
+    // ================= Önizleme, yazıcı, PDF (PagedOutput: önizleme tembel, yazdırma ve PDF arka planda) =================
+    public string DocumentName => $"{_eventName} - masa kartları";
+    public SizeF PageSizePt => new(_layout.PageW, _layout.PageH);
+    public bool Landscape => _layout.Landscape;
+    /// <summary>Aynı kategorinin adet kadar sayfası aynıdır: bir kez hazırlanır.</summary>
+    public object PageKey(int page) => _pages[page];
+    public void DrawPage(Graphics g, int page) => DrawCard(g, _pages[page]);
+
+    public string Hint => $"{PageCount} kart basılacak (önizlemede her kategoriden bir sayfa) • A4 {(_layout.Landscape ? "yatay" : "dikey")}";
+
+    /// <summary>Önizleme: her kategoriden bir sayfa (30 kartın 30 sayfasını göstermek gereksiz).</summary>
+    public IPagedOutput PreviewPages => new Distinct(this);
+
+    private sealed class Distinct : IPagedOutput
     {
-        using var doc = BuildDocument();
-        if (PrintRouter.IsSilent) return PrintRouter.Print(doc, owner, PreparePaper);
-        // Önizleme her karttan bir sayfa gösterir (30 kartın 30 sayfasını çizmek yavaştı); baskı tüm adetleri basar.
-        return PreviewDialog.Show(owner, doc, _distinct.Count,
-                                  $"{PageCount} kart basılacak (önizlemede her kategoriden bir sayfa) • A4 {(_layout.Landscape ? "yatay" : "dikey")}",
-                                  f => PrintRouter.Print(doc, f, PreparePaper));
+        private readonly CardPrinter _p;
+        public Distinct(CardPrinter p) => _p = p;
+        public string DocumentName => _p.DocumentName;
+        public SizeF PageSizePt => _p.PageSizePt;
+        public bool Landscape => _p.Landscape;
+        public int PageCount => _p._distinct.Count;
+        public object PageKey(int page) => page;
+        public void DrawPage(Graphics g, int page) => _p.DrawCard(g, _p._distinct[page]);
     }
 
-    private bool PreparePaper(PrintDocument doc, IWin32Window owner)
-    {
-        if (FindA4(doc) is { } a4) doc.DefaultPageSettings.PaperSize = a4;
-        doc.DefaultPageSettings.Landscape = _layout.Landscape;
-        return true;
-    }
+    private bool _imagesLoaded;
 
-    private PrintDocument BuildDocument()
+    /// <summary>Afiş ve resmi logolar bir kez baskı boyutuna (300 dpi) küçültülür; her sayfada büyük görseli ölçeklemek yavaştı.</summary>
+    private void DrawCard(Graphics g, CardSpec card)
     {
-        var doc = new PrintDocument { DocumentName = $"{_eventName} - masa kartları" };
-        PrintRouter.ApplyTarget(doc);
-        if (FindA4(doc) is { } a4) doc.DefaultPageSettings.PaperSize = a4;
-        doc.DefaultPageSettings.Landscape = _layout.Landscape; // önizleme de doğrudan yatay ölçeklenir
-        // Her sayfa yönü açıkça bildirir: önizleme ilk çizimde de yatay ölçülsün (yazıcı varsayılanı dikey olsa bile).
-        doc.QueryPageSettings += (_, e) => e.PageSettings.Landscape = _layout.Landscape;
-        doc.OriginAtMargins = false;
-        doc.BeginPrint += (s, _) =>
+        if (!_imagesLoaded)
         {
-            _pageIndex = 0;
-            bool preview = (s as PrintDocument)?.PrintController?.IsPreview == true;
-            _active = preview ? _distinct : _pages;
-            // Afiş bir kez hedef boyuta küçültülür (önizlemede ekran, baskıda 300 dpi): her sayfada büyük
-            // görseli yeniden ölçeklemek önizlemeyi çok yavaşlatıyordu.
-            _logo = ScaledLogo(_logoPath, preview ? 120 : 300);
-            (_gsb, _tsf) = _branding.Load(preview ? 300 : 1200);
-        };
-        doc.EndPrint += (_, _) =>
+            _logo = ScaledLogo(_logoPath, 300);
+            (_gsb, _tsf) = _branding.Load(1200);
+            _imagesLoaded = true;
+        }
+        Draw(g, _layout, card, _logo, _eventName, _font, _filled, _fullWidth, _bandPt, _branding, _gsb, _tsf);
+    }
+
+    public void Dispose()
+    {
+        lock (PagedOutput.Gate)
         {
             _logo?.Dispose(); _gsb?.Dispose(); _tsf?.Dispose();
             _logo = _gsb = _tsf = null;
-            _pageIndex = 0;
-        };
-        doc.PrintPage += OnPrintPage;
-        return doc;
+            _imagesLoaded = false;
+        }
     }
 
     private Image? ScaledLogo(string? path, int dpi)
@@ -131,21 +130,6 @@ public sealed class CardPrinter
         }
         catch (InvalidPrinterException) { }
         return null;
-    }
-
-    private void OnPrintPage(object? sender, PrintPageEventArgs e)
-    {
-        var g = e.Graphics!;
-        g.PageUnit = GraphicsUnit.Point;
-        g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-        g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAlias;
-        g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-        bool preview = (sender as PrintDocument)?.PrintController?.IsPreview == true;
-        if (!preview) g.TranslateTransform(-e.PageSettings.HardMarginX / 100f * 72f, -e.PageSettings.HardMarginY / 100f * 72f);
-
-        if (_pageIndex < _active.Count) Draw(g, _layout, _active[_pageIndex], _logo, _eventName, _font, _filled, _fullWidth, _bandPt, _branding, _gsb, _tsf);
-        _pageIndex++;
-        e.HasMorePages = _pageIndex < _active.Count;
     }
 
     /// <summary>
@@ -189,11 +173,7 @@ public sealed class CardPrinter
     // ================= PDF =================
     public void SavePdf(string path)
     {
-        using var logo = LoadLogo(_logoPath);
-        var (gsb, tsf) = _branding.Load(1200);
-        using (gsb) using (tsf)
-            GdiPdf.Save(path, _pages, _layout.PageW, _layout.PageH,
-                        (g, card) => Draw(g, _layout, card, logo, _eventName, _font, _filled, _fullWidth, _bandPt, _branding, gsb, tsf),
-                        format: GdiPdf.PageFormat.Photo);
+        try { PagedOutput.SavePdfAsync(this, path, null, default).GetAwaiter().GetResult(); }
+        finally { Dispose(); }
     }
 }

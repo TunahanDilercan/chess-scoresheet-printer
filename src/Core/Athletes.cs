@@ -36,6 +36,15 @@ public sealed class AthleteCardConfig
     public string FrameColor { get; set; } = "#0070C0";
     public string TextColor { get; set; } = "#1F3864";
 
+    /// <summary>
+    /// Her kategori kendi renginde (çerçeve, çizgi, kategori yazısı): masa kartlarındaki kategori rengiyle aynıdır
+    /// (chess-results kategorisi), değiştirilince orada da değişir. Kapalıysa tek <see cref="FrameColor"/>.
+    /// </summary>
+    public bool UseCategoryColors { get; set; } = true;
+
+    /// <summary>chess-results'ta karşılığı olmayan kategoriler (Excel'den gelen ad) → renk ("#RRGGBB").</summary>
+    public Dictionary<string, string> CategoryColors { get; set; } = new(StringComparer.OrdinalIgnoreCase);
+
     /// <summary>İsimlik: sayfa başına 3 (190×64 mm) ya da 4 (190×68 mm).</summary>
     public int PlatesPerPage { get; set; } = 3;
 
