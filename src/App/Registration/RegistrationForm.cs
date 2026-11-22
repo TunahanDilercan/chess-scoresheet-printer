@@ -38,7 +38,7 @@ internal sealed class OptionItem
 /// sporcularıyla eşler ve sonucu gösterir. Benzer/belirsiz/bulunamayan sporcular işaretlenir,
 /// il elle düzeltilebilir. Sonuç notasyondaki "İl" kutusuna basılır.
 /// </summary>
-public sealed class RegistrationForm : Form
+public sealed class RegistrationForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);
@@ -59,7 +59,7 @@ public sealed class RegistrationForm : Form
     private readonly Button _btnFetch = Icons.Set(new Button { Text = "Kayıt listesini al ve kaydet", AutoSize = true, Height = 34, BackColor = Green, ForeColor = Color.White }, Ico.Download);
     private readonly Label _lblSnapshot = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(700, 0) };
     private readonly Label _lblEvent = new() { AutoSize = true, ForeColor = Color.FromArgb(40, 40, 40), MaximumSize = new Size(1040, 0), Margin = new Padding(0, 0, 0, 2) };
-    private readonly DataGridView _grid = new();
+    private readonly DataGridView _grid = new() { AccessibleName = "Sporcular ve iller" };
     private readonly CheckBox _chkOnlyIssues = new() { Text = "Yalnız kontrol gerekenler", AutoSize = true };
     private readonly Label _lblSummary = new() { AutoSize = true, ForeColor = Color.DimGray };
     private readonly Button _btnSave = Icons.Set(new Button { Text = "Kaydet ve kapat", Width = 180, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Save);
@@ -219,6 +219,7 @@ public sealed class RegistrationForm : Form
         }
         ShowSnapshot(reg);
         await LoadRosterAsync();
+        if (IsDisposed) return;   // pencere veri beklerken kapatıldı
         if (reg is { Tids.Count: > 0 })
         {
             // Kayıtlı liste var: siteye tekrar gidilmez; formlar listede işaretli görünür.
@@ -236,6 +237,7 @@ public sealed class RegistrationForm : Form
             }
         }
         else if (_txtSite.Text.Length > 0) await LoadOptionsAsync(autoCheck: true);
+        if (IsDisposed) return;
         FillGrid();
     }
 
@@ -268,6 +270,7 @@ public sealed class RegistrationForm : Form
                 list.AddRange(players.Select(p => new RosterPlayer(p.Name, p.Rating, c.Name)));
             }
             catch { failed.Add(c.Name); }
+            if (IsDisposed) return;
         }
         _roster = list;
         if (failed.Count > 0) _lblSummary.Text = "Alınamayan kategori: " + string.Join(", ", failed);
@@ -288,6 +291,7 @@ public sealed class RegistrationForm : Form
         {
             using var sites = new TsfSites();
             var opts = await sites.ListOpenAsync(site);
+            if (IsDisposed) return;
             var keep = _lstOptions.CheckedItems.Cast<OptionItem>().Select(o => o.Option.Tid).ToHashSet();
             var items = opts.Select(o => new OptionItem { Option = o, TitleScore = RegistrationMatch.TitleScore(o.Title, _ctx.EventName) }).ToList();
             // Kayıtları yeni bitmiş formlar sitedeki listede yok ama sayfaları okunuyor: onlar da seçilebilir.
@@ -317,8 +321,10 @@ public sealed class RegistrationForm : Form
                         it.Matched = RegistrationMatch.Overlap(_roster, it.Page.Entries);
                     }
                     catch (Exception ex) { it.Error = FriendlySiteError(ex); }
+                    if (IsDisposed) return;
                 }
             }
+            if (IsDisposed) return;
             foreach (var it in items)
                 it.Likely = RegistrationMatch.IsLikely(it.TitleScore, it.Matched ?? 0, it.Entries ?? 0, it.Page is null ? 0 : _roster.Count);
 
@@ -411,7 +417,8 @@ public sealed class RegistrationForm : Form
             }
         }
         catch (Exception ex) { problems.Add("• " + FriendlySiteError(ex)); }
-        finally { _btnFetch.Enabled = true; }
+        finally { if (!IsDisposed) _btnFetch.Enabled = true; }
+        if (IsDisposed) return;   // pencere liste alınırken kapatıldı: yarım liste kaydedilmez
 
         if (reg.Entries.Count == 0)
         {

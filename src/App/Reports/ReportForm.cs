@@ -26,7 +26,7 @@ public sealed record ReportContext(
 /// daha önce girilenlerden doldurulur. Tüm alanlar tek tabloda toplu düzenlenir. Çıktı: PDF (birincil),
 /// yazıcı ya da Word belgesi; belgenin biçimi, tabloları ve kilitli alanları korunur.
 /// </summary>
-public sealed class ReportForm : Form
+public sealed class ReportForm : AppForm
 {
     public const string BuiltInResource = "NotasyonOtomasyonu.App.turnuva_yonergesi_sablon.docx";
     public const string TutanakResource = "NotasyonOtomasyonu.App.teknik_toplanti_tutanagi_sablon.docx";
@@ -91,16 +91,16 @@ public sealed class ReportForm : Form
     private readonly ComboBox _cboPreset = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 360 };
     private readonly Button _btnTempo = new() { Text = "Düşünme süresine yaz", AutoSize = true, Height = 28 };
 
-    private readonly DataGridView _gridChecks = MakeGrid();
+    private readonly DataGridView _gridChecks = Named(MakeGrid(), "TSF kontrolü");
     private readonly Button _btnSuggest = Icons.Set(new Button { Text = "Programı TSF'ye göre öner", AutoSize = true, Height = 28 }, Ico.Clock);
     private readonly Button _btnSuggest2 = Icons.Set(new Button { Text = "Programı öner", AutoSize = true, Height = 28 }, Ico.Clock);
     private readonly LinkLabel _lnkProcedure = new() { AutoSize = true };
     private readonly Label _lblProgramHint = new() { AutoSize = true, ForeColor = Color.DimGray };
     private readonly Dictionary<int, CategoryStats> _stats = new();   // kategori tnr → sporcu sayısı, rating, tempo
     private List<RuleCheck> _checks = new();
-    private readonly DataGridView _gridFields = MakeGrid();
-    private readonly DataGridView _gridCats = MakeGrid();
-    private readonly DataGridView _gridProgram = MakeGrid();
+    private readonly DataGridView _gridFields = Named(MakeGrid(), "Belge bilgileri");
+    private readonly DataGridView _gridCats = Named(MakeGrid(), "Kategoriler");
+    private readonly DataGridView _gridProgram = Named(MakeGrid(), "Tur programı");
     private readonly TabControl _tabs = new() { Dock = DockStyle.Fill };
 
     private readonly Button _btnNext = Icons.Set(new Button { Text = "Sonraki eksik", AutoSize = true, Height = 40 }, Ico.ArrowRight);
@@ -152,6 +152,7 @@ public sealed class ReportForm : Form
         {
             var yon = LoadYonergelerAsync();      // TSF sitesi arka planda
             await RebuildAsync();
+            if (IsDisposed) return;
             await LoadPlayerCountsAsync();         // EK-C kontrolü için kategori sporcu sayıları
             await yon;
         };
@@ -291,6 +292,8 @@ public sealed class ReportForm : Form
         p.Controls.Add(content);
         return p;
     }
+
+    private static DataGridView Named(DataGridView g, string name) { g.AccessibleName = name; return g; }
 
     private static DataGridView MakeGrid() => new()
     {
@@ -590,7 +593,8 @@ public sealed class ReportForm : Form
     /// <summary>Ağa çıkmadan taslağı yeniden kurar (şablon/yönerge değişince); elle girilenler korunur.</summary>
     private void RebuildDraft()
     {
-        if (_info is null || _templateBytes is null) return;
+        // pencere chess-results'ı beklerken kapatıldıysa tablolar atılmıştır (sütunsuz tabloya satır eklenemez)
+        if (IsDisposed || _info is null || _templateBytes is null) return;
         var manual = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         if (_draft is not null)
         {
@@ -1034,7 +1038,7 @@ public sealed class ReportForm : Form
         PullGrids();
         RememberAnswers();   // tablodaki değerler diğer belgelere de geçsin
         var items = _cboTemplate.Items.Cast<TemplateItem>().ToList();
-        using var dlg = new Form
+        using var dlg = new AppForm
         {
             Text = "Tutanak paketi", FormBorderStyle = FormBorderStyle.FixedDialog, StartPosition = FormStartPosition.CenterParent,
             MaximizeBox = false, MinimizeBox = false, Font = Font, ClientSize = new Size(460, 330), BackColor = BackColor

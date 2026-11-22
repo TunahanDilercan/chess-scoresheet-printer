@@ -7,7 +7,7 @@ namespace NotasyonOtomasyonu.App.Reports;
 /// Raporun yazdırılmadan önce görüldüğü önizleme penceresi: Word'ün ürettiği PDF'in sayfaları birebir
 /// gösterilir. Buradan yazıcıya gönderilir ("doğrudan yazdır" ve yazıcı tercihlerine uyar) ya da PDF olarak kaydedilir.
 /// </summary>
-public sealed class ReportPreviewForm : Form
+public sealed class ReportPreviewForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private const int PrintDpi = 300;

@@ -49,12 +49,12 @@ public partial class MainForm
         Load += (_, _) => { ApplyLogState(); RelayoutLeft(); };
 
         // Yazdır düğmesinin altında ince yazıcı satırı: hangi yazıcıya basılacağı her an görünür, tıklayınca ayarlar.
-        btnPrint.Height -= 28;
-        const int queueW = 128;
+        btnPrint.Height -= UiScale.Px(28);
+        int queueW = UiScale.Px(128), rowH = UiScale.Px(24);
         _btnPrinter = new Button
         {
             Location = new Point(btnPrint.Left, btnPrint.Bottom + 4),
-            Size = new Size(btnPrint.Width - queueW - 4, 24),
+            Size = new Size(btnPrint.Width - queueW - 4, rowH),
             Anchor = btnPrint.Anchor,
             BackColor = Color.White,
             ForeColor = Color.FromArgb(60, 60, 60),
@@ -73,7 +73,7 @@ public partial class MainForm
         {
             Text = "Yazdırma sırası",
             Location = new Point(_btnPrinter.Right + 4, _btnPrinter.Top),
-            Size = new Size(queueW, 24),
+            Size = new Size(queueW, rowH),
             Anchor = btnPrint.Anchor & ~AnchorStyles.Left | AnchorStyles.Right,
             BackColor = Color.White,
             ForeColor = Color.FromArgb(60, 60, 60),

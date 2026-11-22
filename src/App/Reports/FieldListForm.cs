@@ -7,11 +7,11 @@ namespace NotasyonOtomasyonu.App.Reports;
 /// çoğalan tablolar ({{sporcu.adi}} …), açıklamaları ve bu turnuvadaki değerleriyle. Çift tıklayınca işaret
 /// panoya kopyalanır. İşaretsiz yerlerin (noktalı satır, etiketli boş hücre) de soru olarak geldiği anlatılır.
 /// </summary>
-public sealed class FieldListForm : Form
+public sealed class FieldListForm : AppForm
 {
     private readonly DataGridView _grid = new()
     {
-        Dock = DockStyle.Fill, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false, RowHeadersVisible = false,
+        Dock = DockStyle.Fill, AccessibleName = "Kullanılabilir alanlar", ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false, RowHeadersVisible = false,
         SelectionMode = DataGridViewSelectionMode.FullRowSelect, BackgroundColor = Color.White, BorderStyle = BorderStyle.None,
         AutoSizeRowsMode = DataGridViewAutoSizeRowsMode.AllCells
     };

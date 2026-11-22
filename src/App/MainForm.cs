@@ -119,6 +119,7 @@ public partial class MainForm : Form
 
         // İlk açılışta: hatırlanan turnuva varsa otomatik yükle + eşleştirmeleri çek.
         Shown += MainForm_Shown;
+        RestoreWindowBounds();
     }
 
     // ================= Görsel tema =================
@@ -234,6 +235,31 @@ public partial class MainForm : Form
         _ = CheckForUpdateOnStartAsync(); // arka planda; turnuva yüklemesini bekletmez
         try { if (rbOnline.Checked) await AutoSelectLatestAsync(); }
         finally { AnnounceUpdate(); }
+        OpenForUiTest();
+    }
+
+    /// <summary>
+    /// Arayüz testleri için (tests/UiTests): CSP_UI_OPEN ortam değişkeni bir düğme adı verirse, turnuvanın
+    /// kategorileri yüklendikten sonra o düğmeye basılır. Modal pencereler dışarıdan (UI Automation ile)
+    /// tetiklenince otomasyon kilitlendiği için pencere programın kendisinden, normal kullanımdaki gibi açılır.
+    /// </summary>
+    private void OpenForUiTest()
+    {
+        var name = Environment.GetEnvironmentVariable("CSP_UI_OPEN");
+        if (string.IsNullOrWhiteSpace(name)) return;
+        var started = DateTime.Now;
+        var timer = new System.Windows.Forms.Timer { Interval = 400 };
+        timer.Tick += (_, _) =>
+        {
+            if (flowQuick.Controls.Count == 0 && DateTime.Now - started < TimeSpan.FromSeconds(45)) return;
+            timer.Stop();
+            timer.Dispose();
+            static IEnumerable<Control> All(Control c) { foreach (Control k in c.Controls) { yield return k; foreach (var d in All(k)) yield return d; } }
+            var pattern = "^" + System.Text.RegularExpressions.Regex.Escape(name).Replace("\\*", ".*") + "$";
+            var btn = All(this).OfType<Button>().FirstOrDefault(b => b.Visible && System.Text.RegularExpressions.Regex.IsMatch(b.Text, pattern));
+            btn?.PerformClick();
+        };
+        timer.Start();
     }
 
     /// <summary>
@@ -470,7 +496,7 @@ public partial class MainForm : Form
 
     private static string? ShowLinkPrompt()
     {
-        using var f = new Form
+        using var f = new AppForm
         {
             Text = "Link / No ile Getir", FormBorderStyle = FormBorderStyle.FixedDialog,
             StartPosition = FormStartPosition.CenterParent, MaximizeBox = false, MinimizeBox = false,
@@ -646,7 +672,7 @@ public partial class MainForm : Form
                 Tag = c,
                 AutoSize = true,
                 // Kompakt: küçük ekranlı dizüstünde de sol sütun kaydırmasız sığsın.
-                MinimumSize = new System.Drawing.Size(60, 30),
+                MinimumSize = new System.Drawing.Size(UiScale.Px(60), UiScale.Px(30)),
                 Margin = new Padding(2),
                 Padding = new Padding(6, 1, 6, 1),
                 FlatStyle = FlatStyle.Flat,
@@ -792,7 +818,7 @@ public partial class MainForm : Form
     {
         Appearance = Appearance.Button,
         AutoSize = true,
-        MinimumSize = new System.Drawing.Size(30, 28),
+        MinimumSize = new System.Drawing.Size(UiScale.Px(30), UiScale.Px(28)),
         Padding = new Padding(5, 2, 5, 2),
         Margin = new Padding(2),
         Font = new System.Drawing.Font("Segoe UI", 8.5F),
@@ -1148,9 +1174,9 @@ public partial class MainForm : Form
                 var pv = withProv[k];
                 bool print = _gridKey is { } key ? IsChecked(key, p) : DefaultChecked(p);
                 int i = dgvPairings.Rows.Add(print, p.BoardText, WithTeam(p.White.Name, p.WhiteTeam),
-                    p.White.Rating?.ToString() ?? "", pv.White.Province ?? "",
+                    p.White.Rating?.ToString() ?? "", Provinces.ShortForm(pv.White.Province),
                     p.IsBye ? "BAY" : WithTeam(p.Black!.Name, p.BlackTeam), p.Black?.Rating?.ToString() ?? "",
-                    pv.Black?.Province ?? "");
+                    Provinces.ShortForm(pv.Black?.Province));
                 var row = dgvPairings.Rows[i];
                 row.Tag = p;
                 if (p.IsBye)
@@ -1380,8 +1406,37 @@ public partial class MainForm : Form
     }
 
     // ================= Kapat =================
+    /// <summary>
+    /// Pencere son bırakıldığı konum ve boyutta açılır (ekranlardan birinde görünüyorsa). İlk açılışta ekranın
+    /// büyük kısmını kullanır: en küçük boyutta eşleştirme tablosu dar kalıp ad ve il sütunları kesiliyordu.
+    /// </summary>
+    private void RestoreWindowBounds()
+    {
+        var p = (_config.Layout.MainWindow ?? "").Split(',');
+        if (p.Length == 5 && p.Take(4).All(x => int.TryParse(x, out _)))
+        {
+            var r = new Rectangle(int.Parse(p[0]), int.Parse(p[1]), int.Parse(p[2]), int.Parse(p[3]));
+            r.Size = new Size(Math.Max(r.Width, MinimumSize.Width), Math.Max(r.Height, MinimumSize.Height));
+            if (Screen.AllScreens.Any(s => { var x = Rectangle.Intersect(s.WorkingArea, r); return x.Width > 200 && x.Height > 150; }))
+            {
+                StartPosition = FormStartPosition.Manual;
+                Bounds = r;
+                if (p[4] == "1") WindowState = FormWindowState.Maximized;
+                return;
+            }
+        }
+        var wa = Screen.FromPoint(Cursor.Position).WorkingArea;
+        int w = Math.Min(wa.Width, Math.Max(Width, Math.Min((int)(wa.Width * 0.82), UiScale.Px(1460))));
+        int h = Math.Min(wa.Height, Math.Max(Height, Math.Min((int)(wa.Height * 0.88), UiScale.Px(900))));
+        StartPosition = FormStartPosition.Manual;
+        Bounds = new Rectangle(wa.Left + (wa.Width - w) / 2, wa.Top + (wa.Height - h) / 2, w, h);
+    }
+
     private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
     {
+        var b = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+        if (WindowState != FormWindowState.Minimized || b.Width > 0)
+            _config.Layout.MainWindow = $"{b.X},{b.Y},{b.Width},{b.Height},{(WindowState == FormWindowState.Maximized ? 1 : 0)}";
         UpdateConfigFromUi();
         SaveConfig();
         _online.Dispose();

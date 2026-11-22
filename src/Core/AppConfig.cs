@@ -377,6 +377,9 @@ public sealed class LayoutConfig
     /// <summary>Ana penceredeki işlem kaydı açık mı (varsayılan kapalı: yalnız başlık satırı görünür).</summary>
     public bool LogExpanded { get; set; }
 
+    /// <summary>Ana pencerenin son konumu ve boyutu ("x,y,genişlik,yükseklik,tam ekran"); boşsa ekrana göre açılır.</summary>
+    public string? MainWindow { get; set; }
+
     /// <summary>Sayfa boyutu: "A4" veya "A5". Çıktılar genelde A5.</summary>
     public string PageSize { get; set; } = "A5";
 

@@ -137,7 +137,7 @@ public sealed class PrinterSettingsPanel : UserControl
 }
 
 /// <summary>Ana ekrandan açılan küçük yazıcı ayarları penceresi.</summary>
-public sealed class PrinterSettingsForm : Form
+public sealed class PrinterSettingsForm : AppForm
 {
     private readonly PrinterSettingsPanel _panel = new(460);
 

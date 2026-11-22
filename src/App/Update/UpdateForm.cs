@@ -4,7 +4,7 @@ namespace NotasyonOtomasyonu.App.Update;
 /// Güncelleme penceresi: denetler (ya da verilen sürümü gösterir), sürüm notlarını listeler; "Güncelle ve
 /// yeniden başlat" paketi indirir, doğrular, kurar ve programı yeni sürümle açar.
 /// </summary>
-public sealed class UpdateForm : Form
+public sealed class UpdateForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);

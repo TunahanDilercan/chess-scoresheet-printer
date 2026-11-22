@@ -9,7 +9,7 @@ namespace NotasyonOtomasyonu.App;
 /// boyutu, yazıcı hizalaması), Şablonlar, Bölge (il, TSF sitesi, logo, kayıt listesi), Yazıcı ve
 /// Güncelleme. Kaydet'e basınca verilen <see cref="AppConfig"/> nesnesine yazar (çağıran kaydeder).
 /// </summary>
-public sealed class SettingsForm : Form
+public sealed class SettingsForm : AppForm
 {
     private readonly AppConfig _cfg;
 

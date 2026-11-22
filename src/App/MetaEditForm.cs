@@ -6,7 +6,7 @@ namespace NotasyonOtomasyonu.App;
 /// Turnuva üst bilgisini (ad, tarih) elle düzenleme ekranı.
 /// Kaydedince değerler config'e yazılır ve kalıcı olur; çağıran ManualOverride'ı işaretler.
 /// </summary>
-public sealed class MetaEditForm : Form
+public sealed class MetaEditForm : AppForm
 {
     private readonly AppConfig _cfg;
     private readonly TextBox _name = new();

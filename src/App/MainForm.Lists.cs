@@ -56,7 +56,7 @@ public partial class MainForm
         _btnGridList = new Button
         {
             Text = "Liste ▾",
-            Size = new Size(96, btnSelectNone.Height),
+            Size = new Size(UiScale.Px(96), btnSelectNone.Height),
             Location = new Point(btnSelectNone.Right + 4, btnSelectNone.Top),
             Anchor = btnSelectNone.Anchor,
             BackColor = Color.White
@@ -83,7 +83,7 @@ public partial class MainForm
 
     private Label SmallLabel(string text) => new()
     {
-        Text = text, AutoSize = false, Size = new Size(80, 26), TextAlign = ContentAlignment.MiddleLeft,
+        Text = text, AutoSize = false, Size = new Size(UiScale.Px(80), UiScale.Px(26)), TextAlign = ContentAlignment.MiddleLeft,
         ForeColor = ThGreenDark, Font = new Font("Segoe UI", 9f, FontStyle.Bold)
     };
 
@@ -92,7 +92,7 @@ public partial class MainForm
         var b = new Button
         {
             Text = text, Tag = tag, AutoSize = true, AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            MinimumSize = new Size(0, 26), Margin = new Padding(1, 2, 1, 2), Padding = new Padding(2, 0, 2, 0),
+            MinimumSize = new Size(0, UiScale.Px(26)), Margin = new Padding(1, 2, 1, 2), Padding = new Padding(2, 0, 2, 0),
             BackColor = Color.White, ForeColor = strong ? ThGreenDark : Color.FromArgb(40, 40, 40),
             Font = new Font("Segoe UI", 9f, strong ? FontStyle.Bold : FontStyle.Regular)
         };
@@ -118,6 +118,8 @@ public partial class MainForm
         {
             _btnAllPairLists = Icons.Set(SmallButton("Tümü", null, async (_, _) => await PrintListsAsync(CurrentCategories(), results: false), strong: true), Ico.Layers);
             _btnAllResultLists = Icons.Set(SmallButton("Tümü", null, async (_, _) => await PrintListsAsync(CurrentCategories(), results: true), strong: true), Ico.Layers);
+            _btnAllPairLists.AccessibleName = "Tüm kategorilerin eşleştirme listesi";
+            _btnAllResultLists!.AccessibleName = "Tüm kategorilerin sonuç listesi";
             _listTip.SetToolTip(_btnAllPairLists, "Tüm kategorilerin son eşlenen turunun eşleştirme listesi (her kategori ayrı sayfa).");
             _listTip.SetToolTip(_btnAllResultLists, "Tüm kategorilerin sonucu girilmiş son turunun sonuçları ve sıralaması (her kategori ayrı sayfa).");
             _grpLists.Controls.Add(_btnAllPairLists);

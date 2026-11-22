@@ -18,7 +18,7 @@ public sealed record BadgesContext(
 /// Hakem yaka kartları: görevliler chess-results'tan gelir (direktör, başhakem, yardımcı, hakemler);
 /// unvan FIDE unvanından (IA/FA/NA) önerilir, TSF derecesi elle seçilebilir ve hatırlanır.
 /// </summary>
-public sealed class BadgesForm : Form
+public sealed class BadgesForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);
@@ -44,7 +44,7 @@ public sealed class BadgesForm : Form
     private readonly FlowLayoutPanel _portraitBox = new() { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0) };
     private Image? _tsfLogo;   // otomatik il logosu (özel logo yokken)
     private readonly PictureBox _picPreview = new() { SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill };
-    private readonly DataGridView _grid = new();
+    private readonly DataGridView _grid = new() { AccessibleName = "Görevliler" };
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray };
     private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 150, Height = 40 }, Ico.Pdf);
     private readonly Button _btnPrint = Icons.Set(new Button { Text = "Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Print);
@@ -147,11 +147,11 @@ public sealed class BadgesForm : Form
         _grid.RowTemplate.Height = 32;
         _grid.EditMode = DataGridViewEditMode.EditOnEnter;
         _grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Bas", HeaderText = "Bas", Width = 44 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ad", HeaderText = "Ad Soyad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 170 });
-        var role = new DataGridViewComboBoxColumn { Name = "Gorev", HeaderText = "Görev", Width = 160, FlatStyle = FlatStyle.Flat };
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ad", HeaderText = "Ad Soyad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 130, MinimumWidth = 140 });
+        var role = new DataGridViewComboBoxColumn { Name = "Gorev", HeaderText = "Görev", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 85, MinimumWidth = 120, FlatStyle = FlatStyle.Flat };
         role.Items.AddRange(Arbiters.Roles);
         _grid.Columns.Add(role);
-        var grade = new DataGridViewComboBoxColumn { Name = "Unvan", HeaderText = "Unvan (renk)", Width = 150, FlatStyle = FlatStyle.Flat };
+        var grade = new DataGridViewComboBoxColumn { Name = "Unvan", HeaderText = "Unvan (renk)", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 80, MinimumWidth = 120, FlatStyle = FlatStyle.Flat };
         grade.Items.AddRange(Arbiters.Grades);
         _grid.Columns.Add(grade);
         _grid.Columns.Add(new DataGridViewButtonColumn { Name = "Foto", HeaderText = "Fotoğraf", Width = 92, FlatStyle = FlatStyle.Flat });

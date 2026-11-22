@@ -7,7 +7,7 @@ namespace NotasyonOtomasyonu.App;
 /// Eşlenmeyen (BAY) masalar ve elle girilen masa numaraları hariç tutulabilir.
 /// Seçimler config'e yazılır ve kalıcı olur.
 /// </summary>
-public sealed class ExclusionsForm : Form
+public sealed class ExclusionsForm : AppForm
 {
     private readonly AppConfig _cfg;
     private readonly TextBox _boards = new();
@@ -26,7 +26,7 @@ public sealed class ExclusionsForm : Form
         MaximizeBox = MinimizeBox = false;
         BackColor = System.Drawing.Color.FromArgb(245, 245, 240);
         Font = new System.Drawing.Font("Segoe UI", 9.75F);
-        ClientSize = new System.Drawing.Size(460, 290);
+        ClientSize = new System.Drawing.Size(460, 304);
 
         int y = 16;
         Controls.Add(new Label
@@ -41,10 +41,10 @@ public sealed class ExclusionsForm : Form
         Controls.Add(new Label
         {
             Text = "BAY masaları varsayılan olarak basılmaz; gerekirse ana ekrandaki listede işaretleyin.",
-            AutoSize = false, Size = new System.Drawing.Size(428, 24),
+            AutoSize = false, Size = new System.Drawing.Size(428, 40),
             Location = new System.Drawing.Point(16, y), ForeColor = System.Drawing.Color.FromArgb(95, 122, 70)
         });
-        y += 34;
+        y += 48;
 
         Controls.Add(new Label
         {

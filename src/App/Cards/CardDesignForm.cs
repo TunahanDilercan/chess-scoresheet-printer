@@ -21,7 +21,7 @@ public sealed record CardDesignContext(
 /// kenar boşluklarına ve birbirine mıknatısla hizalanır. Sağda resimli hazır yerleşimler ve az sayıda
 /// ayar. Değişiklikler "Tamam"a basılınca kaydedilir.
 /// </summary>
-public sealed class CardDesignForm : Form
+public sealed class CardDesignForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);

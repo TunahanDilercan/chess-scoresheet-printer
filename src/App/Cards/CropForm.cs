@@ -8,7 +8,7 @@ namespace NotasyonOtomasyonu.App.Cards;
 /// kilitli veya serbest kırpma. Çerçeve sürüklenerek taşınır, köşelerden boyutlandırılır, fare
 /// tekerleğiyle yakınlaştırılır. Sonuç asıl çözünürlükten yüksek kaliteyle (bicubic) kırpılır.
 /// </summary>
-public sealed class CropForm : Form
+public sealed class CropForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
 

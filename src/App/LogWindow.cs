@@ -6,7 +6,7 @@ namespace NotasyonOtomasyonu.App;
 /// "Baskı ayrıntıları" yazıcı, kağıt, kenar boşluğu, kaydırma ve son baskıda yazıların kağıttaki yerini
 /// gösterir (kayma sorununu çözmek ya da göndermek için kopyalanır). Kapatılınca gizlenir.
 /// </summary>
-public sealed class LogWindow : Form
+public sealed class LogWindow : AppForm
 {
     private readonly TextBox _txt = Box();
     private readonly TextBox _details = Box();

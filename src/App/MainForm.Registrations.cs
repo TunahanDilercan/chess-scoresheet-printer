@@ -19,14 +19,13 @@ public partial class MainForm
     {
         _dgvRegs = new DataGridView
         {
-            Visible = false, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
+            AccessibleName = "Kayıtlı sporcular", Visible = false, ReadOnly = true, AllowUserToAddRows = false, AllowUserToDeleteRows = false,
             AllowUserToResizeRows = false, RowHeadersVisible = false, SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             MultiSelect = false, AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
             BackgroundColor = dgvPairings.BackgroundColor, BorderStyle = dgvPairings.BorderStyle, GridColor = dgvPairings.GridColor,
             EnableHeadersVisualStyles = dgvPairings.EnableHeadersVisualStyles,
             ColumnHeadersDefaultCellStyle = dgvPairings.ColumnHeadersDefaultCellStyle.Clone(),
-            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.DisableResizing,
-            ColumnHeadersHeight = dgvPairings.ColumnHeadersHeight,
+            ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize,   // yazıya göre (kuyruklar kesilmesin)
             DefaultCellStyle = dgvPairings.DefaultCellStyle.Clone(),
             Font = dgvPairings.Font
         };

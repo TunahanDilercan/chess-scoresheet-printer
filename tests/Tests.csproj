@@ -21,6 +21,9 @@
     <!-- Uygulama katmanı testleri ayrı projede (tests/AppTests). -->
     <Compile Remove="AppTests\**" />
     <None Remove="AppTests\**" />
+    <!-- Gerçek programı süren arayüz testleri (FlaUI + Axe.Windows) de ayrı projede (tests/UiTests). -->
+    <Compile Remove="UiTests\**" />
+    <None Remove="UiTests\**" />
   </ItemGroup>
 
   <ItemGroup>

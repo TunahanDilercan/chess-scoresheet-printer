@@ -11,7 +11,7 @@ public sealed record AthletesContext(
     string EventName,
     int? EventTnr,
     IReadOnlyList<CategoryRef> Categories,
-    Func<int, Task<IReadOnlyList<Player>>>? LoadStartingList,
+    Func<int, CancellationToken, Task<IReadOnlyList<Player>>>? LoadStartingList,
     AppConfig Config,
     Action SaveConfig,
     string BaseDir,
@@ -22,7 +22,7 @@ public sealed record AthletesContext(
 /// listesinden ya da Excel'den (eski yazdırma dosyalarının "Veri_Listesi" sayfası) alınır; tabloda
 /// düzeltilir, kategoriye göre süzülür, seçilenler tek önizlemeden basılır ya da PDF'e kaydedilir.
 /// </summary>
-public sealed class AthletesForm : Form
+public sealed class AthletesForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);
@@ -33,7 +33,7 @@ public sealed class AthletesForm : Form
 
     private readonly RadioButton _rbBadge = new() { Text = "Yaka kartı (95×135 mm, A4'e 4)", AutoSize = true };
     private readonly RadioButton _rbPlate = new() { Text = "İsimlik (190 mm geniş, masaya)", AutoSize = true };
-    private readonly ComboBox _cboPlates = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 250 };
+    private readonly ComboBox _cboPlates = new() { AccessibleName = "İsimlik dizilimi", DropDownStyle = ComboBoxStyle.DropDownList, Width = 250 };
     private readonly Button _btnBanner = Icons.Set(new Button { Text = "Afiş seç…", AutoSize = true, Height = 28 }, Ico.Image);
     private readonly Button _btnBannerCards = new() { Text = "Masa kartı afişini kullan", AutoSize = true, Height = 28 };
     private readonly Label _lblBanner = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
@@ -43,13 +43,13 @@ public sealed class AthletesForm : Form
     private readonly Button _btnPlateBannerClear = new() { Text = "Kaldır", AutoSize = true, Height = 28 };
     private readonly Label _lblPlateBanner = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
     private readonly Button _btnLogo1 = Icons.Set(new Button { Text = "Sol logo…", AutoSize = true, Height = 28 }, Ico.Image);
-    private readonly Button _btnLogo1Clear = Icons.Set(new Button { Text = "", Width = 32, Height = 28 }, Ico.Close);
+    private readonly Button _btnLogo1Clear = Icons.Set(new Button { Text = "", AccessibleName = "Sol logoyu kaldır", Width = 32, Height = 28 }, Ico.Close);
     private readonly Button _btnLogo2 = Icons.Set(new Button { Text = "Sağ logo…", AutoSize = true, Height = 28 }, Ico.Image);
-    private readonly Button _btnLogo2Clear = Icons.Set(new Button { Text = "", Width = 32, Height = 28 }, Ico.Close);
+    private readonly Button _btnLogo2Clear = Icons.Set(new Button { Text = "", AccessibleName = "Sağ logoyu kaldır", Width = 32, Height = 28 }, Ico.Close);
     private readonly Label _lblLogos = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
     private readonly CheckBox _chkTsf = new() { Text = "Sağ logo seçilmezse TSF il logosu", AutoSize = true };
     private readonly CheckBox _chkTitle = new() { Text = "Unvanı ada ekle (IM, FM, WCM…)", AutoSize = true };
-    private readonly ComboBox _cboLine3 = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 250 };
+    private readonly ComboBox _cboLine3 = new() { AccessibleName = "Kartın üçüncü satırı", DropDownStyle = ComboBoxStyle.DropDownList, Width = 250 };
     private readonly CheckBox _chkElo = new() { Text = "ELO kutusu", AutoSize = true };
     private readonly CheckBox _chkUkd = new() { Text = "UKD kutusu", AutoSize = true };
     private readonly CheckBox _chkCrop = new() { Text = "Kesim (crop) işaretleri", AutoSize = true };
@@ -60,8 +60,8 @@ public sealed class AthletesForm : Form
     private readonly Button _btnFromTsf = Icons.Set(new Button { Text = "TSF kayıt listesi", AutoSize = true, Height = 32 }, Ico.Download);
     private readonly Button _btnFromXls = Icons.Set(new Button { Text = "Excel'den al…", AutoSize = true, Height = 32 }, Ico.Table);
     private readonly Button _btnClear = new() { Text = "Temizle", AutoSize = true, Height = 32 };
-    private readonly ComboBox _cboCat = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 160 };
-    private readonly DataGridView _grid = new() { Dock = DockStyle.Fill };
+    private readonly ComboBox _cboCat = new() { AccessibleName = "Kategori süzgeci", DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
+    private readonly DataGridView _grid = new() { Dock = DockStyle.Fill, AccessibleName = "Sporcu listesi" };
     private readonly PictureBox _picPreview = new() { SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill };
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(12, 12, 0, 0) };
     private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 150, Height = 40 }, Ico.Pdf);
@@ -71,7 +71,17 @@ public sealed class AthletesForm : Form
     private readonly FlowLayoutPanel _badgeOnly = new() { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty };
     private readonly FlowLayoutPanel _plateOnly = new() { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = Padding.Empty };
 
+    // Uzun işler (liste çekme, PDF) arka planda: ilerleme çubuğu + iptal; pencere ve ana program kullanılabilir.
+    private readonly FlowLayoutPanel _busy = new() { AutoSize = true, WrapContents = false, Visible = false, Margin = new Padding(12, 8, 0, 0) };
+    private readonly ProgressBar _bar = new() { AccessibleName = "İşlemin ilerlemesi", Width = 220, Height = 18, Margin = new Padding(0, 3, 8, 0) };
+    private readonly Label _lblBusy = new() { AccessibleName = "İşlem durumu", AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(0, 3, 8, 0) };
+    private readonly LinkLabel _lnkCancel = new() { Text = "İptal", AutoSize = true, Margin = new Padding(0, 3, 0, 0) };
+    private CancellationTokenSource? _work;
+
     private AthleteImages _images = new(null, null, null, null);
+    /// <summary>Pencere önizlemesi için küçültülmüş kopyalar (her satır seçiminde tam boy afiş çizilmesin).</summary>
+    private AthleteImages _previewImages = new(null, null, null, null);
+    private readonly List<Image> _previewOwned = new();
     private Image? _tsfLogo;
     private bool _loading;
 
@@ -96,7 +106,8 @@ public sealed class AthletesForm : Form
         UpdateOptionVisibility();
         UpdatePreview();
         UpdateSummary();
-        FormClosed += (_, _) => { SaveList(); DisposeImages(); _tsfLogo?.Dispose(); };
+        FormClosing += (_, _) => _work?.Cancel();
+        FormClosed += (_, _) => { SaveList(); lock (AthleteSheetPrinter.RenderLock) { DisposeImages(); _tsfLogo?.Dispose(); } };
     }
 
     // ================= Yerleşim =================
@@ -151,8 +162,12 @@ public sealed class AthletesForm : Form
             Text = "Listeyi chess-results'tan, TSF kayıt listesinden ya da Excel'den (eski yazdırma dosyalarınızın \"Veri_Listesi\" sayfası) alın. " +
                    "Tabloda düzeltebilir, alttaki boş satıra yazarak ekleyebilir, Excel'den kopyalayıp Ctrl+V ile yapıştırabilirsiniz."
         };
-        var tools = new FlowLayoutPanel { Dock = DockStyle.Top, Height = 42, WrapContents = false };
-        tools.Controls.AddRange(new Control[] { _btnFromCr, _btnFromTsf, _btnFromXls, _btnClear, new Label { Text = "Kategori:", AutoSize = true, Margin = new Padding(12, 9, 4, 0) }, _cboCat });
+        var tools = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = true, Padding = new Padding(0, 0, 0, 4) };   // dar pencerede alta iner
+        // "Kategori:" yazısı ve kutusu tek parça: dar pencerede birlikte alt satıra iner
+        var catBox = new FlowLayoutPanel { AutoSize = true, WrapContents = false, Margin = new Padding(6, 0, 0, 0) };
+        catBox.Controls.Add(new Label { Text = "Kategori:", AutoSize = true, Margin = new Padding(0, 9, 4, 0) });
+        catBox.Controls.Add(_cboCat);
+        tools.Controls.AddRange(new Control[] { _btnFromCr, _btnFromTsf, _btnFromXls, _btnClear, catBox });
         foreach (Control c in tools.Controls) if (c is Button) c.Margin = new Padding(0, 4, 6, 0);
         _cboCat.Margin = new Padding(0, 6, 0, 0);
         BuildGrid();
@@ -162,14 +177,20 @@ public sealed class AthletesForm : Form
         gridPanel.Controls.Add(info);
 
         var previewSide = new Panel { Dock = DockStyle.Right, Width = 310, Padding = new Padding(4, 12, 14, 8) };
+        // dar pencerede (küçük ekran, yüksek ölçek) önizleme biraz daralır, tablo yatay kaymasın
+        Resize += (_, _) => { float k = UiScale.FactorFor(this); previewSide.Width = Math.Clamp((int)(ClientSize.Width * 0.22f), (int)(230 * k), (int)(310 * k)); };
         previewSide.Controls.Add(_picPreview);
         previewSide.Controls.Add(new Label { Text = "Önizleme (seçili satır)", Dock = DockStyle.Top, Height = 24, Font = new Font(Font, FontStyle.Bold), ForeColor = GreenDark });
 
         var bottom = new Panel { Dock = DockStyle.Bottom, Height = 64, Padding = new Padding(12), BackColor = Color.FromArgb(242, 242, 236) };
         var bl = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, WrapContents = false };
-        bl.Controls.AddRange(new Control[] { _btnAll, _btnNone, _lblStatus });
+        _busy.Controls.AddRange(new Control[] { _bar, _lblBusy, _lnkCancel });
+        _lnkCancel.LinkClicked += (_, _) => { _work?.Cancel(); _lblBusy.Text = "İptal ediliyor…"; };
+        bl.Controls.AddRange(new Control[] { _btnAll, _btnNone, _lblStatus, _busy });
         var br = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false };
         br.Controls.AddRange(new Control[] { _btnPdf, _btnPrint });
+        // alt şeritteki düğmeler şeridin yüksekliği kadar: üst/alt kenar boşluğu taşırıp alt çizgiyi kesiyordu
+        foreach (var b in new Control[] { _btnAll, _btnNone, _btnPdf, _btnPrint }) b.Margin = new Padding(0, 0, 6, 0);
         bottom.Controls.Add(bl);
         bottom.Controls.Add(br);
 
@@ -191,9 +212,9 @@ public sealed class AthletesForm : Form
         _grid.RowTemplate.Height = 28;
         _grid.EditMode = DataGridViewEditMode.EditOnKeystrokeOrF2;
         _grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Bas", HeaderText = "Bas", Width = 40 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ad", HeaderText = "Ad Soyad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 150 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ad", HeaderText = "Ad Soyad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 100, MinimumWidth = 140 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Kat", HeaderText = "Kategori", Width = 110 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "L3", HeaderText = "Okul / Kulüp / İl", Width = 170 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "L3", HeaderText = "Okul / Kulüp / İl", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 75, MinimumWidth = 110 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Elo", HeaderText = "ELO", Width = 50 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ukd", HeaderText = "UKD", Width = 50 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Adet", HeaderText = "Adet", Width = 46 });
@@ -260,10 +281,12 @@ public sealed class AthletesForm : Form
             _grid.Rows.Clear(); RefreshCategories(); UpdateSummary(); UpdatePreview();
         };
         _cboCat.SelectedIndexChanged += (_, _) => { ApplyFilter(); UpdateSummary(); };
-        _grid.SelectionChanged += (_, _) => UpdatePreview();
-        _grid.CellValueChanged += (_, e) => { if (e.RowIndex >= 0) { UpdateSummary(); UpdatePreview(); if (e.ColumnIndex == _grid.Columns["Kat"]!.Index) RefreshCategories(); } };
+        // Tablo olayları birikir, tek seferde işlenir: "Tümünü seç" 120 satırda 120 kez önizleme çizmesin.
+        _grid.SelectionChanged += (_, _) => Schedule(preview: true);
+        _picPreview.SizeChanged += (_, _) => Schedule(preview: true);   // önizleme kutusu boyunda, keskin
+        _grid.CellValueChanged += (_, e) => { if (e.RowIndex >= 0) Schedule(preview: true, categories: e.ColumnIndex == _grid.Columns["Kat"]!.Index); };
         _grid.CurrentCellDirtyStateChanged += (_, _) => { if (_grid.CurrentCell is DataGridViewCheckBoxCell) _grid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
-        _grid.RowsRemoved += (_, _) => UpdateSummary();
+        _grid.RowsRemoved += (_, _) => Schedule(preview: false);
         _grid.KeyDown += (_, e) => { if (e.Control && e.KeyCode == Keys.V && !_grid.IsCurrentCellInEditMode) { PasteRows(); e.Handled = true; } };
         _btnAll.Click += (_, _) => SetChecked(true);
         _btnNone.Click += (_, _) => SetChecked(false);
@@ -279,6 +302,28 @@ public sealed class AthletesForm : Form
         tip.SetToolTip(_btnLogo1Clear, "Sol logoyu kaldır");
         tip.SetToolTip(_btnLogo2Clear, "Sağ logoyu kaldır");
         tip.SetToolTip(_numCrop,"Afişin altındaki süs ya da logo bandı kartta yer kaplamasın diye kırpılır (Excel şablonunda %22).");
+    }
+
+    private bool _scheduled, _schedPreview, _schedCategories;
+
+    /// <summary>Özet/önizleme yenilemesini bir sonraki boş ana kadar erteler; aradaki istekler birleşir.</summary>
+    private void Schedule(bool preview, bool categories = false)
+    {
+        _schedPreview |= preview;
+        _schedCategories |= categories;
+        if (_scheduled) return;
+        if (!IsHandleCreated) { RunScheduled(); return; }
+        _scheduled = true;
+        BeginInvoke(RunScheduled);
+    }
+
+    private void RunScheduled()
+    {
+        _scheduled = false;
+        if (IsDisposed) return;
+        if (_schedCategories) { _schedCategories = false; RefreshCategories(); }
+        UpdateSummary();
+        if (_schedPreview) { _schedPreview = false; UpdatePreview(); }
     }
 
     private void UpdateOptionVisibility()
@@ -343,41 +388,101 @@ public sealed class AthletesForm : Form
     {
         foreach (var i in new[] { _images.Banner, _images.PlateBanner, _images.Logo1, _images.Logo2 })
             if (i is not null && i != _tsfLogo) i.Dispose();
+        foreach (var i in _previewOwned) i.Dispose();
+        _previewOwned.Clear();
     }
 
     private void ReloadImages()
     {
-        DisposeImages();
-        Image? logo2 = LoadImage(Cfg.Logo2Path);
-        if (logo2 is null && Cfg.AutoTsfLogo)
-            try { logo2 = _tsfLogo ??= Branding.OfficialLogos.Tsf(_ctx.Config.LogoProvince(), 600); } catch { }
-        _images = new AthleteImages(LoadImage(Cfg.BannerPath), LoadImage(Cfg.PlateBannerPath), LoadImage(Cfg.Logo1Path), logo2);
+        lock (AthleteSheetPrinter.RenderLock)
+        {
+            DisposeImages();
+            Image? logo2 = LoadImage(Cfg.Logo2Path);
+            if (logo2 is null && Cfg.AutoTsfLogo)
+                try { logo2 = _tsfLogo ??= Branding.OfficialLogos.Tsf(_ctx.Config.LogoProvince(), 600); } catch { }
+            _images = new AthleteImages(LoadImage(Cfg.BannerPath), LoadImage(Cfg.PlateBannerPath), LoadImage(Cfg.Logo1Path), logo2);
+            // önizleme kartı en çok ~750 piksel genişlikte çizilir
+            _previewImages = AthleteSheetPrinter.ScaledCopy(_images, 1000, 1000, 160, _previewOwned);
+        }
     }
 
     // ================= Liste kaynakları =================
     private async Task FromChessResultsAsync()
     {
-        if (_ctx.LoadStartingList is null) return;
+        if (_ctx.LoadStartingList is not { } load) return;
         if (!ConfirmReplace()) return;
-        SetBusy(true);
-        try
+        var cats = _ctx.Categories.ToList();
+        bool titleInName = Cfg.TitleInName, line3Province = Cfg.Line3Source == "Province";
+        int failed = 0;
+        var result = await RunBusy($"chess-results: {cats.Count} kategori", "kategori", async (progress, ct) =>
         {
-            var lists = new List<(string, IReadOnlyList<Player>)>();
-            foreach (var cat in _ctx.Categories)
+            // Kategoriler aynı anda (en çok 4) çekilir: sırayla çekmek kategori başına 1-3 sn bekletiyordu.
+            var lists = new (string, IReadOnlyList<Player>)[cats.Count];
+            int done = 0;
+            using var gate = new SemaphoreSlim(4);
+            await Task.WhenAll(cats.Select(async (cat, i) =>
             {
-                _lblStatus.Text = $"Başlangıç listesi: {cat.Name}…";
-                try { lists.Add((cat.Name, await _ctx.LoadStartingList(cat.Tnr))); }
-                catch { lists.Add((cat.Name, Array.Empty<Player>())); }
-            }
-            var roster = lists.SelectMany(l => l.Item2.Select(p => new RosterPlayer(p.Name, p.Rating, l.Item1)));
-            var province = Registration.ProvinceBook.Resolver(_ctx.Config, _ctx.EventTnr, roster, _ctx.EventName);
-            var reg = Registration.ProvinceBook.For(_ctx.Config, _ctx.EventTnr, _ctx.EventName);
-            var athletes = AthleteLists.FromStartingLists(lists, reg?.Entries, province, Cfg.TitleInName, Cfg.Line3Source == "Province");
-            Fill(athletes);
-            Note($"chess-results: {athletes.Count} sporcu, {lists.Count} kategori" + (reg is { Entries.Count: > 0 } ? " (ELO/UKD/il kayıt listesinden)" : ""));
+                await gate.WaitAsync(ct);
+                try { lists[i] = (cat.Name, await load(cat.Tnr, ct)); }
+                catch (OperationCanceledException) { throw; }
+                catch { lists[i] = (cat.Name, Array.Empty<Player>()); Interlocked.Increment(ref failed); }
+                finally { gate.Release(); progress.Report((Interlocked.Increment(ref done), cats.Count)); }
+            }));
+            ct.ThrowIfCancellationRequested();
+            // il eşleştirmesi büyük listelerde ağır: arayüzü bekletmesin
+            return await Task.Run(() =>
+            {
+                var roster = lists.SelectMany(l => l.Item2.Select(p => new RosterPlayer(p.Name, p.Rating, l.Item1)));
+                var province = Registration.ProvinceBook.Resolver(_ctx.Config, _ctx.EventTnr, roster, _ctx.EventName);
+                var reg = Registration.ProvinceBook.For(_ctx.Config, _ctx.EventTnr, _ctx.EventName);
+                return (Athletes: AthleteLists.FromStartingLists(lists, reg?.Entries, province, titleInName, line3Province), HasReg: reg is { Entries.Count: > 0 });
+            }, ct);
+        });
+        // iptal ya da hata (durum satırında yazıyor) ya da pencere liste beklerken kapatıldı
+        if (result.Athletes is null || IsDisposed) return;
+        var r = result;
+        Fill(r.Athletes);
+        Note($"chess-results: {r.Athletes.Count} sporcu, {cats.Count} kategori" + (r.HasReg ? " (ELO/UKD/il kayıt listesinden)" : "") +
+             (failed > 0 ? $" • {failed} kategori alınamadı" : ""));
+    }
+
+    /// <summary>
+    /// Uzun işi arka planda yürütür: alttaki şeritte ilerleme çubuğu ve "İptal" görünür, liste/çıktı düğmeleri
+    /// kapanır; pencere ve ana program kullanılmaya devam eder. İptal ya da hatada null döner.
+    /// </summary>
+    private async Task<T?> RunBusy<T>(string title, string unit, Func<IProgress<(int Done, int Total)>, CancellationToken, Task<T>> work)
+    {
+        if (_work is not null) return default;
+        using var cts = new CancellationTokenSource();
+        _work = cts;
+        SetBusy(true);
+        _bar.Style = ProgressBarStyle.Marquee;
+        _lblBusy.Text = title + "…";
+        var progress = new Progress<(int Done, int Total)>(p =>
+        {
+            if (IsDisposed || p.Total <= 0) return;
+            _bar.Style = ProgressBarStyle.Continuous;
+            _bar.Maximum = p.Total;
+            _bar.Value = Math.Clamp(p.Done, 0, p.Total);
+            _lblBusy.Text = $"{title}: {p.Done} / {p.Total} {unit}";
+        });
+        try { return await work(progress, cts.Token); }
+        catch (OperationCanceledException) { if (!IsDisposed) Note("İşlem iptal edildi."); return default; }
+        catch (Exception ex)
+        {
+            if (!IsDisposed) _lblStatus.Text = "İşlem tamamlanamadı: " + ex switch
+            {
+                HttpRequestException => "internet bağlantısını kontrol edin.",
+                IOException => "dosya başka bir programda açık olabilir (PDF görüntüleyiciyi kapatıp yeniden deneyin).",
+                _ => ex.Message
+            };
+            return default;
         }
-        catch (Exception ex) { _lblStatus.Text = "Liste alınamadı: " + (ex is HttpRequestException ? "internet bağlantısını kontrol edin." : ex.Message); }
-        finally { SetBusy(false); }
+        finally
+        {
+            _work = null;
+            if (!IsDisposed) SetBusy(false);
+        }
     }
 
     private void FromRegistrations()
@@ -416,8 +521,10 @@ public sealed class AthletesForm : Form
 
     private void SetBusy(bool busy)
     {
-        UseWaitCursor = busy;
-        foreach (var b in new[] { _btnFromCr, _btnFromTsf, _btnFromXls, _btnPrint, _btnPdf }) b.Enabled = !busy;
+        // bekleme imleci yok: pencere kullanılabilir kalır, ilerleme alttaki şeritte görünür
+        _busy.Visible = busy;
+        _lblStatus.Visible = !busy;
+        foreach (var b in new[] { _btnFromCr, _btnFromTsf, _btnFromXls, _btnClear, _btnPrint, _btnPdf }) b.Enabled = !busy;
         if (!busy)
         {
             _btnFromCr.Enabled = _ctx.LoadStartingList is not null && _ctx.Categories.Count > 0;
@@ -491,7 +598,7 @@ public sealed class AthletesForm : Form
     private void SetChecked(bool on)
     {
         foreach (DataGridViewRow r in _grid.Rows) if (!r.IsNewRow && r.Visible) r.Cells["Bas"].Value = on;
-        UpdateSummary();
+        Schedule(preview: false);
     }
 
     /// <summary>Excel'den kopyalanan satırları yapıştırır (sütun sırası: ad, kategori, okul/il, ELO, UKD).</summary>
@@ -571,9 +678,12 @@ public sealed class AthletesForm : Form
         var a = row is null || row.IsNewRow ? null : AthleteOf(row);
         a ??= new Athlete("Ad SOYAD", "KATEGORİ", "OKUL / KULÜP / İL", 1850, 1720);
         var p = NewPrinter(new[] { a });
-        float scale = p.IsPlate ? 1.4f : 2.2f;
+        // önizleme kutusunun boyutunda (ekran ölçeği dahil) çizilir; küçültülmüş görsellerle
+        float boxW = Math.Max(120, _picPreview.ClientSize.Width), boxH = Math.Max(120, _picPreview.ClientSize.Height);
+        float scale = Math.Clamp(Math.Min(boxW / p.CardW, boxH / p.CardH), 0.8f, 4f);
         var bmp = new Bitmap((int)(p.CardW * scale) + 2, (int)(p.CardH * scale) + 2);
         using (var g = Graphics.FromImage(bmp))
+        lock (AthleteSheetPrinter.RenderLock)
         {
             g.Clear(BackColor);
             g.PageUnit = GraphicsUnit.Point;
@@ -581,8 +691,8 @@ public sealed class AthletesForm : Form
             g.ScaleTransform(k, k);
             AthleteSheetPrinter.Prepare(g);
             var rect = new RectangleF(0, 0, p.CardW, p.CardH);
-            if (p.IsPlate) AthleteSheetPrinter.DrawPlate(g, rect, a, Cfg, _images);
-            else AthleteSheetPrinter.DrawBadge(g, rect, a, Cfg, _images);
+            if (p.IsPlate) AthleteSheetPrinter.DrawPlate(g, rect, a, Cfg, _previewImages);
+            else AthleteSheetPrinter.DrawBadge(g, rect, a, Cfg, _previewImages);
         }
         var old = _picPreview.Image;
         _picPreview.Image = bmp;
@@ -599,27 +709,33 @@ public sealed class AthletesForm : Form
 
     private void Print()
     {
-        var p = Printer();
+        using var p = Printer();
         if (p is null) return;
         if (p.PrintWithPreview(this)) _lblStatus.Text = $"{p.CardCount} {(p.IsPlate ? "isimlik" : "yaka kartı")} ({p.PageCount} sayfa) yazıcıya gönderildi.";
     }
 
-    private void SavePdf()
+    /// <summary>PDF arka planda hazırlanır (ilerleme alttaki şeritte); bu sırada pencere ve ana program kullanılabilir.</summary>
+    private async void SavePdf()
     {
         var p = Printer();
         if (p is null) return;
-        Directory.CreateDirectory(_ctx.OutputDir);
-        var name = p.IsPlate ? "sporcu_isimlikleri.pdf" : "sporcu_yaka_kartlari.pdf";
-        using var dlg = new SaveFileDialog { Title = "PDF olarak kaydet", Filter = "PDF belgesi (*.pdf)|*.pdf", InitialDirectory = _ctx.OutputDir, FileName = name };
-        if (dlg.ShowDialog(this) != DialogResult.OK) return;
         try
         {
-            UseWaitCursor = true;
-            p.SavePdf(dlg.FileName);
-            _lblStatus.Text = "PDF kaydedildi: " + Path.GetFileName(dlg.FileName);
-            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(dlg.FileName) { UseShellExecute = true }); } catch { }
+            Directory.CreateDirectory(_ctx.OutputDir);
+            var name = p.IsPlate ? "sporcu_isimlikleri.pdf" : "sporcu_yaka_kartlari.pdf";
+            string path;
+            using (var dlg = new SaveFileDialog { Title = "PDF olarak kaydet", Filter = "PDF belgesi (*.pdf)|*.pdf", InitialDirectory = _ctx.OutputDir, FileName = name })
+            {
+                if (dlg.ShowDialog(this) != DialogResult.OK) return;
+                path = dlg.FileName;
+            }
+            _ = p.Images;   // görseller burada (arayüzde) küçültülür; arka plan yalnız kopyaları kullanır
+            var ok = await RunBusy($"PDF ({p.PageCount} sayfa)", "sayfa",
+                                   (progress, ct) => Task.Run(() => { p.SavePdf(path, progress, ct); return true; }, ct));
+            if (!ok || IsDisposed) return;
+            Note("PDF kaydedildi: " + Path.GetFileName(path));
+            try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true }); } catch { }
         }
-        catch (Exception ex) { MessageBox.Show(this, "PDF oluşturulamadı: " + ex.Message, "PDF", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
-        finally { UseWaitCursor = false; }
+        finally { p.Dispose(); }
     }
 }

@@ -39,7 +39,7 @@ public sealed record ReportEditorContext(
 /// şablonun başlıkları, logosu ve sabit metni kilitlidir. Her düzenlemeden kısa süre sonra sayfa Word
 /// ile yeniden üretilir (Word bu pencere açıkken açık tutulur, yenileme hızlıdır).
 /// </summary>
-public sealed class ReportEditorForm : Form
+public sealed class ReportEditorForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);

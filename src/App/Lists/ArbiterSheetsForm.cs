@@ -19,7 +19,7 @@ public sealed record ArbiterSheetsContext(
 /// bütün turlar, ceza bildirim formu (sayfa altında ya da ayrı sayfa, boş veya sporcularla dolu).
 /// Sağda sayfa sayfa canlı önizleme.
 /// </summary>
-public sealed class ArbiterSheetsForm : Form
+public sealed class ArbiterSheetsForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);
@@ -40,7 +40,7 @@ public sealed class ArbiterSheetsForm : Form
     private readonly ComboBox _cboPenalty = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 400 };
     private readonly CheckBox _chkPenaltyOnly = new() { Text = "Yalnız ceza formu (eşleştirme kağıtları olmadan)", AutoSize = true };
     private readonly CheckBox _chkTwoPerPage = new() { Text = "Bir sayfaya 2 form (ortadan kesilir)", AutoSize = true };
-    private readonly DataGridView _grid = new();
+    private readonly DataGridView _grid = new() { AccessibleName = "Kategoriler" };
     private readonly RadioButton _rbSeparate = new() { Text = "Her kategori ayrı sayfada", AutoSize = true };
     private readonly RadioButton _rbFit = new() { Text = "Sığdıkça aynı sayfaya (kağıt tasarrufu)", AutoSize = true };
     private readonly RadioButton _rbGroups = new() { Text = "Sayfa gruplarına göre (tablodaki \"Sayfa\" sütunu)", AutoSize = true };

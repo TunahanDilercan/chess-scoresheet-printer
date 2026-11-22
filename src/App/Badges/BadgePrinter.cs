@@ -319,7 +319,7 @@ public sealed class BadgePrinter
     {
         try
         {
-            GdiPdf.Save(path, Enumerable.Range(0, PageCount).ToList(), PageW, PageH, (g, p) => { Prepare(g); DrawPage(g, p); }, dpi: 300);
+            GdiPdf.Save(path, Enumerable.Range(0, PageCount).ToList(), PageW, PageH, (g, p) => { Prepare(g); DrawPage(g, p); }, dpi: 300, format: GdiPdf.PageFormat.Photo);
         }
         finally { foreach (var i in _images.Values) i?.Dispose(); _images.Clear(); }
     }

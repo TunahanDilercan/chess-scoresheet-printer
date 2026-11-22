@@ -212,11 +212,22 @@ public partial class MainForm
             cats.Add(new CategoryRef(_eventTnr!.Value, EventGrouping.CategoryFromEventName(name) is { Length: > 0 } c ? c : "Genel", true));
         }
         var ctx = new Athletes.AthletesContext(online ? CurrentEventName() : "", online ? _eventTnr : null, cats,
-            online ? async t => (IReadOnlyList<Player>)await _online.GetStartingListAsync(t) : null,
+            online ? async (t, ct) => (IReadOnlyList<Player>)await _online.GetStartingListAsync(t, ct) : null,
             _config, () => SaveConfig(), AppPaths.DataDir, _outputDir);
-        using var f = new Athletes.AthletesForm(ctx) { Icon = Icon };
-        f.ShowDialog(this);
+        // Ayrı pencere (modal değil): liste çekilirken ya da PDF hazırlanırken ana pencere kullanılabilir.
+        if (_athletesForm is { IsDisposed: false } open)
+        {
+            if (open.WindowState == FormWindowState.Minimized) open.WindowState = FormWindowState.Normal;
+            open.Activate();
+            return;
+        }
+        var f = new Athletes.AthletesForm(ctx) { Icon = Icon };
+        f.FormClosed += (_, _) => _athletesForm = null;   // modal olmayan pencere kapanınca kendiliğinden atılır
+        _athletesForm = f;
+        f.Show(this);
     }
+
+    private Athletes.AthletesForm? _athletesForm;
 
     private void OpenBadges()
     {

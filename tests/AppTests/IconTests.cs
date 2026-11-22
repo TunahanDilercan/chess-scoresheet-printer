@@ -169,6 +169,36 @@ public class IconTests
         if (err is not null) throw err;
     }
 
+    /// <summary>Simgeli açıklamada simge yazının ilk harfinin üstüne binmez (aralarında boş sütun kalır).</summary>
+    [Fact]
+    public void Caption_IconDoesNotOverlapText()
+    {
+        Exception? err = null;
+        var t = new Thread(() =>
+        {
+            try
+            {
+                using var f = new Form { ShowInTaskbar = false, StartPosition = FormStartPosition.Manual, Location = new Point(-4000, -4000), BackColor = Color.White };
+                var l = Icons.Caption(Ico.Ok, Color.Black, "chess-results", new Font("Segoe UI", 9.75f));
+                l.BackColor = Color.White; l.ForeColor = Color.Black;
+                f.Controls.Add(l);
+                f.Show();
+                using var bmp = new Bitmap(l.Width, l.Height);
+                l.DrawToBitmap(bmp, new Rectangle(0, 0, l.Width, l.Height));
+                bool Ink(int x) => Enumerable.Range(0, l.Height).Any(y => bmp.GetPixel(x, y).GetBrightness() < 0.6f);
+                int px = Icons.SizeFor(l.Font);
+                int iconEnd = Enumerable.Range(0, l.Width).Last(x => x < px + 2 && Ink(x));
+                int textStart = Enumerable.Range(iconEnd + 1, l.Width - iconEnd - 1).First(Ink);
+                Assert.True(Ink(px / 2), "simge çizilmemiş");
+                Assert.True(textStart - iconEnd >= 3, $"simge ({iconEnd}) ile yazı ({textStart}) arasında boşluk yok");
+            }
+            catch (Exception ex) { err = ex; }
+        });
+        t.SetApartmentState(ApartmentState.STA);
+        t.Start(); t.Join();
+        if (err is not null) throw err;
+    }
+
     [Theory]
     [InlineData("✓", Ico.Ok)]
     [InlineData("ℹ", Ico.Info)]

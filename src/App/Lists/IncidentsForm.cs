@@ -20,7 +20,7 @@ public sealed record IncidentsContext(
 /// Tutanağı ve Turnuva Sonu Raporu ({{ceza.…}}, {{itiraz.…}}, CEZA_SAYISI, ITIRAZ_SAYISI) bunlarla dolar.
 /// Kategori, tur ve masa girilince sporcu eşleştirmeden önerilir ("⇄" ile beyaz / siyah değişir).
 /// </summary>
-public sealed class IncidentsForm : Form
+public sealed class IncidentsForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);
@@ -41,7 +41,7 @@ public sealed class IncidentsForm : Form
     };
 
     private readonly IncidentsContext _ctx;
-    private readonly DataGridView _grid = new();
+    private readonly DataGridView _grid = new() { AccessibleName = "Ceza ve itiraz kayıtları" };
     private readonly Label _status = new() { AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(10, 11, 0, 0) };
     private readonly Label _hint = new() { AutoSize = true, ForeColor = Color.FromArgb(95, 122, 70), Margin = new Padding(14, 11, 0, 0) };
     private bool _loading;
@@ -92,12 +92,12 @@ public sealed class IncidentsForm : Form
         foreach (var c in _ctx.Categories) cat.Items.Add(c);
         _grid.Columns.Add(cat);
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Masa", HeaderText = "Masa", Width = 50 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Sporcu", HeaderText = "Sporcu / itiraz eden", Width = 190 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Sporcu", HeaderText = "Sporcu / itiraz eden", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 120, MinimumWidth = 130 });
         _grid.Columns.Add(new DataGridViewButtonColumn { Name = "Swap", HeaderText = "", Text = "⇄", UseColumnTextForButtonValue = true, Width = 34, FlatStyle = FlatStyle.Flat });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Hamle", HeaderText = "Hamle", Width = 56 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Neden", HeaderText = "Ceza nedeni / itirazın konusu", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, MinimumWidth = 160 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Karar", HeaderText = "Verilen ceza / karar", Width = 170 });
-        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Hakem", HeaderText = "Hakem", Width = 140 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Neden", HeaderText = "Ceza nedeni / itirazın konusu", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 160, MinimumWidth = 140 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Karar", HeaderText = "Verilen ceza / karar", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 110, MinimumWidth = 110 });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Hakem", HeaderText = "Hakem", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill, FillWeight = 80, MinimumWidth = 90 });
         foreach (var c in new[] { "Neden", "Karar" }) _grid.Columns[c]!.DefaultCellStyle.WrapMode = DataGridViewTriState.True;
         foreach (var c in new[] { "Tarih", "Saat", "Round", "Masa", "Hamle" }) _grid.Columns[c]!.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         new ToolTip().SetToolTip(_grid, "Satırı silmek için seçip Delete tuşuna basın.");

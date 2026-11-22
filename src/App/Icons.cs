@@ -110,6 +110,8 @@ public static class Icons
                 b.TextImageRelation = TextImageRelation.Overlay;
                 b.ImageAlign = ContentAlignment.MiddleCenter;
                 b.Image = Render(s.Icon, px, c);
+                // yazısız düğme ekran okuyucuda ve otomasyonda adsız kalmasın (Axe.Windows: NameNotNull)
+                if (string.IsNullOrEmpty(b.AccessibleName)) b.AccessibleName = SpokenName(s.Icon);
                 return;
             }
             // Sabit genişlikte düğme: WinForms'un "simge yazının önünde" yerleşimi simge+yazı bloğunu ortalamaz
@@ -142,6 +144,17 @@ public static class Icons
         finally { _applying = false; }
     }
 
+    /// <summary>Yalnız simgeli düğmenin okunacak adı (pencere daha açıklayıcı bir ad vermediyse).</summary>
+    internal static string SpokenName(Ico icon) => icon switch
+    {
+        Ico.Close => "Kaldır",
+        Ico.ChevronLeft => "Önceki sayfa",
+        Ico.ChevronRight => "Sonraki sayfa",
+        Ico.Refresh => "Yenile",
+        Ico.Reset => "Varsayılana dön",
+        _ => icon.ToString()
+    };
+
     private static bool IsCenter(ContentAlignment a)
         => a is ContentAlignment.MiddleCenter or ContentAlignment.TopCenter or ContentAlignment.BottomCenter;
 
@@ -151,14 +164,38 @@ public static class Icons
     /// <summary>Simgeli küçük açıklama yazısı (ör. tablo işaretlerinin anlamı).</summary>
     public static Label Caption(Ico icon, Color color, string text, Font? font = null)
     {
-        var l = new Label { AutoSize = true, Text = text, ForeColor = Color.DimGray, Margin = new Padding(0, 0, 14, 0) };
+        var l = new CaptionLabel(icon, color) { AutoSize = true, Text = text, ForeColor = Color.DimGray, Margin = new Padding(0, 0, 14, 0) };
         if (font is not null) l.Font = font;
-        int px = SizeFor(l.Font);
-        l.Image = Render(icon, px, color);
-        l.ImageAlign = ContentAlignment.MiddleLeft;
-        l.TextAlign = ContentAlignment.MiddleRight;
-        l.Padding = new Padding(px + 3, 0, 0, 0);
         return l;
+    }
+
+    /// <summary>
+    /// Simgeli açıklama: simge sol iç boşluğa çizilir, yazı ondan sonra başlar. (Label.Image iç boşluğun
+    /// içine, yazının başladığı yere çizildiğinden simge ilk harfin üstüne biniyordu.)
+    /// </summary>
+    private sealed class CaptionLabel : Label
+    {
+        private readonly Ico _icon;
+        private readonly Color _color;
+
+        public CaptionLabel(Ico icon, Color color)
+        {
+            _icon = icon; _color = color;
+            UpdatePadding();
+        }
+
+        private int IconPx => SizeFor(Font);
+
+        private void UpdatePadding() => Padding = new Padding(IconPx + Math.Max(3, IconPx / 3), 0, 0, 0);
+
+        protected override void OnFontChanged(EventArgs e) { UpdatePadding(); base.OnFontChanged(e); }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            base.OnPaint(e);
+            int px = IconPx;
+            e.Graphics.DrawImage(Render(_icon, px, _color), 0, (ClientSize.Height - px) / 2, px, px);
+        }
     }
 
     /// <summary>

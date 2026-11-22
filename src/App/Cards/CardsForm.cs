@@ -20,7 +20,7 @@ public sealed record CardsContext(
 /// korunur, kırpma aracıyla yuvaya göre kırpılabilir), altta büyük kategori adı. Adet varsayılan
 /// olarak kategorideki masa sayısıdır.
 /// </summary>
-public sealed class CardsForm : Form
+public sealed class CardsForm : AppForm
 {
     private static readonly Color Green = Color.FromArgb(118, 150, 86);
     private static readonly Color GreenDark = Color.FromArgb(95, 122, 70);
@@ -38,7 +38,7 @@ public sealed class CardsForm : Form
     private readonly Button _btnCrop = Icons.Set(new Button { Text = "Kırp…", AutoSize = true, Height = 32 }, Ico.Crop);
     private readonly Button _btnLogoClear = new() { Text = "Kaldır", AutoSize = true, Height = 32 };
     private readonly PictureBox _picPreview = new() { SizeMode = PictureBoxSizeMode.Zoom, Dock = DockStyle.Fill };
-    private readonly DataGridView _grid = new();
+    private readonly DataGridView _grid = new() { AccessibleName = "Kategoriler" };
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray };
     private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 150, Height = 40 }, Ico.Pdf);
     private readonly Button _btnPrint = Icons.Set(new Button { Text = "Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Print);

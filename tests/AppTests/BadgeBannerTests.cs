@@ -97,7 +97,16 @@ public class BadgeBannerTests
         using var poster = Solid(1600, 900, Color.FromArgb(200, 30, 30));
         using var photoMode = Render(banner: false, poster);   // fotoğraf modunda afiş kullanılmaz
         Assert.NotEqual(Color.FromArgb(200, 30, 30).ToArgb(), At(photoMode, 47.5f, 50).ToArgb());
-        Assert.Equal(Color.White.ToArgb(), At(empty, 47.5f, 30).ToArgb());
+        // Afiş yokken kutu boş (beyaz) kalır. Kutunun ortasında "AFİŞ / TURNUVA BİLGİSİ" yazısı var: tam ortadaki
+        // piksel harf kenarındaki ClearType izine bazen değdiğinden (aralıklı başarısızlık) yazıdan uzak noktalara bakılır.
+        foreach (var (x, y) in new[] { (20f, 12f), (75f, 12f), (20f, 42f), (75f, 42f) })
+            Assert.Equal(Color.White.ToArgb(), At(empty, x, y).ToArgb());
+        // ...ve yer tutucu yazı gerçekten çizilmiş (kutunun orta şeridinde gri mürekkep var)
+        bool ink = false;
+        for (float x = 20; x < 75 && !ink; x += 0.25f)
+            for (float y = 25; y < 35 && !ink; y += 0.25f)
+                ink = At(empty, x, y).GetBrightness() < 0.8f;
+        Assert.True(ink, "afiş yer tutucusu yazısı yok");
     }
 
     [Fact]

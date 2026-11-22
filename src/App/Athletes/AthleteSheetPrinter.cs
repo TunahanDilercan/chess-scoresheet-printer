@@ -20,7 +20,7 @@ public sealed record AthleteImages(Image? Banner, Image? PlateBanner, Image? Log
 /// </list>
 /// Kartlar arasına ince kesim çizgisi, ızgara dışına köşe işaretleri konur.
 /// </summary>
-public sealed class AthleteSheetPrinter
+public sealed class AthleteSheetPrinter : IDisposable
 {
     public const float Mm = 72f / 25.4f;
     private const float PageW = 595.28f, PageH = 841.89f;
@@ -57,14 +57,87 @@ public sealed class AthleteSheetPrinter
 
     private PointF Origin => new((PageW - Cols * CardW) / 2, (PageH - Rows * CardH) / 2);
 
+    /// <summary>
+    /// Kart çizimleri bu kilitle yapılır: aynı görsel ve yazı tipi nesneleri arka planda PDF hazırlanırken
+    /// pencerede önizleme de çizebilir (GDI+ nesneleri aynı anda iki iş parçacığında kullanılamaz).
+    /// </summary>
+    internal static readonly object RenderLock = new();
+
+    // ================= Görseller: baskı boyutuna bir kez küçültülür =================
+    private const float PrintDpi = 300f;
+    private AthleteImages? _scaled;
+    private readonly List<Image> _owned = new();
+
+    /// <summary>
+    /// Çizimde kullanılan görseller: afiş ve logolar kartta basılacakları boyuta (300 dpi) bir kez küçültülür.
+    /// Telefon fotoğrafı ya da 2400 piksellik afiş her kartta yeniden küçültülünce 120 kartlık önizleme ve PDF
+    /// saniyelerce sürüyordu; küçültülmüş kopyayla çizim birkaç kat hızlı, baskı kalitesi aynı.
+    /// </summary>
+    internal AthleteImages Images
+    {
+        get
+        {
+            if (_scaled is not null) return _scaled;
+            lock (RenderLock)
+            {
+                int Px(float mm) => (int)Math.Ceiling(mm / 25.4f * PrintDpi);
+                // isimlikte afiş şeridi kaplarken %35'e kadar taşabilir: o kadar pay bırakılır
+                return _scaled = ScaledCopy(_img, IsPlate ? (int)(Px(190) * 1.35f) : Px(95), (int)(Px(190) * 1.35f), Px(24), _owned);
+            }
+        }
+    }
+
+    /// <summary>
+    /// Görsellerin küçültülmüş kopyaları (afiş en çok <paramref name="bannerPx"/>, isimlik şeridi
+    /// <paramref name="platePx"/> genişlikte, logolar <paramref name="logoPx"/> kare içinde). Kopyalar her zaman
+    /// yenidir ve <paramref name="owned"/>'a eklenir: asıl görseller pencerede kapatılsa da kopyalar kullanılabilir.
+    /// </summary>
+    internal static AthleteImages ScaledCopy(AthleteImages src, int bannerPx, int platePx, int logoPx, List<Image> owned)
+        => new(Shrink(src.Banner, bannerPx, int.MaxValue, owned), Shrink(src.PlateBanner, platePx, int.MaxValue, owned),
+               Shrink(src.Logo1, logoPx, logoPx, owned), Shrink(src.Logo2, logoPx, logoPx, owned));
+
+    /// <summary>Görseli en çok <paramref name="maxW"/>×<paramref name="maxH"/> piksele küçültülmüş (oran korunur) yeni bir kopya.</summary>
+    private static Image? Shrink(Image? src, int maxW, int maxH, List<Image> owned)
+    {
+        if (src is null) return null;
+        float s = Math.Min(1f, Math.Min(maxW / (float)src.Width, maxH / (float)src.Height));
+        int w = Math.Max(1, (int)Math.Round(src.Width * s)), h = Math.Max(1, (int)Math.Round(src.Height * s));
+        var bmp = new Bitmap(w, h, System.Drawing.Imaging.PixelFormat.Format32bppPArgb);
+        bmp.SetResolution(PrintDpi, PrintDpi);
+        using (var g = Graphics.FromImage(bmp))
+        using (var attr = new System.Drawing.Imaging.ImageAttributes())
+        {
+            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.CompositingQuality = CompositingQuality.HighQuality;
+            attr.SetWrapMode(WrapMode.TileFlipXY);   // kenarlarda koyu sızıntı olmasın
+            g.DrawImage(src, new Rectangle(0, 0, w, h), 0, 0, src.Width, src.Height, GraphicsUnit.Pixel, attr);
+        }
+        owned.Add(bmp);
+        return bmp;
+    }
+
+    /// <summary>Küçültülmüş görselleri bırakır (önizleme/PDF bitince).</summary>
+    public void Dispose()
+    {
+        lock (RenderLock)
+        {
+            foreach (var i in _owned) i.Dispose();
+            _owned.Clear();
+            _scaled = null;
+        }
+    }
+
     // ================= Önizleme, yazıcı, PDF =================
     public bool PrintWithPreview(IWin32Window owner)
     {
-        using var doc = BuildDocument();
-        if (PrintRouter.IsSilent) return PrintRouter.Print(doc, owner, PreparePaper);
+        if (PrintRouter.IsSilent) { using var direct = BuildDocument(); return PrintRouter.Print(direct, owner, PreparePaper); }
         var what = IsPlate ? "isimlik" : "yaka kartı";
-        return PreviewDialog.Show(owner, doc, PageCount, $"{CardCount} {what} • {PageCount} sayfa A4 • {Cols}×{Rows} dizilim",
-                                  f => PrintRouter.Print(doc, f, PreparePaper));
+        // Önizleme yalnız görünen sayfayı çizer; belge ancak "Yazdır"a basılınca hazırlanır.
+        return PagePreviewDialog.Show(owner, $"{_eventName} - sporcu {(IsPlate ? "isimlikleri" : "yaka kartları")}", PageCount,
+                                      new SizeF(PageW, PageH), (g, p) => { Prepare(g); DrawPage(g, p); },
+                                      $"{CardCount} {what} • {PageCount} sayfa A4 • {Cols}×{Rows} dizilim",
+                                      f => { using var doc = BuildDocument(); return PrintRouter.Print(doc, f, PreparePaper); });
     }
 
     private static bool PreparePaper(PrintDocument doc, IWin32Window owner)
@@ -100,8 +173,10 @@ public sealed class AthleteSheetPrinter
         return doc;
     }
 
-    public void SavePdf(string path)
-        => GdiPdf.Save(path, Enumerable.Range(0, PageCount).ToList(), PageW, PageH, (g, p) => { Prepare(g); DrawPage(g, p); }, dpi: 300);
+    /// <summary>PDF (300 dpi). Arka planda çalıştırılabilir; ilerleme sayfa sayısıyla bildirilir.</summary>
+    public void SavePdf(string path, IProgress<(int Done, int Total)>? progress = null, CancellationToken ct = default)
+        => GdiPdf.Save(path, Enumerable.Range(0, PageCount).ToList(), PageW, PageH, (g, p) => { Prepare(g); DrawPage(g, p); },
+                       dpi: 300, format: GdiPdf.PageFormat.Photo, progress: progress, ct: ct);
 
     public static void Prepare(Graphics g)
     {
@@ -113,16 +188,20 @@ public sealed class AthleteSheetPrinter
 
     public void DrawPage(Graphics g, int page)
     {
-        var o = Origin;
-        int start = page * PerPage, n = Math.Min(PerPage, _items.Count - start);
-        for (int i = 0; i < n; i++)
+        var img = Images;
+        lock (RenderLock)
         {
-            int r = i / Cols, c = i % Cols;
-            var rect = new RectangleF(o.X + c * CardW, o.Y + r * CardH, CardW, CardH);
-            if (IsPlate) DrawPlate(g, rect, _items[start + i], _cfg, _img);
-            else DrawBadge(g, rect, _items[start + i], _cfg, _img);
+            var o = Origin;
+            int start = page * PerPage, n = Math.Min(PerPage, _items.Count - start);
+            for (int i = 0; i < n; i++)
+            {
+                int r = i / Cols, c = i % Cols;
+                var rect = new RectangleF(o.X + c * CardW, o.Y + r * CardH, CardW, CardH);
+                if (IsPlate) DrawPlate(g, rect, _items[start + i], _cfg, img);
+                else DrawBadge(g, rect, _items[start + i], _cfg, img);
+            }
+            DrawCutLines(g, o, (n + Cols - 1) / Cols);
         }
-        DrawCutLines(g, o, (n + Cols - 1) / Cols);
     }
 
     private void DrawCutLines(Graphics g, PointF o, int rows)

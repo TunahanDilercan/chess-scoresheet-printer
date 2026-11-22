@@ -8,7 +8,7 @@ namespace NotasyonOtomasyonu.App.TemplateDesigner;
 /// Hazır notasyon kağıdı şablonu tasarımcısı: boş kağıt görselini yükle, alan kutularını
 /// sürükleyip boyutlandır, yazıların sığması için font/kısaltma kurallarını ayarla, kaydet.
 /// </summary>
-public sealed class TemplateDesignerForm : Form
+public sealed class TemplateDesignerForm : AppForm
 {
     private readonly OverlayTemplate _tpl;
     private readonly string _pageSize;

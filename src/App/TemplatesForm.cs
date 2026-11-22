@@ -9,7 +9,7 @@ namespace NotasyonOtomasyonu.App;
 /// Kullanıcı düzenleyebilir, yeni ekleyebilir, çoğaltabilir, silebilir ve etkin yapabilir.
 /// Etkin şablon = <see cref="AppConfig.Overlay"/>.
 /// </summary>
-public sealed class TemplatesForm : Form
+public sealed class TemplatesForm : AppForm
 {
     private readonly AppConfig _cfg;
     private readonly Func<(string Size, double X, double Y)> _print;   // kağıt boyutu ve yazıcı kaydırması
@@ -200,7 +200,7 @@ public sealed class TemplatesForm : Form
 
     private static string? Prompt(string label, string def)
     {
-        using var f = new Form
+        using var f = new AppForm
         {
             Text = "Şablon Adı", FormBorderStyle = FormBorderStyle.FixedDialog,
             StartPosition = FormStartPosition.CenterParent, MaximizeBox = false, MinimizeBox = false,

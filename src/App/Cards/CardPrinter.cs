@@ -193,6 +193,7 @@ public sealed class CardPrinter
         var (gsb, tsf) = _branding.Load(1200);
         using (gsb) using (tsf)
             GdiPdf.Save(path, _pages, _layout.PageW, _layout.PageH,
-                        (g, card) => Draw(g, _layout, card, logo, _eventName, _font, _filled, _fullWidth, _bandPt, _branding, gsb, tsf));
+                        (g, card) => Draw(g, _layout, card, logo, _eventName, _font, _filled, _fullWidth, _bandPt, _branding, gsb, tsf),
+                        format: GdiPdf.PageFormat.Photo);
     }
 }

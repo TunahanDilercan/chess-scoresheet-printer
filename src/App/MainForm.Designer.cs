@@ -218,7 +218,7 @@ partial class MainForm
 
         // Eşleştirmeleri yeniden çek (F5) — chess-results'ta değişiklik olduysa.
         btnSync.Location = new System.Drawing.Point(460, 120); btnSync.Size = new System.Drawing.Size(56, 38);
-        btnSync.Text = "";
+        btnSync.Text = ""; btnSync.AccessibleName = "Eşleştirmeleri yenile (F5)";
         btnSync.Font = new System.Drawing.Font("Segoe UI", 12F);
         btnSync.BackColor = green; btnSync.ForeColor = System.Drawing.Color.White; btnSync.FlatStyle = FlatStyle.Flat;
         btnSync.FlatAppearance.BorderColor = greenDark;
@@ -320,7 +320,8 @@ partial class MainForm
         dgvPairings.AllowUserToDeleteRows = false;
         dgvPairings.AllowUserToResizeRows = false;
         dgvPairings.RowHeadersVisible = false;
-        dgvPairings.ShowCellToolTips = false;
+        dgvPairings.AccessibleName = "Basılacak masalar";
+        dgvPairings.ShowCellToolTips = true;   // sığmayan ad/il üzerine gelince tam görünür
         dgvPairings.SelectionMode = DataGridViewSelectionMode.FullRowSelect;
         dgvPairings.MultiSelect = true;
         dgvPairings.BackgroundColor = System.Drawing.Color.White;
@@ -336,17 +337,19 @@ partial class MainForm
         dgvPairings.DefaultCellStyle.ForeColor = System.Drawing.Color.Black;
         dgvPairings.DefaultCellStyle.SelectionBackColor = System.Drawing.Color.FromArgb(224, 231, 216);
         dgvPairings.DefaultCellStyle.SelectionForeColor = System.Drawing.Color.Black;
-        dgvPairings.Columns.Add(new DataGridViewCheckBoxColumn { Name = "colPrint", HeaderText = "Bas", FillWeight = 9 });
-        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBoard", HeaderText = "Masa", FillWeight = 11, ReadOnly = true });
-        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWhite", HeaderText = "Beyaz", FillWeight = 30, ReadOnly = true });
-        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWRtg", HeaderText = "ELO", FillWeight = 10, ReadOnly = true });
-        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWIl", HeaderText = "İl", FillWeight = 12, ReadOnly = true });
-        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBlack", HeaderText = "Siyah", FillWeight = 30, ReadOnly = true });
-        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBRtg", HeaderText = "ELO", FillWeight = 10, ReadOnly = true });
-        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBIl", HeaderText = "İl", FillWeight = 12, ReadOnly = true });
+        // Adlar kalan bütün genişliği alır; numara, puan ve il sütunları içerikleri kadar (adlar kesilmesin).
+        var fit = DataGridViewAutoSizeColumnMode.DisplayedCells;
+        dgvPairings.Columns.Add(new DataGridViewCheckBoxColumn { Name = "colPrint", HeaderText = "Bas", AutoSizeMode = DataGridViewAutoSizeColumnMode.ColumnHeader });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBoard", HeaderText = "Masa", AutoSizeMode = fit, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWhite", HeaderText = "Beyaz", FillWeight = 50, MinimumWidth = 90, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWRtg", HeaderText = "ELO", AutoSizeMode = fit, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colWIl", HeaderText = "İl", AutoSizeMode = fit, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBlack", HeaderText = "Siyah", FillWeight = 50, MinimumWidth = 90, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBRtg", HeaderText = "ELO", AutoSizeMode = fit, ReadOnly = true });
+        dgvPairings.Columns.Add(new DataGridViewTextBoxColumn { Name = "colBIl", HeaderText = "İl", AutoSizeMode = fit, ReadOnly = true });
 
         btnSelectAll.Location = new System.Drawing.Point(10, 430); btnSelectAll.Size = new System.Drawing.Size(90, 26);
-        btnSelectAll.Text = "Tümü"; Icons.Set(btnSelectAll, Ico.CheckAll); btnSelectAll.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        btnSelectAll.Text = "Tümü"; btnSelectAll.AccessibleName = "Bütün masaları işaretle"; btnSelectNone.AccessibleName = "Hiçbir masayı işaretleme"; Icons.Set(btnSelectAll, Ico.CheckAll); btnSelectAll.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         btnSelectAll.Click += btnSelectAll_Click;
         btnSelectNone.Location = new System.Drawing.Point(104, 430); btnSelectNone.Size = new System.Drawing.Size(90, 26);
         btnSelectNone.Text = "Hiçbiri"; Icons.Set(btnSelectNone, Ico.CheckNone); btnSelectNone.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;

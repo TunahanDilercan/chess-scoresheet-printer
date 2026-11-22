@@ -14,7 +14,7 @@ internal static class PreviewDialog
     public static bool Show(IWin32Window owner, PrintDocument doc, int pageCount, string hint, Func<IWin32Window, bool> print)
     {
         bool printed = false;
-        using var form = new Form
+        using var form = new AppForm
         {
             Text = $"Yazdırma Önizleme — {doc.DocumentName}",
             StartPosition = FormStartPosition.CenterParent,
