@@ -10,9 +10,12 @@ internal static class WindowFit
     public static void FitToScreen(this Form form) => form.Load += (_, _) => Fit(form);
 
     /// <summary>Pencereyi hemen ekrana sığdırır (gerekirse küçültüp ortalar).</summary>
+    /// <summary>Denemeler için ekranın çalışma alanı (ör. 1366×728 dizüstü); verilmezse gerçek ekran.</summary>
+    [ThreadStatic] internal static Rectangle? TestWorkingArea;
+
     public static void Fit(Form form)
     {
-        var wa = (form.Owner is { } owner ? Screen.FromControl(owner) : Screen.FromPoint(Cursor.Position)).WorkingArea;
+        var wa = TestWorkingArea ?? (form.Owner is { } owner ? Screen.FromControl(owner) : Screen.FromPoint(Cursor.Position)).WorkingArea;
         int maxW = (int)(wa.Width * 0.94), maxH = (int)(wa.Height * 0.94);
         form.MinimumSize = new Size(Math.Min(form.MinimumSize.Width, maxW), Math.Min(form.MinimumSize.Height, maxH));
         if (form.Width <= maxW && form.Height <= maxH && wa.Contains(form.Bounds)) return;

@@ -82,6 +82,8 @@ public class DpiScalingTests : IDisposable
                     try
                     {
                         UiScale.Override = fixScale ? factor : 1f;
+                        // makineden bağımsız ekran: %100 yaygın 1366×768 dizüstü, %125–150 1920×1080 (görev çubuğu hariç)
+                        WindowFit.TestWorkingArea = factor <= 1.01f ? new Rectangle(0, 0, 1366, 728) : new Rectangle(0, 0, 1920, 1040);
                         using var f = make();
                         SimulateSystemFonts(f, factor);
                         f.StartPosition = FormStartPosition.Manual;

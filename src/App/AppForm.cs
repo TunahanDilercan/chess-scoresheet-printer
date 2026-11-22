@@ -19,10 +19,11 @@ public class AppForm : Form
             if (f > 1.01f)
             {
                 UiScale.Apply(this, f);
-                WindowFit.Fit(this);
                 if (StartPosition == FormStartPosition.CenterParent && Owner is not null) CenterToParent();
                 else if (StartPosition is FormStartPosition.CenterScreen or FormStartPosition.CenterParent) CenterToScreen();
             }
+            // her ölçekte: ekrandan büyük pencere (ör. 1366×768 dizüstü) ekrana sığdırılıp ortalanır
+            WindowFit.Fit(this);
             UiScale.FitDockedLabels(this);
             UiScale.FitGridHeaders(this);
         }
