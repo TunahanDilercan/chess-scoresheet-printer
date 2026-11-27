@@ -1,4 +1,4 @@
-# Chess Scoresheet Printer
+# Chess Scoresheet Printer (Notasyon Yazdırıcı)
 
 [Türkçe](README.md) | English
 

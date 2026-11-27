@@ -1,4 +1,4 @@
-# Chess Scoresheet Printer
+# Notasyon Yazdırıcı (Chess Scoresheet Printer)
 
 Türkçe | [English](README.en.md)
 
@@ -7,7 +7,7 @@ Türkçe | [English](README.en.md)
 
 **İndir:** [tunahandilercan.github.io/chess-scoresheet-printer](https://tunahandilercan.github.io/chess-scoresheet-printer/) • Windows 10 ve 11 (64 bit)
 
-Chess Scoresheet Printer, turnuva eşleştirme bilgilerini hazır basılı satranç notasyon kâğıtlarına yerleştirmek ve yazdırmak için hazırlanmış bir Windows masaüstü aracıdır. Chess-Results ve Swiss-Manager çıktılarıyla çalışır.
+Notasyon Yazdırıcı (Chess Scoresheet Printer), Tunahan Dilercan tarafından geliştirilen ve turnuva eşleştirme bilgilerini hazır basılı satranç notasyon kâğıtlarına yerleştirmek ve yazdırmak için hazırlanmış bir Windows masaüstü aracıdır. Chess-Results ve Swiss-Manager çıktılarıyla çalışır.
 
 Uygulama, iki TSF il temsilciliğinde yürütülen turnuvalarda kullanılmaktadır. Bağımsız bir projedir ve Türkiye Satranç Federasyonunun resmî uygulaması değildir.
 

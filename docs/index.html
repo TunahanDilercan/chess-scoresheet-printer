@@ -3,12 +3,35 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Chess Scoresheet Printer</title>
-<meta name="description" content="Satranç turnuvaları için notasyon kâğıdı, hakem eşleştirme kağıdı, yaka kartı ve masa kartı yazdırma aracı. Windows için ücretsiz.">
-<meta property="og:title" content="Chess Scoresheet Printer">
-<meta property="og:description" content="Satranç turnuvaları için notasyon kâğıdı, hakem kağıdı, yaka kartı ve masa kartı yazdırma aracı.">
+<title>Notasyon Yazdırıcı – Tunahan Dilercan | Satranç notasyon kâğıdı yazdırma programı</title>
+<meta name="description" content="Notasyon Yazdırıcı: Tunahan Dilercan'ın geliştirdiği ücretsiz Windows programı. Satranç turnuvalarında chess-results eşleştirmelerini notasyon kâğıdına, hakem eşleştirme kağıdına, yaka kartına ve masa kartına yazdırır.">
+<meta name="author" content="Tunahan Dilercan">
+<link rel="canonical" href="https://tunahandilercan.github.io/chess-scoresheet-printer/">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:site_name" content="Notasyon Yazdırıcı">
+<meta property="og:url" content="https://tunahandilercan.github.io/chess-scoresheet-printer/">
+<meta property="og:title" content="Notasyon Yazdırıcı – Tunahan Dilercan">
+<meta property="og:description" content="Satranç turnuvaları için notasyon kâğıdı, hakem kağıdı, yaka kartı ve masa kartı yazdırma programı. Windows için ücretsiz.">
 <meta property="og:image" content="https://tunahandilercan.github.io/chess-scoresheet-printer/images/main-window.png">
 <link rel="icon" href="images/icon.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Notasyon Yazdırıcı",
+  "alternateName": ["Notasyon Kâğıdı Yazdırıcı", "Notasyon Yazdirici", "Chess Scoresheet Printer"],
+  "description": "Satranç turnuvaları için notasyon kâğıdı, hakem eşleştirme kağıdı, yaka kartı ve masa kartı yazdırma programı.",
+  "applicationCategory": "UtilitiesApplication",
+  "operatingSystem": "Windows 10, Windows 11",
+  "inLanguage": "tr",
+  "url": "https://tunahandilercan.github.io/chess-scoresheet-printer/",
+  "downloadUrl": "https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Setup.exe",
+  "screenshot": "https://tunahandilercan.github.io/chess-scoresheet-printer/images/main-window.png",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
+  "author": { "@type": "Person", "name": "Tunahan Dilercan", "url": "https://github.com/TunahanDilercan" }
+}
+</script>
 <style>
   :root {
     --bg: #f6f6f2; --surface: #ffffff; --text: #1f2a1a; --muted: #5d6656; --line: #dfe2d8;
@@ -65,25 +88,26 @@
 <body>
 <div class="wrap">
   <header>
-    <a class="brand" href="./"><img src="images/icon.png" alt="" width="32" height="32">Chess Scoresheet Printer</a>
+    <a class="brand" href="./"><img src="images/icon.png" alt="" width="32" height="32">Notasyon Yazdırıcı</a>
   </header>
 
   <div class="hero">
     <div>
-      <h1>Satranç turnuvaları için yazdırma aracı</h1>
-      <p class="lead">Eşleştirmeleri chess-results'tan alır; notasyon kâğıtlarını, hakem eşleştirme kağıtlarını, yaka kartlarını ve masa kartlarını hazırlayıp yazdırır.</p>
+      <h1>Notasyon Yazdırıcı</h1>
+      <p class="lead">Satranç turnuvaları için yazdırma programı. Eşleştirmeleri chess-results'tan alır; notasyon kâğıtlarını, hakem eşleştirme kağıtlarını, yaka kartlarını ve masa kartlarını hazırlayıp yazdırır.</p>
       <a class="download" id="download" href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Setup.exe">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         Windows için indir
       </a>
       <p class="meta" id="meta">En son sürüm • Windows 10 ve 11 (64 bit) • Ücretsiz</p>
+      <p class="meta">Geliştiren: Tunahan Dilercan</p>
       <p class="alt">
         <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Portable.zip">Taşınabilir sürüm (ZIP, kurulumsuz)</a>
         <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases">Sürüm notları</a>
         <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer">Kaynak kod</a>
       </p>
     </div>
-    <img class="shot" src="images/main-window.png" width="1074" height="752" alt="Programın ana penceresi: basılacak masalar listesi ve Yazdır düğmesi">
+    <img class="shot" src="images/main-window.png" width="1074" height="752" alt="Notasyon Yazdırıcı ana penceresi: basılacak masalar listesi ve Yazdır düğmesi">
   </div>
 
   <div class="note">
@@ -121,14 +145,14 @@
     <h2>Kurulum</h2>
     <ol class="steps">
       <li>Yukarıdaki <b>Windows için indir</b> düğmesiyle kurulum dosyasını indirin.</li>
-      <li>Dosyayı açın. Program kurulur; masaüstüne ve Başlat menüsüne kısayol eklenir.</li>
+      <li>Dosyayı açın. Program kurulur; masaüstüne ve Başlat menüsüne "Chess Scoresheet Printer" kısayolu eklenir.</li>
       <li>Yeni sürümler program içinden bildirilir ve yalnızca değişen kısımlar indirilir. Ayarlarınız ve şablonlarınız güncellemede korunur.</li>
     </ol>
     <p class="meta">Programı kaldırmak için: Ayarlar → Uygulamalar → Chess Scoresheet Printer → Kaldır.</p>
   </section>
 
   <footer>
-    <p>Chess Scoresheet Printer bağımsız bir projedir; Türkiye Satranç Federasyonunun resmî uygulaması değildir.</p>
+    <p>Notasyon Yazdırıcı (Chess Scoresheet Printer), Tunahan Dilercan tarafından geliştirilen bağımsız bir projedir; Türkiye Satranç Federasyonunun resmî uygulaması değildir.</p>
     <p><a href="https://github.com/TunahanDilercan/chess-scoresheet-printer">GitHub</a> • <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/issues">Sorun bildir</a></p>
   </footer>
 </div>
