@@ -5,7 +5,7 @@ Türkçe | [English](README.en.md)
 [![CI](https://github.com/TunahanDilercan/chess-scoresheet-printer/actions/workflows/ci.yml/badge.svg)](https://github.com/TunahanDilercan/chess-scoresheet-printer/actions/workflows/ci.yml)
 [![Sürüm](https://img.shields.io/github/v/release/TunahanDilercan/chess-scoresheet-printer?label=s%C3%BCr%C3%BCm)](https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest)
 
-**İndir:** [tunahandilercan.github.io/chess-scoresheet-printer](https://tunahandilercan.github.io/chess-scoresheet-printer/) • Windows 10 ve 11 (64 bit)
+**İndir:** [tunahandilercan.com.tr/chess-scoresheet-printer](https://www.tunahandilercan.com.tr/chess-scoresheet-printer/) • Windows 10 ve 11 (64 bit)
 
 Notasyon Yazdırıcı (Chess Scoresheet Printer), Tunahan Dilercan tarafından geliştirilen ve turnuva eşleştirme bilgilerini hazır basılı satranç notasyon kâğıtlarına yerleştirmek ve yazdırmak için hazırlanmış bir Windows masaüstü aracıdır. Chess-Results ve Swiss-Manager çıktılarıyla çalışır.
 
