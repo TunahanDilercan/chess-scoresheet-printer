@@ -5,6 +5,8 @@
 [![CI](https://github.com/TunahanDilercan/chess-scoresheet-printer/actions/workflows/ci.yml/badge.svg)](https://github.com/TunahanDilercan/chess-scoresheet-printer/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/TunahanDilercan/chess-scoresheet-printer)](https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest)
 
+**Download:** [tunahandilercan.github.io/chess-scoresheet-printer](https://tunahandilercan.github.io/chess-scoresheet-printer/) • Windows 10 and 11 (64-bit)
+
 Chess Scoresheet Printer is a Windows desktop tool for placing tournament pairing information on pre-printed chess scoresheets. It works with Chess-Results and Swiss-Manager exports.
 
 The application is used at tournaments run by two provincial organizations of the Turkish Chess Federation. It is an independent project and is not an official application of the federation.

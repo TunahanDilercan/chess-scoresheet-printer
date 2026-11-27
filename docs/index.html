@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chess Scoresheet Printer</title>
+<meta name="description" content="Satranç turnuvaları için notasyon kâğıdı, hakem eşleştirme kağıdı, yaka kartı ve masa kartı yazdırma aracı. Windows için ücretsiz.">
+<meta property="og:title" content="Chess Scoresheet Printer">
+<meta property="og:description" content="Satranç turnuvaları için notasyon kâğıdı, hakem kağıdı, yaka kartı ve masa kartı yazdırma aracı.">
+<meta property="og:image" content="https://tunahandilercan.github.io/chess-scoresheet-printer/images/main-window.png">
+<link rel="icon" href="images/icon.png">
+<style>
+  :root {
+    --bg: #f6f6f2; --surface: #ffffff; --text: #1f2a1a; --muted: #5d6656; --line: #dfe2d8;
+    --brand: #5f7a46; --brand-dark: #4b6237; --brand-soft: #e9eee2; --note: #fff8e6; --note-line: #ecd9a6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141712; --surface: #1c2019; --text: #e8ebe4; --muted: #a4ab9c; --line: #2f352b;
+      --brand: #7d9b5f; --brand-dark: #93b173; --brand-soft: #243020; --note: #2a2618; --note-line: #4d4527;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141712; --surface: #1c2019; --text: #e8ebe4; --muted: #a4ab9c; --line: #2f352b;
+    --brand: #7d9b5f; --brand-dark: #93b173; --brand-soft: #243020; --note: #2a2618; --note-line: #4d4527;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  a { color: var(--brand-dark); }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  header { padding: 20px 0; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; text-decoration: none; color: var(--text); }
+  .brand img { width: 32px; height: 32px; }
+  .hero { display: grid; grid-template-columns: 1fr; gap: 32px; padding: 24px 0 48px; align-items: center; }
+  @media (min-width: 900px) { .hero { grid-template-columns: 5fr 6fr; } }
+  h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.15; margin: 0 0 14px; letter-spacing: -0.01em; }
+  .lead { font-size: 18px; color: var(--muted); margin: 0 0 28px; }
+  .download { display: inline-flex; align-items: center; gap: 12px; background: var(--brand); color: #fff; text-decoration: none;
+              padding: 16px 28px; border-radius: 10px; font-size: 18px; font-weight: 600; box-shadow: 0 2px 0 rgba(0,0,0,.12); }
+  .download:hover { background: var(--brand-dark); }
+  .download:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+  .download svg { width: 22px; height: 22px; flex: none; }
+  .meta { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
+  .alt { margin: 18px 0 0; font-size: 15px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+  .shot { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 12px 32px rgba(0,0,0,.12); background: #fff; }
+  .note { background: var(--note); border: 1px solid var(--note-line); border-radius: 10px; padding: 14px 18px; font-size: 15px; margin: 0 0 48px; }
+  .note strong { display: block; margin-bottom: 2px; }
+  h2 { font-size: 26px; margin: 0 0 20px; }
+  section { padding: 0 0 56px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 17px; }
+  .card p { margin: 0; color: var(--muted); font-size: 15px; }
+  .samples { display: grid; grid-template-columns: 1fr; gap: 20px; }
+  @media (min-width: 760px) { .samples { grid-template-columns: 4fr 5fr; align-items: start; } }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
+  figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+  ol.steps { margin: 0; padding-left: 22px; }
+  ol.steps li { margin-bottom: 8px; }
+  footer { border-top: 1px solid var(--line); padding: 24px 0 40px; font-size: 14px; color: var(--muted); }
+  footer p { margin: 0 0 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="./"><img src="images/icon.png" alt="" width="32" height="32">Chess Scoresheet Printer</a>
+  </header>
+
+  <div class="hero">
+    <div>
+      <h1>Satranç turnuvaları için yazdırma aracı</h1>
+      <p class="lead">Eşleştirmeleri chess-results'tan alır; notasyon kâğıtlarını, hakem eşleştirme kağıtlarını, yaka kartlarını ve masa kartlarını hazırlayıp yazdırır.</p>
+      <a class="download" id="download" href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Setup.exe">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Windows için indir
+      </a>
+      <p class="meta" id="meta">En son sürüm • Windows 10 ve 11 (64 bit) • Ücretsiz</p>
+      <p class="alt">
+        <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Portable.zip">Taşınabilir sürüm (ZIP, kurulumsuz)</a>
+        <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases">Sürüm notları</a>
+        <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer">Kaynak kod</a>
+      </p>
+    </div>
+    <img class="shot" src="images/main-window.png" width="1074" height="752" alt="Programın ana penceresi: basılacak masalar listesi ve Yazdır düğmesi">
+  </div>
+
+  <div class="note">
+    <strong>Windows uyarı gösterirse</strong>
+    Program yeni ve imzasız olduğu için Windows ilk açılışta "Bilgisayarınız korundu" uyarısı gösterebilir. Devam etmek için <b>Ek bilgi</b>, ardından <b>Yine de çalıştır</b> seçeneğine tıklayın.
+  </div>
+
+  <section>
+    <h2>Neler yapılabilir</h2>
+    <div class="grid">
+      <div class="card"><h3>Notasyon kâğıtları</h3><p>Eşleştirmeler hazır basılı kâğıtlara yerleştirilir. İsviçre, Berger ve takım turnuvaları desteklenir; tur ve kategoriye göre toplu yazdırılır.</p></div>
+      <div class="card"><h3>Hakem eşleştirme kağıtları</h3><p>İri yazılı, sonuç kutulu kağıtlar ve ceza bildirim formu. Siyah beyaz baskıya uygundur.</p></div>
+      <div class="card"><h3>Yaka kartı ve isimlik</h3><p>Sporcu, hakem ve görevli kartları. Kategori renkleri masa kartlarıyla ortaktır.</p></div>
+      <div class="card"><h3>Kategori masa kartları</h3><p>Turnuva afişi ve kategori adıyla A4 masa kartları; logo yerleşimi ayarlanabilir.</p></div>
+      <div class="card"><h3>Pano listeleri</h3><p>Eşleştirme, sonuç ve sıralama listeleri salon panosu için A4'e hazırlanır.</p></div>
+      <div class="card"><h3>Yönerge, rapor ve tutanaklar</h3><p>Turnuva bilgileriyle doldurulan hazır şablonlar; PDF, yazıcı ya da Word çıktısı.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Örnek çıktılar</h2>
+    <div class="samples">
+      <figure>
+        <img src="images/athlete-cards.png" width="560" height="792" loading="lazy" alt="A4 sayfada dört sporcu yaka kartı; her kategori kendi renginde">
+        <figcaption>Sporcu yaka kartları: her kategori kendi renginde</figcaption>
+      </figure>
+      <figure>
+        <img src="images/arbiter-sheet.png" width="720" height="589" loading="lazy" alt="Hakem eşleştirme kağıdı: masa, beyaz ve siyah oyuncular, sonuç kutuları ve ceza bildirim formu">
+        <figcaption>Hakem eşleştirme kağıdı ve ceza bildirim formu (siyah beyaz)</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Kurulum</h2>
+    <ol class="steps">
+      <li>Yukarıdaki <b>Windows için indir</b> düğmesiyle kurulum dosyasını indirin.</li>
+      <li>Dosyayı açın. Program kurulur; masaüstüne ve Başlat menüsüne kısayol eklenir.</li>
+      <li>Yeni sürümler program içinden bildirilir ve yalnızca değişen kısımlar indirilir. Ayarlarınız ve şablonlarınız güncellemede korunur.</li>
+    </ol>
+    <p class="meta">Programı kaldırmak için: Ayarlar → Uygulamalar → Chess Scoresheet Printer → Kaldır.</p>
+  </section>
+
+  <footer>
+    <p>Chess Scoresheet Printer bağımsız bir projedir; Türkiye Satranç Federasyonunun resmî uygulaması değildir.</p>
+    <p><a href="https://github.com/TunahanDilercan/chess-scoresheet-printer">GitHub</a> • <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/issues">Sorun bildir</a></p>
+  </footer>
+</div>
+<script>
+  // Sürüm numarası ve dosya boyutu GitHub'dan okunur; okunamazsa sayfa varsayılan metinle çalışır.
+  fetch("https://api.github.com/repos/TunahanDilercan/chess-scoresheet-printer/releases/latest")
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (rel) {
+      if (!rel || !rel.tag_name) return;
+      var setup = (rel.assets || []).filter(function (a) { return a.name === "ChessScoresheetPrinter-win-Setup.exe"; })[0];
+      var size = setup ? " • " + Math.round(setup.size / 1048576) + " MB" : "";
+      var date = rel.published_at ? " • " + new Date(rel.published_at).toLocaleDateString("tr-TR", { day: "numeric", month: "long", year: "numeric" }) : "";
+      document.getElementById("meta").textContent = "Sürüm " + rel.tag_name.replace(/^v/, "") + date + size + " • Windows 10 ve 11 (64 bit)";
+    })
+    .catch(function () {});
+</script>
+</body>
+</html>
