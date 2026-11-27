@@ -247,6 +247,13 @@ public partial class MainForm : Form
     /// </summary>
     private void OpenForUiTest()
     {
+        // Ekran görüntüsü/test: eşleştirme dosyasını açılışta yükler (yalnız bu ortam değişkeni verilince).
+        if (Environment.GetEnvironmentVariable("CSP_UI_FILE") is { Length: > 0 } file && File.Exists(file))
+        {
+            rbFile.Checked = true;
+            txtFile.Text = file;
+            TryPreviewFile(file);
+        }
         var name = Environment.GetEnvironmentVariable("CSP_UI_OPEN");
         if (string.IsNullOrWhiteSpace(name)) return;
         var started = DateTime.Now;

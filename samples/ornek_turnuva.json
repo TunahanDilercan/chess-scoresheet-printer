@@ -1,0 +1,18 @@
+{
+  "name": "Örnek Satranç Turnuvası 2026",
+  "location": "Isparta",
+  "roundNo": 3,
+  "date": "2026-11-28",
+  "timeControl": "60 dk + 30 sn",
+  "arbiter": "Örnek Hakem",
+  "pairings": [
+    { "board": 1, "white": { "startNo": 1, "name": "Elif Yılmaz", "rating": 1685, "club": "Isparta" }, "black": { "startNo": 5, "name": "Kerem Aksoy", "rating": 1642, "club": "Burdur" } },
+    { "board": 2, "white": { "startNo": 9, "name": "Ahmet Tunahan Dilercan", "club": "Isparta" }, "black": { "startNo": 2, "name": "Defne Arslan", "rating": 1590, "club": "Antalya" } },
+    { "board": 3, "white": { "startNo": 3, "name": "Mert Kılıç", "rating": 1560, "club": "Afyonkarahisar" }, "black": { "startNo": 11, "name": "Ece Demir", "rating": 1544, "club": "Isparta" } },
+    { "board": 4, "white": { "startNo": 12, "name": "Yusuf Koç", "club": "Denizli" }, "black": { "startNo": 4, "name": "Zeynep Aydın", "rating": 1498, "club": "Burdur" } },
+    { "board": 5, "white": { "startNo": 6, "name": "Selin Kara", "rating": 1476, "club": "Isparta" }, "black": { "startNo": 13, "name": "Emir Polat", "club": "Antalya" } },
+    { "board": 6, "white": { "startNo": 14, "name": "Bora Şimşek", "club": "Isparta" }, "black": { "startNo": 7, "name": "Duru Erdem", "rating": 1452, "club": "Konya" } },
+    { "board": 7, "white": { "startNo": 8, "name": "Nehir Çetin", "club": "Burdur" }, "black": { "startNo": 15, "name": "Alp Kurt", "club": "Isparta" } },
+    { "board": 8, "white": { "startNo": 10, "name": "Ada Taş", "club": "Antalya" }, "black": null }
+  ]
+}
