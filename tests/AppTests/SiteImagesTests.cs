@@ -55,45 +55,22 @@ public class SiteImagesTests
             var poster = Path.Combine(work, "afis.png");
             using (var bmp = Poster(1800, 1000)) bmp.Save(poster, ImageFormat.Png);
 
-            Scoresheet(work, OverlayDefaults.TsfName, Path.Combine(dir, "sample-scoresheet.png"));
             AthleteCards(poster, dir);
             TableCard(poster, Path.Combine(dir, "sample-table-card.jpg"));
+            Signs(poster, dir);
             Lists(dir);
         }
         finally { try { Directory.Delete(work, true); } catch { } }
-    }
-
-    // ---------------- Notasyon kâğıdı: varsayılan şablon + basılı kâğıdın görüntüsü
-    private static void Scoresheet(string work, string template, string outPath)
-    {
-        var cfg = new AppConfig();
-        OverlayDefaults.EnsureDefaults(cfg, work);
-        var tpl = cfg.Templates.First(t => t.Name == template);
-        var t = Round3(false);
-        var pairing = t.Pairings[1] with { Category = "12 Yaş" };   // 2. masa; kâğıda kısa kategori adı basılır
-        var sheet = OverlayLayout.SheetRects(1, "A5")[0];
-        const float dpi = 160;
-        using var page = new Bitmap((int)(sheet.Width / 72 * dpi), (int)(sheet.Height / 72 * dpi));
-        page.SetResolution(dpi, dpi);
-        using (var g = Graphics.FromImage(page))
-        {
-            g.Clear(Color.White);
-            g.PageUnit = GraphicsUnit.Point;
-            g.SmoothingMode = SmoothingMode.AntiAlias;
-            g.TextRenderingHint = TextRenderingHint.AntiAlias;
-            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            if (tpl.BackgroundImagePath is { } bgPath && File.Exists(bgPath))
-                using (var bg = Image.FromFile(bgPath)) g.DrawImage(bg, sheet.X, sheet.Y, sheet.Width, sheet.Height);
-            foreach (var placed in OverlayLayout.Place(tpl, t, pairing, sheet)) SheetPrinter.DrawPlaced(g, placed);
-        }
-        page.Save(outPath, ImageFormat.Png);
     }
 
     // ---------------- Sporcu yaka kartı ve isimlik (kategori rengiyle)
     private static void AthleteCards(string poster, string dir)
     {
         using var banner = Image.FromFile(poster);
-        var images = new AthleteImages(banner, banner, null, null);
+        // isimlik şeridi: programdaki "Afişten kırp" gibi şerit oranında (≈ 5,3:1) ayrı görsel
+        var plateCfg0 = new AthleteCardConfig { Kind = AthleteCardConfig.Plate };
+        using var strip = Poster(2120, (int)(2120 / AthleteSheetPrinter.PlateStripAspect(plateCfg0)));
+        var images = new AthleteImages(banner, strip, null, null);
         var a = new Athlete("Ahmet Tunahan Dilercan", Category, "ISPARTA", null, 1412);
         const string color = "#1565C0";
 
@@ -129,6 +106,18 @@ public class SiteImagesTests
         using var p = new CardPrinter(new[] { new CardSpec("12 YAŞ AÇIK", ColorTranslator.FromHtml("#1565C0"), 1) }, poster, Event,
                                       landscape: true, branding: CardBranding.None);
         SavePage(p, 0, 110, outPath, ImageFormat.Jpeg);
+    }
+
+    // ---------------- Salon levhası (oklu) ve yasak levhası
+    private static void Signs(string poster, string dir)
+    {
+        using var p = new CardPrinter(new[]
+        {
+            new CardSpec("KAYIT KONTROL", CardSigns.Ink, 1, CardKind.Sign, CardArrow.Right),
+            new CardSpec("YASAK LEVHASI", CardSigns.Ink, 1, CardKind.Ban),
+        }, poster, Event, landscape: true, branding: CardBranding.None);
+        SavePage(p, 0, 110, Path.Combine(dir, "sample-hall-sign.jpg"), ImageFormat.Jpeg);
+        SavePage(p, 1, 110, Path.Combine(dir, "sample-ban-sign.jpg"), ImageFormat.Jpeg);
     }
 
     // ---------------- Eşleştirme, sonuç ve sıralama listesi; hakem kağıdı ve ceza bildirim formu

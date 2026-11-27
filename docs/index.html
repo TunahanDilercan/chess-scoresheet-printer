@@ -120,17 +120,21 @@
 
   .split { display: grid; gap: 32px; align-items: center; }
   @media (min-width: 860px) { .split { grid-template-columns: 6fr 5fr; } }
-  .split .paper { max-width: 440px; justify-self: center; }
+  .split .paper { width: 100%; max-width: 560px; justify-self: center; }
   ul.points { margin: 0; padding: 0; list-style: none; }
   ul.points li { position: relative; padding-left: 26px; margin-bottom: 12px; }
   ul.points li::before { content: ""; position: absolute; left: 0; top: .55em; width: 12px; height: 12px; border-radius: 3px; background: var(--brand); }
 
   /* Örnek çıktılar: tek ekranda galeri */
-  .gallery { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
-  .gallery figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; }
-  .gallery button { all: unset; cursor: zoom-in; display: flex; align-items: center; justify-content: center; height: 240px;
-                    background: #fff; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
-  .gallery button img { max-height: 228px; width: auto; max-width: 96%; object-fit: contain; }
+  .gallery { display: grid; gap: 20px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+  .gallery figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; }
+  .gallery figure.wide { grid-column: span 2; }
+  @media (max-width: 720px) { .gallery figure.wide { grid-column: auto; } }
+  .gallery button { all: unset; cursor: zoom-in; display: flex; align-items: center; justify-content: center; height: 340px;
+                    background: #fff; border-radius: 6px; border: 1px solid var(--line); padding: 10px; box-sizing: border-box; }
+  .gallery figure.wide button { height: auto; min-height: 200px; }
+  .gallery button img { display: block; max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+  .gallery figure.wide button img { width: 100%; max-height: none; }
   .gallery figcaption { font-size: 14px; margin-top: 10px; }
   .gallery figcaption b { display: block; font-size: 15px; }
   .gallery figcaption span { color: var(--muted); }
@@ -199,7 +203,7 @@
       <div class="card"><h3>Hakem eşleştirme kağıtları</h3><p>Büyük yazılı, sonuç kutulu kağıtlar; isteğe bağlı ceza bildirim formuyla aynı sayfada.</p></div>
       <div class="card"><h3>Salon listeleri</h3><p>Her kategorinin eşleştirme, sonuç ve sıralama listeleri pano için A4'e hazırlanır.</p></div>
       <div class="card"><h3>Yaka kartı ve isimlik</h3><p>Sporcu, hakem ve görevli kartları. Her kategori kendi renginde; UKD ve ELO bilgisiyle.</p></div>
-      <div class="card"><h3>Kategori masa kartları</h3><p>Turnuva afişi ve büyük kategori adıyla A4 masa kartları. Renkler yaka kartlarıyla ortaktır.</p></div>
+      <div class="card"><h3>Masa kartları ve salon levhaları</h3><p>Afişli kategori masa kartları; inceleme masası, kayıt kontrol, WC, sporcu girişi-çıkışı ve yönerge levhaları yön oklarıyla; yasak levhası.</p></div>
       <div class="card"><h3>Yönerge, rapor ve tutanaklar</h3><p>Turnuva bilgileriyle doldurulan hazır şablonlar; PDF, yazıcı ya da Word çıktısı.</p></div>
     </div>
   </section>
@@ -208,7 +212,7 @@
     <div class="split">
       <div>
         <h2>Hazır basılı kâğıda tam yerleşim</h2>
-        <p class="sub">Programın temel işi: her masanın notasyon kâğıdını, elle yazmaya gerek bırakmadan doldurmak.</p>
+        <p class="sub">Programın temel işi: her masanın notasyon kâğıdını, elle yazmaya gerek bırakmadan doldurmak. Bilgilerin kâğıdın hangi kutusuna yazılacağı şablon tasarımcısında görülür ve ayarlanır.</p>
         <ul class="points">
           <li>Turnuva adı, tarih, kategori, tur ve masa numarası ile iki oyuncunun adı, ratingi ve ili tek seferde basılır.</li>
           <li>Hazır şablonlar yaygın kullanılan A5 notasyon kâğıtlarına göre ayarlıdır.</li>
@@ -217,8 +221,8 @@
           <li>Seçilen masalar, bütün kategori ya da bütün tur tek tıkla basılır.</li>
         </ul>
       </div>
-      <img class="paper shot" src="images/sample-scoresheet.jpg" width="932" height="1322" loading="lazy"
-           alt="Doldurulmuş notasyon kâğıdı: Örnek Satranç Turnuvası 2026, 3. tur, 2. masa, Ahmet Tunahan Dilercan – Defne Arslan">
+      <img class="paper shot" src="images/template-designer-a5.png" width="742" height="687" loading="lazy"
+           alt="Hazır kâğıt şablonu tasarımcısı: A5 notasyon kâğıdında turnuva adı, tarih, kategori, tur, masa, oyuncu adları, rating ve il alanları">
     </div>
   </section>
 
@@ -230,13 +234,21 @@
         <button type="button" data-full="images/sample-athlete-badge.png" aria-label="Sporcu yaka kartını büyüt"><img src="images/sample-athlete-badge.png" width="635" height="903" loading="lazy" alt="Sporcu yaka kartı: turnuva afişi, sporcu adı, kategori ve il"></button>
         <figcaption><b>Sporcu yaka kartı</b><span>95×135 mm, A4'e dört kart. Çerçeve kategori renginde.</span></figcaption>
       </figure>
-      <figure>
-        <button type="button" data-full="images/sample-name-plate.png" aria-label="Masa isimliğini büyüt"><img src="images/sample-name-plate.png" width="1271" height="428" loading="lazy" alt="Masa isimliği: kategori, sporcu adı, il ve UKD 1412"></button>
-        <figcaption><b>Masa isimliği</b><span>190 mm genişlik; UKD ve ELO kutularıyla.</span></figcaption>
+      <figure class="wide">
+        <button type="button" data-full="images/sample-name-plate.png" aria-label="Masa isimliğini büyüt"><img src="images/sample-name-plate.png" width="1271" height="428" loading="lazy" alt="Masa isimliği: üstte turnuva şeridi, kategori, sporcu adı, il ve UKD 1412"></button>
+        <figcaption><b>Masa isimliği</b><span>190 mm genişlik; üstte şerit oranında kırpılmış afiş, UKD ve ELO kutuları.</span></figcaption>
       </figure>
       <figure>
         <button type="button" data-full="images/sample-table-card.jpg" aria-label="Kategori masa kartını büyüt"><img src="images/sample-table-card.jpg" width="1286" height="909" loading="lazy" alt="Kategori masa kartı: turnuva afişi ve 12 YAŞ AÇIK yazısı"></button>
         <figcaption><b>Kategori masa kartı</b><span>A4 yatay; afiş ve büyük kategori adı.</span></figcaption>
+      </figure>
+      <figure>
+        <button type="button" data-full="images/sample-hall-sign.jpg" aria-label="Salon levhasını büyüt"><img src="images/sample-hall-sign.jpg" width="1286" height="909" loading="lazy" alt="Salon levhası: KAYIT KONTROL yazısı ve sağı gösteren ok"></button>
+        <figcaption><b>Salon levhası</b><span>Siyah büyük yazı ve yön oku; oku her levhada seçebilirsiniz.</span></figcaption>
+      </figure>
+      <figure>
+        <button type="button" data-full="images/sample-ban-sign.jpg" aria-label="Yasak levhasını büyüt"><img src="images/sample-ban-sign.jpg" width="1286" height="909" loading="lazy" alt="Yasak levhası: sigara, cep telefonu, elektronik cihaz ve yiyecek-içecek yasak simgeleri"></button>
+        <figcaption><b>Yasak levhası</b><span>Sigara, cep telefonu, elektronik cihaz, yiyecek-içecek.</span></figcaption>
       </figure>
       <figure>
         <button type="button" data-full="images/sample-pairings.png" aria-label="Eşleştirme listesini büyüt"><img src="images/sample-pairings.png" width="909" height="1286" loading="lazy" alt="3. tur eşleştirme listesi"></button>
