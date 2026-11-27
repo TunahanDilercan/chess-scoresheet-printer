@@ -17,7 +17,7 @@ public partial class MainForm
     private string PrintDiagnostics()
     {
         var sb = new StringBuilder();
-        sb.AppendLine($"Chess Scoresheet Printer v{NotasyonOtomasyonu.App.Update.Updater.Current} • {DateTime.Now:dd.MM.yyyy HH:mm}");
+        sb.AppendLine($"Notasyon Yazdırıcı v{NotasyonOtomasyonu.App.Update.Updater.Current} • {DateTime.Now:dd.MM.yyyy HH:mm}");
         sb.AppendLine($"Ayar klasörü: {AppPaths.DataDir}");
         sb.AppendLine();
 

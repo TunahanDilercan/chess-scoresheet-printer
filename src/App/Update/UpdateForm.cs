@@ -138,7 +138,7 @@ public sealed class UpdateForm : AppForm
                 _btnUpdate.Text = "Kur ve yeniden başlat";
                 _lblStatus.Text = $"Tek seferlik kurulum ({_release.SetupSize / 1048576.0:0} MB): sonraki güncellemelerde yalnız değişen kısımlar iner. Ayarlarınız korunur.";
                 _txtNotes.Text = "BU GÜNCELLEMEDE PROGRAM BİLGİSAYARA KURULUR" + Environment.NewLine +
-                    "• Bir kez kurulur; masaüstüne ve Başlat menüsüne \"Chess Scoresheet Printer\" kısayolu eklenir." + Environment.NewLine +
+                    "• Bir kez kurulur; masaüstüne ve Başlat menüsüne \"Notasyon Yazdırıcı\" kısayolu eklenir." + Environment.NewLine +
                     "• Bundan sonraki güncellemelerde paketin tamamı değil, yalnız değişen kısımlar (genelde birkaç MB) iner." + Environment.NewLine +
                     "• Ayarlarınız, şablonlarınız ve çıktılarınız olduğu gibi kalır. Bu klasördeki eski exe'yi sonra silebilirsiniz." + Environment.NewLine +
                     Environment.NewLine + _txtNotes.Text;

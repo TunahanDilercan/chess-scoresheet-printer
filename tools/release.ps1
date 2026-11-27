@@ -41,7 +41,7 @@ if ($LASTEXITCODE) { Write-Warning "Önceki Velopack sürümü bulunamadı: bu s
 
 Write-Host "3/5 Velopack paketi"
 & $Vpk pack --skip-updates -x -u ChessScoresheetPrinter -v $Version -p $folder -e ChessScoresheetPrinter.exe `
-    --packTitle "Chess Scoresheet Printer" --packAuthors "Tunahan Dilercan" -i (Join-Path $root "assets\app.ico") `
+    --packTitle "Notasyon Yazdırıcı" --packAuthors "Tunahan Dilercan" -i (Join-Path $root "assets\app.ico") `
     --releaseNotes $notesFull -o $velo | Out-Host
 if ($LASTEXITCODE) { throw "vpk pack başarısız" }
 

@@ -403,7 +403,7 @@ partial class MainForm
         Controls.Add(lblSource);
         Controls.Add(pnlHeader);
         Font = new System.Drawing.Font("Segoe UI", 9.75F);
-        Text = "Chess Scoresheet Printer";
+        Text = "Notasyon Yazdırıcı";
         StartPosition = FormStartPosition.CenterScreen;
         FormClosing += MainForm_FormClosing;
         KeyDown += MainForm_KeyDown;

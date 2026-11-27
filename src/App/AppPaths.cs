@@ -201,7 +201,7 @@ internal static class AppPaths
                 }
         }
         catch { }
-        MessageBox.Show("Chess Scoresheet Printer zaten açık. Açık pencereyi kullanın (görev çubuğunda).",
+        MessageBox.Show("Notasyon Yazdırıcı zaten açık. Açık pencereyi kullanın (görev çubuğunda).",
                         "Program açık", MessageBoxButtons.OK, MessageBoxIcon.Information);
         return false;
     }
