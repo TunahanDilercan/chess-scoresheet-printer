@@ -12,6 +12,7 @@ public class AppForm : Form
 
     protected override void OnLoad(EventArgs e)
     {
+        GridSafety.Attach(this);   // tablolarda teknik hata kutusu açılmasın
         if (!_scaled)
         {
             _scaled = true;

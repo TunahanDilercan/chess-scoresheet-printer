@@ -232,6 +232,7 @@ public partial class MainForm : Form
     private async void MainForm_Shown(object? sender, EventArgs e)
     {
         Shown -= MainForm_Shown; // yalnızca ilk açılışta
+        GridSafety.Attach(this);  // tablolarda teknik hata kutusu açılmasın (sonradan eklenenler dahil)
         _ = CheckForUpdateOnStartAsync(); // arka planda; turnuva yüklemesini bekletmez
         // Açılıştaki yükleme adım adım durum satırında: "Açılış • 2. adım: Turnuva bilgisi çekiliyor…"
         _startup = rbOnline.Checked;
