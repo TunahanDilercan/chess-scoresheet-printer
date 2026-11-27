@@ -29,135 +29,266 @@
   "downloadUrl": "https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Setup.exe",
   "screenshot": "https://www.tunahandilercan.com.tr/chess-scoresheet-printer/images/main-window.png",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "TRY" },
-  "author": { "@type": "Person", "name": "Tunahan Dilercan", "url": "https://github.com/TunahanDilercan" }
+  "author": {
+    "@type": "Person",
+    "name": "Tunahan Dilercan",
+    "url": "https://www.tunahandilercan.com.tr/",
+    "sameAs": ["https://github.com/TunahanDilercan", "https://www.linkedin.com/in/tunahandilercan/"]
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    { "@type": "Question", "name": "Notasyon Yazdırıcı ücretli mi?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Hayır. Program ücretsizdir; kaynak kodu GitHub'da açıktır." } },
+    { "@type": "Question", "name": "Eşleştirmeler nereden alınır?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Turnuva chess-results üzerinden aranır ve eşleştirmeler otomatik alınır. İnternet olmadan JSON, CSV veya Excel dosyasından da yüklenebilir." } },
+    { "@type": "Question", "name": "Hangi notasyon kâğıtlarıyla çalışır?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Hazır şablonlar yaygın kullanılan A5 notasyon kâğıtlarına göre ayarlıdır. Farklı bir kâğıt için alan konumları şablon düzenleyiciden değiştirilir ve yazıcı kayması milimetre olarak düzeltilir." } },
+    { "@type": "Question", "name": "Güncellemeler nasıl yapılır?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yeni sürüm program içinden bildirilir; yalnızca değişen kısımlar indirilir. Ayarlar ve şablonlar korunur." } }
+  ]
 }
 </script>
 <style>
   :root {
-    --bg: #f6f6f2; --surface: #ffffff; --text: #1f2a1a; --muted: #5d6656; --line: #dfe2d8;
-    --brand: #5f7a46; --brand-dark: #4b6237; --brand-soft: #e9eee2; --note: #fff8e6; --note-line: #ecd9a6;
+    --bg: #f7f7f3; --surface: #ffffff; --text: #1d2618; --muted: #5a6453; --line: #e0e3d9;
+    --brand: #5f7a46; --brand-dark: #4a6136; --brand-soft: #edf1e6; --note: #fbf6e8; --note-line: #eadcb2;
+    --shadow: 0 14px 36px rgba(20, 30, 15, .12);
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
-      --bg: #141712; --surface: #1c2019; --text: #e8ebe4; --muted: #a4ab9c; --line: #2f352b;
-      --brand: #7d9b5f; --brand-dark: #93b173; --brand-soft: #243020; --note: #2a2618; --note-line: #4d4527;
+      --bg: #131611; --surface: #1b1f18; --text: #e9ece5; --muted: #a3aa9b; --line: #2d3329;
+      --brand: #7f9d61; --brand-dark: #97b577; --brand-soft: #222b1d; --note: #26231a; --note-line: #4a4228;
+      --shadow: 0 14px 36px rgba(0, 0, 0, .45);
     }
   }
   :root[data-theme="dark"] {
-    --bg: #141712; --surface: #1c2019; --text: #e8ebe4; --muted: #a4ab9c; --line: #2f352b;
-    --brand: #7d9b5f; --brand-dark: #93b173; --brand-soft: #243020; --note: #2a2618; --note-line: #4d4527;
+    --bg: #131611; --surface: #1b1f18; --text: #e9ece5; --muted: #a3aa9b; --line: #2d3329;
+    --brand: #7f9d61; --brand-dark: #97b577; --brand-soft: #222b1d; --note: #26231a; --note-line: #4a4228;
+    --shadow: 0 14px 36px rgba(0, 0, 0, .45);
   }
   * { box-sizing: border-box; }
-  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.6 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 16px/1.65 "Segoe UI", system-ui, -apple-system, Roboto, sans-serif; }
   a { color: var(--brand-dark); }
-  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
-  header { padding: 20px 0; }
-  .brand { display: flex; align-items: center; gap: 10px; font-weight: 600; text-decoration: none; color: var(--text); }
-  .brand img { width: 32px; height: 32px; }
-  .hero { display: grid; grid-template-columns: 1fr; gap: 32px; padding: 24px 0 48px; align-items: center; }
-  @media (min-width: 900px) { .hero { grid-template-columns: 5fr 6fr; } }
-  h1 { font-size: clamp(30px, 5vw, 42px); line-height: 1.15; margin: 0 0 14px; letter-spacing: -0.01em; }
-  .lead { font-size: 18px; color: var(--muted); margin: 0 0 28px; }
+  img { max-width: 100%; height: auto; }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 16px; }
+
+  /* Üst çubuk */
+  .top { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--bg) 88%, transparent);
+         backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); }
+  .top .wrap { display: flex; align-items: center; gap: 16px; height: 60px; }
+  .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; text-decoration: none; color: var(--text); white-space: nowrap; }
+  .brand img { width: 28px; height: 28px; }
+  nav { margin-left: auto; display: flex; align-items: center; gap: 4px; }
+  nav a.sec { color: var(--muted); text-decoration: none; font-size: 15px; padding: 6px 10px; border-radius: 6px; }
+  nav a.sec:hover { color: var(--text); background: var(--brand-soft); }
+  .icon-link { display: inline-flex; width: 36px; height: 36px; align-items: center; justify-content: center; border-radius: 8px; color: var(--muted); }
+  .icon-link:hover { color: var(--text); background: var(--brand-soft); }
+  .icon-link svg { width: 20px; height: 20px; }
+  .sep { width: 1px; height: 22px; background: var(--line); margin: 0 6px; }
+  @media (max-width: 720px) { nav a.sec, .sep { display: none; } }
+
+  /* Giriş */
+  .hero { display: grid; gap: 36px; padding: 56px 0 40px; align-items: center; }
+  @media (min-width: 920px) { .hero { grid-template-columns: 5fr 7fr; } }
+  .eyebrow { display: inline-block; font-size: 13px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--brand-dark);
+             background: var(--brand-soft); padding: 3px 10px; border-radius: 99px; margin-bottom: 14px; }
+  h1 { font-size: clamp(34px, 5.4vw, 48px); line-height: 1.1; margin: 0 0 16px; letter-spacing: -0.015em; }
+  .lead { font-size: 18px; color: var(--muted); margin: 0 0 28px; max-width: 34em; }
   .download { display: inline-flex; align-items: center; gap: 12px; background: var(--brand); color: #fff; text-decoration: none;
-              padding: 16px 28px; border-radius: 10px; font-size: 18px; font-weight: 600; box-shadow: 0 2px 0 rgba(0,0,0,.12); }
+              padding: 15px 28px; border-radius: 10px; font-size: 18px; font-weight: 600; box-shadow: 0 2px 0 rgba(0,0,0,.14); }
   .download:hover { background: var(--brand-dark); }
-  .download:focus-visible { outline: 3px solid var(--text); outline-offset: 3px; }
+  .download:focus-visible, .icon-link:focus-visible, nav a:focus-visible, .gallery button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
   .download svg { width: 22px; height: 22px; flex: none; }
   .meta { margin: 12px 0 0; font-size: 14px; color: var(--muted); }
-  .alt { margin: 18px 0 0; font-size: 15px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
-  .shot { width: 100%; height: auto; border-radius: 10px; border: 1px solid var(--line); box-shadow: 0 12px 32px rgba(0,0,0,.12); background: #fff; }
-  .note { background: var(--note); border: 1px solid var(--note-line); border-radius: 10px; padding: 14px 18px; font-size: 15px; margin: 0 0 48px; }
-  .note strong { display: block; margin-bottom: 2px; }
-  h2 { font-size: 26px; margin: 0 0 20px; }
-  section { padding: 0 0 56px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
-  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px; }
+  .alt { margin: 16px 0 0; font-size: 15px; display: flex; flex-wrap: wrap; gap: 6px 20px; }
+  .shot { display: block; width: 100%; border-radius: 10px; border: 1px solid var(--line); box-shadow: var(--shadow); background: #fff; }
+
+  /* Bölümler */
+  section { padding: 48px 0; border-top: 1px solid var(--line); }
+  h2 { font-size: 28px; line-height: 1.25; margin: 0 0 8px; letter-spacing: -0.01em; }
+  .sub { color: var(--muted); margin: 0 0 28px; max-width: 46em; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(270px, 1fr)); gap: 16px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px; }
   .card h3 { margin: 0 0 6px; font-size: 17px; }
   .card p { margin: 0; color: var(--muted); font-size: 15px; }
-  .samples { display: grid; grid-template-columns: 1fr; gap: 20px; }
-  @media (min-width: 760px) { .samples { grid-template-columns: 4fr 5fr; align-items: start; } }
-  figure { margin: 0; }
-  figure img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
-  figcaption { font-size: 14px; color: var(--muted); margin-top: 8px; }
+
+  .split { display: grid; gap: 32px; align-items: center; }
+  @media (min-width: 860px) { .split { grid-template-columns: 6fr 5fr; } }
+  .split .paper { max-width: 440px; justify-self: center; }
+  ul.points { margin: 0; padding: 0; list-style: none; }
+  ul.points li { position: relative; padding-left: 26px; margin-bottom: 12px; }
+  ul.points li::before { content: ""; position: absolute; left: 0; top: .55em; width: 12px; height: 12px; border-radius: 3px; background: var(--brand); }
+
+  /* Örnek çıktılar: tek ekranda galeri */
+  .gallery { display: grid; gap: 18px; grid-template-columns: repeat(auto-fill, minmax(290px, 1fr)); }
+  .gallery figure { margin: 0; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; }
+  .gallery button { all: unset; cursor: zoom-in; display: flex; align-items: center; justify-content: center; height: 240px;
+                    background: #fff; border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+  .gallery button img { max-height: 228px; width: auto; max-width: 96%; object-fit: contain; }
+  .gallery figcaption { font-size: 14px; margin-top: 10px; }
+  .gallery figcaption b { display: block; font-size: 15px; }
+  .gallery figcaption span { color: var(--muted); }
+  dialog { border: 0; padding: 0; background: transparent; max-width: min(96vw, 1100px); max-height: 94vh; }
+  dialog::backdrop { background: rgba(10, 12, 8, .82); }
+  dialog img { display: block; max-width: min(96vw, 1100px); max-height: 88vh; width: auto; margin: 0 auto; background: #fff; border-radius: 6px; }
+  dialog p { color: #eef; text-align: center; margin: 10px 0 0; font-size: 15px; }
+  dialog form { position: fixed; top: 14px; right: 18px; }
+  dialog form button { font: inherit; font-size: 15px; color: #fff; background: rgba(255,255,255,.16); border: 0; border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+
   ol.steps { margin: 0; padding-left: 22px; }
-  ol.steps li { margin-bottom: 8px; }
-  footer { border-top: 1px solid var(--line); padding: 24px 0 40px; font-size: 14px; color: var(--muted); }
-  footer p { margin: 0 0 6px; }
+  ol.steps li { margin-bottom: 10px; }
+  .note { background: var(--note); border: 1px solid var(--note-line); border-radius: 10px; padding: 14px 18px; font-size: 15px; margin-top: 22px; }
+  details { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 18px; margin-bottom: 10px; }
+  details summary { cursor: pointer; font-weight: 600; }
+  details p { margin: 8px 0 0; color: var(--muted); }
+
+  footer { border-top: 1px solid var(--line); padding: 28px 0 44px; font-size: 14px; color: var(--muted); }
+  footer .wrap { display: flex; flex-wrap: wrap; gap: 8px 24px; justify-content: space-between; }
+  footer p { margin: 0; }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <a class="brand" href="./"><img src="images/icon.png" alt="" width="32" height="32">Notasyon Yazdırıcı</a>
-  </header>
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="./"><img src="images/icon.png" alt="" width="28" height="28">Notasyon Yazdırıcı</a>
+    <nav aria-label="Sayfa">
+      <a class="sec" href="#ozellikler">Özellikler</a>
+      <a class="sec" href="#ornekler">Örnek çıktılar</a>
+      <a class="sec" href="#kurulum">Kurulum</a>
+      <span class="sep" aria-hidden="true"></span>
+      <a class="icon-link" href="https://github.com/TunahanDilercan/chess-scoresheet-printer" title="GitHub" aria-label="GitHub'da kaynak kod">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.11.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.56-.29-5.25-1.28-5.25-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a10.9 10.9 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.7 5.39-5.27 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.68.8.56A11.5 11.5 0 0 0 12 .5Z"/></svg>
+      </a>
+      <a class="icon-link" href="https://www.linkedin.com/in/tunahandilercan/" title="LinkedIn" aria-label="Tunahan Dilercan LinkedIn profili">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.48-.9 1.64-1.85 3.37-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28ZM5.34 7.43a2.07 2.07 0 1 1 0-4.14 2.07 2.07 0 0 1 0 4.14ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.73v20.54C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.73C24 .77 23.2 0 22.22 0Z"/></svg>
+      </a>
+    </nav>
+  </div>
+</header>
 
+<main class="wrap">
   <div class="hero">
     <div>
+      <span class="eyebrow">Satranç turnuvaları için</span>
       <h1>Notasyon Yazdırıcı</h1>
-      <p class="lead">Satranç turnuvaları için yazdırma programı. Eşleştirmeleri chess-results'tan alır; notasyon kâğıtlarını, hakem eşleştirme kağıtlarını, yaka kartlarını ve masa kartlarını hazırlayıp yazdırır.</p>
-      <a class="download" id="download" href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Setup.exe">
+      <p class="lead">Eşleştirmeleri chess-results'tan alır; notasyon kâğıtlarını, hakem eşleştirme kağıtlarını, salon listelerini, yaka kartlarını ve masa kartlarını dakikalar içinde hazırlayıp yazdırır.</p>
+      <a class="download" href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Setup.exe">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
         Windows için indir
       </a>
-      <p class="meta" id="meta">En son sürüm • Windows 10 ve 11 (64 bit) • Ücretsiz</p>
-      <p class="meta">Geliştiren: Tunahan Dilercan</p>
+      <p class="meta" id="meta">Son sürüm • Windows 10 ve 11 (64 bit) • Ücretsiz</p>
       <p class="alt">
-        <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Portable.zip">Taşınabilir sürüm (ZIP, kurulumsuz)</a>
+        <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases/latest/download/ChessScoresheetPrinter-win-Portable.zip">Kurulumsuz sürüm (ZIP)</a>
         <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/releases">Sürüm notları</a>
-        <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer">Kaynak kod</a>
       </p>
     </div>
-    <img class="shot" src="images/main-window.png" width="1074" height="752" alt="Notasyon Yazdırıcı ana penceresi: basılacak masalar listesi ve Yazdır düğmesi">
+    <img class="shot" src="images/main-window.png" width="1306" height="793" alt="Notasyon Yazdırıcı ana ekranı: 3. tur eşleştirmeleri, basılacak masalar ve Yazdır düğmesi">
   </div>
 
-  <div class="note">
-    <strong>Windows uyarı gösterirse</strong>
-    Program yeni ve imzasız olduğu için Windows ilk açılışta "Bilgisayarınız korundu" uyarısı gösterebilir. Devam etmek için <b>Ek bilgi</b>, ardından <b>Yine de çalıştır</b> seçeneğine tıklayın.
-  </div>
-
-  <section>
-    <h2>Neler yapılabilir</h2>
+  <section id="ozellikler">
+    <h2>Turnuvanın bütün basılı evrakı tek programda</h2>
+    <p class="sub">Turnuvayı seçin, turu seçin, yazdırın. Kategoriler, turlar ve sporcu bilgileri chess-results'tan otomatik gelir; elle veri girmeye gerek kalmaz.</p>
     <div class="grid">
-      <div class="card"><h3>Notasyon kâğıtları</h3><p>Eşleştirmeler hazır basılı kâğıtlara yerleştirilir. İsviçre, Berger ve takım turnuvaları desteklenir; tur ve kategoriye göre toplu yazdırılır.</p></div>
-      <div class="card"><h3>Hakem eşleştirme kağıtları</h3><p>İri yazılı, sonuç kutulu kağıtlar ve ceza bildirim formu. Siyah beyaz baskıya uygundur.</p></div>
-      <div class="card"><h3>Yaka kartı ve isimlik</h3><p>Sporcu, hakem ve görevli kartları. Kategori renkleri masa kartlarıyla ortaktır.</p></div>
-      <div class="card"><h3>Kategori masa kartları</h3><p>Turnuva afişi ve kategori adıyla A4 masa kartları; logo yerleşimi ayarlanabilir.</p></div>
-      <div class="card"><h3>Pano listeleri</h3><p>Eşleştirme, sonuç ve sıralama listeleri salon panosu için A4'e hazırlanır.</p></div>
+      <div class="card"><h3>Notasyon kâğıtları</h3><p>Masa, tur, oyuncu adları, rating ve il bilgisi hazır basılı kâğıda yerleştirilir. İsviçre, Berger ve takım turnuvaları desteklenir.</p></div>
+      <div class="card"><h3>Hakem eşleştirme kağıtları</h3><p>Büyük yazılı, sonuç kutulu kağıtlar; isteğe bağlı ceza bildirim formuyla aynı sayfada.</p></div>
+      <div class="card"><h3>Salon listeleri</h3><p>Her kategorinin eşleştirme, sonuç ve sıralama listeleri pano için A4'e hazırlanır.</p></div>
+      <div class="card"><h3>Yaka kartı ve isimlik</h3><p>Sporcu, hakem ve görevli kartları. Her kategori kendi renginde; UKD ve ELO bilgisiyle.</p></div>
+      <div class="card"><h3>Kategori masa kartları</h3><p>Turnuva afişi ve büyük kategori adıyla A4 masa kartları. Renkler yaka kartlarıyla ortaktır.</p></div>
       <div class="card"><h3>Yönerge, rapor ve tutanaklar</h3><p>Turnuva bilgileriyle doldurulan hazır şablonlar; PDF, yazıcı ya da Word çıktısı.</p></div>
     </div>
   </section>
 
-  <section>
+  <section id="notasyon">
+    <div class="split">
+      <div>
+        <h2>Hazır basılı kâğıda tam yerleşim</h2>
+        <p class="sub">Programın temel işi: her masanın notasyon kâğıdını, elle yazmaya gerek bırakmadan doldurmak.</p>
+        <ul class="points">
+          <li>Turnuva adı, tarih, kategori, tur ve masa numarası ile iki oyuncunun adı, ratingi ve ili tek seferde basılır.</li>
+          <li>Hazır şablonlar yaygın kullanılan A5 notasyon kâğıtlarına göre ayarlıdır.</li>
+          <li>Farklı bir kâğıt için alan konumları şablon düzenleyiciden sürükle-bırak ile değiştirilir.</li>
+          <li>Yazıcı kayması milimetre olarak düzeltilir; hizalama test sayfasıyla boş kâğıtta denenir.</li>
+          <li>Seçilen masalar, bütün kategori ya da bütün tur tek tıkla basılır.</li>
+        </ul>
+      </div>
+      <img class="paper shot" src="images/sample-scoresheet.jpg" width="932" height="1322" loading="lazy"
+           alt="Doldurulmuş notasyon kâğıdı: Örnek Satranç Turnuvası 2026, 3. tur, 2. masa, Ahmet Tunahan Dilercan – Defne Arslan">
+    </div>
+  </section>
+
+  <section id="ornekler">
     <h2>Örnek çıktılar</h2>
-    <div class="samples">
+    <p class="sub">Aşağıdaki görseller programın kendi çıktılarıdır; büyütmek için üzerine tıklayın. Örneklerdeki turnuva ve sporcular hayalîdir.</p>
+    <div class="gallery">
       <figure>
-        <img src="images/athlete-cards.png" width="560" height="792" loading="lazy" alt="A4 sayfada dört sporcu yaka kartı; her kategori kendi renginde">
-        <figcaption>Sporcu yaka kartları: her kategori kendi renginde</figcaption>
+        <button type="button" data-full="images/sample-athlete-badge.png" aria-label="Sporcu yaka kartını büyüt"><img src="images/sample-athlete-badge.png" width="635" height="903" loading="lazy" alt="Sporcu yaka kartı: turnuva afişi, sporcu adı, kategori ve il"></button>
+        <figcaption><b>Sporcu yaka kartı</b><span>95×135 mm, A4'e dört kart. Çerçeve kategori renginde.</span></figcaption>
       </figure>
       <figure>
-        <img src="images/arbiter-sheet.png" width="720" height="589" loading="lazy" alt="Hakem eşleştirme kağıdı: masa, beyaz ve siyah oyuncular, sonuç kutuları ve ceza bildirim formu">
-        <figcaption>Hakem eşleştirme kağıdı ve ceza bildirim formu (siyah beyaz)</figcaption>
+        <button type="button" data-full="images/sample-name-plate.png" aria-label="Masa isimliğini büyüt"><img src="images/sample-name-plate.png" width="1271" height="428" loading="lazy" alt="Masa isimliği: kategori, sporcu adı, il ve UKD 1412"></button>
+        <figcaption><b>Masa isimliği</b><span>190 mm genişlik; UKD ve ELO kutularıyla.</span></figcaption>
+      </figure>
+      <figure>
+        <button type="button" data-full="images/sample-table-card.jpg" aria-label="Kategori masa kartını büyüt"><img src="images/sample-table-card.jpg" width="1286" height="909" loading="lazy" alt="Kategori masa kartı: turnuva afişi ve 12 YAŞ AÇIK yazısı"></button>
+        <figcaption><b>Kategori masa kartı</b><span>A4 yatay; afiş ve büyük kategori adı.</span></figcaption>
+      </figure>
+      <figure>
+        <button type="button" data-full="images/sample-pairings.png" aria-label="Eşleştirme listesini büyüt"><img src="images/sample-pairings.png" width="909" height="1286" loading="lazy" alt="3. tur eşleştirme listesi"></button>
+        <figcaption><b>Eşleştirme listesi</b><span>Masa, oyuncular, rating ve tur başı puan.</span></figcaption>
+      </figure>
+      <figure>
+        <button type="button" data-full="images/sample-results.png" aria-label="Sonuç ve sıralama listesini büyüt"><img src="images/sample-results.png" width="909" height="1286" loading="lazy" alt="3. tur sonuçları ve sıralama"></button>
+        <figcaption><b>Sonuç ve sıralama</b><span>Tur sonuçları ve o turdan sonraki sıralama.</span></figcaption>
+      </figure>
+      <figure>
+        <button type="button" data-full="images/sample-arbiter-sheet.png" aria-label="Hakem kağıdını ve ceza formunu büyüt"><img src="images/sample-arbiter-sheet.png" width="1240" height="1754" loading="lazy" alt="Hakem eşleştirme kağıdı ve altında ceza bildirim formu"></button>
+        <figcaption><b>Hakem kağıdı ve ceza formu</b><span>Sonuç kutuları; beyaz ve siyah taraf işaretli.</span></figcaption>
       </figure>
     </div>
   </section>
 
-  <section>
+  <section id="kurulum">
     <h2>Kurulum</h2>
     <ol class="steps">
-      <li>Yukarıdaki <b>Windows için indir</b> düğmesiyle kurulum dosyasını indirin.</li>
-      <li>Dosyayı açın. Program kurulur; masaüstüne ve Başlat menüsüne "Chess Scoresheet Printer" kısayolu eklenir.</li>
-      <li>Yeni sürümler program içinden bildirilir ve yalnızca değişen kısımlar indirilir. Ayarlarınız ve şablonlarınız güncellemede korunur.</li>
+      <li><b>Windows için indir</b> düğmesiyle kurulum dosyasını indirin.</li>
+      <li>Dosyayı açın. Program kurulur; masaüstüne ve Başlat menüsüne <i>Chess Scoresheet Printer</i> kısayolu eklenir.</li>
+      <li>Yeni sürümler program içinden bildirilir; yalnızca değişen kısımlar indirilir. Ayarlarınız ve şablonlarınız korunur.</li>
     </ol>
-    <p class="meta">Programı kaldırmak için: Ayarlar → Uygulamalar → Chess Scoresheet Printer → Kaldır.</p>
+    <div class="note">
+      Program imzasız olduğu için Windows ilk açılışta <b>"Bilgisayarınız korundu"</b> uyarısı gösterebilir. Devam etmek için <b>Ek bilgi</b>, ardından <b>Yine de çalıştır</b> seçeneğine tıklayın.
+    </div>
   </section>
 
-  <footer>
-    <p>Notasyon Yazdırıcı (Chess Scoresheet Printer), Tunahan Dilercan tarafından geliştirilen bağımsız bir projedir; Türkiye Satranç Federasyonunun resmî uygulaması değildir.</p>
-    <p><a href="https://github.com/TunahanDilercan/chess-scoresheet-printer">GitHub</a> • <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/issues">Sorun bildir</a></p>
-  </footer>
-</div>
+  <section id="sss">
+    <h2>Sık sorulan sorular</h2>
+    <details><summary>Notasyon Yazdırıcı ücretli mi?</summary><p>Hayır. Program ücretsizdir; kaynak kodu GitHub'da açıktır.</p></details>
+    <details><summary>Eşleştirmeler nereden alınır?</summary><p>Turnuva chess-results üzerinden aranır ve eşleştirmeler otomatik alınır. İnternet olmadan JSON, CSV veya Excel dosyasından da yüklenebilir.</p></details>
+    <details><summary>Hangi notasyon kâğıtlarıyla çalışır?</summary><p>Hazır şablonlar yaygın kullanılan A5 notasyon kâğıtlarına göre ayarlıdır. Farklı bir kâğıt için alan konumları şablon düzenleyiciden değiştirilir ve yazıcı kayması milimetre olarak düzeltilir.</p></details>
+    <details><summary>Güncellemeler nasıl yapılır?</summary><p>Yeni sürüm program içinden bildirilir; yalnızca değişen kısımlar indirilir. Ayarlar ve şablonlar korunur.</p></details>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <p>Notasyon Yazdırıcı (Chess Scoresheet Printer) — Tunahan Dilercan. Bağımsız bir projedir; Türkiye Satranç Federasyonunun resmî uygulaması değildir.</p>
+    <p><a href="https://www.tunahandilercan.com.tr/">tunahandilercan.com.tr</a> • <a href="https://github.com/TunahanDilercan/chess-scoresheet-printer/issues">Sorun bildir</a></p>
+  </div>
+</footer>
+
+<dialog id="viewer" aria-label="Örnek çıktı">
+  <form method="dialog"><button>Kapat ✕</button></form>
+  <img id="viewer-img" src="" alt="">
+  <p id="viewer-cap"></p>
+</dialog>
+
 <script>
-  // Sürüm numarası ve dosya boyutu GitHub'dan okunur; okunamazsa sayfa varsayılan metinle çalışır.
+  // Sürüm numarası, tarih ve dosya boyutu GitHub'dan okunur; okunamazsa varsayılan metin kalır.
   fetch("https://api.github.com/repos/TunahanDilercan/chess-scoresheet-printer/releases/latest")
     .then(function (r) { return r.ok ? r.json() : null; })
     .then(function (rel) {
@@ -168,6 +299,19 @@
       document.getElementById("meta").textContent = "Sürüm " + rel.tag_name.replace(/^v/, "") + date + size + " • Windows 10 ve 11 (64 bit)";
     })
     .catch(function () {});
+
+  // Örnek çıktıyı büyüt
+  var viewer = document.getElementById("viewer");
+  document.querySelectorAll(".gallery button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var img = document.getElementById("viewer-img");
+      img.src = b.dataset.full;
+      img.alt = b.querySelector("img").alt;
+      document.getElementById("viewer-cap").textContent = b.parentElement.querySelector("figcaption b").textContent;
+      viewer.showModal();
+    });
+  });
+  viewer.addEventListener("click", function (e) { if (e.target === viewer) viewer.close(); });
 </script>
 </body>
 </html>
