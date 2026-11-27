@@ -43,10 +43,23 @@ public sealed class CardsForm : AppForm
     private readonly Label _lblStatus = new() { AutoSize = true, ForeColor = Color.DimGray };
     private readonly Button _btnPdf = Icons.Set(new Button { Text = "PDF Kaydet", Width = 150, Height = 40 }, Ico.Pdf);
     private readonly Button _btnPrint = Icons.Set(new Button { Text = "Önizle ve Yazdır", Width = 200, Height = 40, BackColor = Green, ForeColor = Color.White }, Ico.Print);
-    private readonly Button _btnAll = new() { Text = "Tümünü seç", AutoSize = true, Height = 40 };
+    private readonly Button _btnAll = new() { Text = "Tümünü seç", AutoSize = true, Height = 32 };
     /// <summary>Uzun işlerin (yazdırma, PDF) ilerlemesi; iş arka planda yürür.</summary>
     private readonly BusyStrip _busy = new();
-    private readonly Button _btnNone = new() { Text = "Hiçbiri", AutoSize = true, Height = 40 };
+    private readonly Button _btnNone = new() { Text = "Tümünü kaldır", AutoSize = true, Height = 32 };
+
+    /// <summary>Kategori dışındaki satırlar: salon levhası (Index = Signs sırası), yasak levhası ya da boş kart (Index = -1).</summary>
+    private sealed record SignRow(CardKind Kind, int Index);
+    private const string HeaderTag = "başlık";
+    private const string BanText = "YASAK LEVHASI";
+    private static readonly (CardArrow Arrow, string Label, string Key)[] Arrows =
+    {
+        (CardArrow.None, "Yok", "None"), (CardArrow.Left, "← Sol", "Left"), (CardArrow.Right, "→ Sağ", "Right"),
+        (CardArrow.Up, "↑ Yukarı", "Up"), (CardArrow.Down, "↓ Aşağı", "Down"),
+    };
+    private static string ArrowLabel(string? key) => Arrows.FirstOrDefault(a => a.Key == key).Label ?? "Yok";
+    private static CardArrow ArrowOf(object? label) => Arrows.FirstOrDefault(a => a.Label == label as string).Arrow;
+    private static string ArrowKey(object? label) => Arrows.FirstOrDefault(a => a.Label == label as string).Key ?? "None";
     private readonly ComboBox _cboFont = new() { DropDownStyle = ComboBoxStyle.DropDownList, Width = 150 };
     private readonly RadioButton _rbLandscape = new() { Text = "Yatay", AutoSize = true };
     private readonly RadioButton _rbPortrait = new() { Text = "Dikey", AutoSize = true };
@@ -146,7 +159,7 @@ public sealed class CardsForm : AppForm
         var styleBox = new FlowLayoutPanel { AutoSize = true, FlowDirection = FlowDirection.TopDown, WrapContents = false, Margin = new Padding(0) };
         styleBox.Controls.AddRange(new Control[] { _rbTextColored, _rbFilled });
         left.Controls.Add(styleBox);
-        left.Controls.Add(Header("Önizleme (seçili kategori)", 8));
+        left.Controls.Add(Header("Önizleme (seçili satır)", 8));
         var previewHost = new Panel { Dock = DockStyle.Fill, Padding = new Padding(14, 0, 8, 10) };
         _picPreview.BackColor = BackColor;
         previewHost.Controls.Add(_picPreview);
@@ -165,6 +178,7 @@ public sealed class CardsForm : AppForm
         _grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Bas", HeaderText = "Bas", Width = 44 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Kategori", HeaderText = "Kartta yazacak ad", AutoSizeMode = DataGridViewAutoSizeColumnMode.Fill });
         _grid.Columns.Add(new DataGridViewButtonColumn { Name = "Renk", HeaderText = "Tema rengi", Width = 120, FlatStyle = FlatStyle.Flat });
+        _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Ok", HeaderText = "Ok", Width = 110 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Adet", HeaderText = "Adet", Width = 70 });
         _grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Masa", HeaderText = "Masa sayısı", Width = 100, ReadOnly = true });
         _grid.Columns["Adet"]!.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
@@ -172,7 +186,7 @@ public sealed class CardsForm : AppForm
         _grid.Columns["Masa"]!.DefaultCellStyle.ForeColor = Color.Gray;
         _grid.CurrentCellDirtyStateChanged += (_, _) =>
         {
-            if (_grid.IsCurrentCellDirty && _grid.CurrentCell is DataGridViewCheckBoxCell) _grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
+            if (_grid.IsCurrentCellDirty && _grid.CurrentCell is DataGridViewCheckBoxCell or DataGridViewComboBoxCell) _grid.CommitEdit(DataGridViewDataErrorContexts.Commit);
         };
         _grid.CellContentClick += (_, e) => { if (e.RowIndex >= 0 && _grid.Columns[e.ColumnIndex].Name == "Renk") PickColor(e.RowIndex); };
         _grid.CellValueChanged += (_, e) =>
@@ -180,8 +194,9 @@ public sealed class CardsForm : AppForm
             if (e.RowIndex < 0) return;
             var col = _grid.Columns[e.ColumnIndex].Name;
             if (col == "Adet") _countEdited.Add(e.RowIndex);
+            if (_grid.Rows[e.RowIndex].Tag is SignRow) SaveSignRow(_grid.Rows[e.RowIndex]);
             UpdateSummary();
-            if (col == "Kategori") UpdatePreview(); // adet/masa sayısı kartın görünüşünü değiştirmez
+            if (col is "Kategori" or "Ok") UpdatePreview(); // adet/masa sayısı kartın görünüşünü değiştirmez
         };
         _grid.CellValidating += (_, e) =>
         {
@@ -193,20 +208,24 @@ public sealed class CardsForm : AppForm
             }
         };
         _grid.SelectionChanged += (_, _) => UpdatePreview();
+        _grid.CellPainting += PaintCustomPlaceholder;
 
         var gridPanel = new Panel { Dock = DockStyle.Fill, Padding = new Padding(8, 12, 14, 8) };
         var hint = new Label
         {
             Dock = DockStyle.Top, Height = 62, ForeColor = Color.DimGray,
-            Text = "Adet, TSF kayıt listesindeki sporcu sayısına göre (masa = sporcu ÷ 2) önerilir; kayıt yoksa chess-results'taki masa sayısı (yeniden basım için değiştirebilirsiniz). " +
-                   "Her kategoriye otomatik ayrı bir tema rengi atanır ve hatırlanır; değiştirmek için renge tıklayın."
+            Text = "Kategori kartlarının adedi kayıtlı sporcu sayısına göre (masa = sporcu ÷ 2) önerilir; renge tıklayıp kategori rengini değiştirebilirsiniz. " +
+                   "Altta salon levhaları (siyah yazı, oklu), yasak levhası ve yazısını sizin girdiğiniz boş kart var; her biri 1 adet."
         };
+        var tools = new FlowLayoutPanel { Dock = DockStyle.Top, AutoSize = true, WrapContents = false, Padding = new Padding(0, 0, 0, 6) };
+        tools.Controls.AddRange(new Control[] { _btnAll, _btnNone });
         gridPanel.Controls.Add(_grid);
+        gridPanel.Controls.Add(tools);
         gridPanel.Controls.Add(hint);
 
         var bottom = new Panel { Dock = DockStyle.Bottom, Height = 64, Padding = new Padding(12), BackColor = Color.FromArgb(242, 242, 236) };
         var bl = new FlowLayoutPanel { Dock = DockStyle.Left, AutoSize = true, WrapContents = false };
-        bl.Controls.AddRange(new Control[] { _btnAll, _btnNone, _lblStatus, _busy });
+        bl.Controls.AddRange(new Control[] { _lblStatus, _busy });
         _lblStatus.Margin = new Padding(10, 11, 0, 0);
         var br = new FlowLayoutPanel { Dock = DockStyle.Right, AutoSize = true, WrapContents = false };
         br.Controls.AddRange(new Control[] { _btnPdf, _btnPrint });
@@ -262,8 +281,88 @@ public sealed class CardsForm : AppForm
             SetColorCell(row, color);
         }
         if (assigned) _ctx.SaveConfig(); // yeni atanan renkler kalıcı olsun
+        FillSignRows();
         if (_grid.Rows.Count > 0) _grid.Rows[0].Selected = true;
         UpdateSummary();
+    }
+
+    /// <summary>Kategorilerin altında: salon levhaları, yasak levhası ve en altta boş kart (seçim, adet ve ok hatırlanır).</summary>
+    private void FillSignRows()
+    {
+        foreach (DataGridViewRow r in _grid.Rows) if (r.Tag is CategoryRef) { r.Cells["Ok"].Value = ""; r.Cells["Ok"].ReadOnly = true; }
+        int h = _grid.Rows.Add();
+        var head = _grid.Rows[h];
+        head.Tag = HeaderTag;
+        head.Cells["Bas"] = new DataGridViewTextBoxCell { ValueType = typeof(string), Value = "" };   // onay kutusu yok
+        head.Cells["Renk"] = new DataGridViewTextBoxCell { ValueType = typeof(string), Value = "" };
+        head.Cells["Kategori"].Value = "Salon levhaları";
+        head.ReadOnly = true;
+        head.DefaultCellStyle.BackColor = head.DefaultCellStyle.SelectionBackColor = Color.FromArgb(243, 244, 238);
+        head.DefaultCellStyle.ForeColor = head.DefaultCellStyle.SelectionForeColor = GreenDark;
+        head.DefaultCellStyle.Font = new Font(_grid.Font, FontStyle.Bold);
+
+        for (int i = 0; i < Cfg.Signs.Count; i++)
+        {
+            var c = Cfg.Signs[i];
+            AddSignRow(new SignRow(CardKind.Sign, i), c.Print, c.Text, c.Arrow, c.Copies);
+        }
+        AddSignRow(new SignRow(CardKind.Ban, -1), Cfg.BanPrint, BanText, null, Cfg.BanCopies);
+        _grid.Rows[_grid.Rows.Count - 1].Cells["Kategori"].ToolTipText = "Afişin altında yasak simgeleri: sigara, cep telefonu, elektronik cihaz, yiyecek-içecek.";
+        AddSignRow(new SignRow(CardKind.Sign, -1), Cfg.Custom.Print, Cfg.Custom.Text, Cfg.Custom.Arrow, Cfg.Custom.Copies);
+    }
+
+    private void AddSignRow(SignRow tag, bool print, string text, string? arrow, int copies)
+    {
+        int i = _grid.Rows.Add(print, text, "", "", Math.Max(0, copies).ToString(), "—");
+        var row = _grid.Rows[i];
+        row.Tag = tag;
+        row.Cells["Renk"] = new DataGridViewTextBoxCell { Value = "Siyah yazı" };
+        row.Cells["Renk"].ReadOnly = true;
+        row.Cells["Renk"].Style.ForeColor = Color.DimGray;
+        if (tag.Kind == CardKind.Ban)
+        {
+            row.Cells["Kategori"].ReadOnly = true;
+            row.Cells["Ok"].Value = "—";
+            row.Cells["Ok"].ReadOnly = true;
+        }
+        else
+        {
+            var cell = new DataGridViewComboBoxCell { FlatStyle = FlatStyle.Flat, DisplayStyle = DataGridViewComboBoxDisplayStyle.DropDownButton };
+            cell.Items.AddRange(Arrows.Select(a => (object)a.Label).ToArray());
+            cell.Value = ArrowLabel(arrow);
+            row.Cells["Ok"] = cell;
+            row.Cells["Ok"].ReadOnly = false;
+        }
+        _countEdited.Add(i);   // adetleri masa sayısıyla değişmesin
+    }
+
+    /// <summary>Levha satırındaki değişiklik ayarlara yazılır (sonraki açılışta aynı gelir).</summary>
+    private void SaveSignRow(DataGridViewRow row)
+    {
+        if (_initializing || row.Tag is not SignRow t) return;
+        bool print = row.Cells["Bas"].Value is true;
+        int.TryParse(row.Cells["Adet"].Value?.ToString(), out var copies);
+        var text = (row.Cells["Kategori"].Value?.ToString() ?? "").Trim();
+        if (t.Kind == CardKind.Ban) { Cfg.BanPrint = print; Cfg.BanCopies = copies; }
+        else
+        {
+            var c = t.Index >= 0 && t.Index < Cfg.Signs.Count ? Cfg.Signs[t.Index] : Cfg.Custom;
+            c.Print = print; c.Copies = copies; c.Text = CardLayout.UpperTr(text); c.Arrow = ArrowKey(row.Cells["Ok"].Value);
+        }
+        _ctx.SaveConfig();
+    }
+
+    /// <summary>Boş kartın yazısı girilmemişse satırda silik bir ipucu görünür.</summary>
+    private void PaintCustomPlaceholder(object? sender, DataGridViewCellPaintingEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.ColumnIndex < 0 || _grid.Columns[e.ColumnIndex].Name != "Kategori") return;
+        var row = _grid.Rows[e.RowIndex];
+        if (row.Tag is not SignRow { Kind: CardKind.Sign, Index: -1 } || !string.IsNullOrWhiteSpace(e.Value?.ToString())) return;
+        if (_grid.IsCurrentCellInEditMode && _grid.CurrentCell?.RowIndex == e.RowIndex && _grid.CurrentCell.ColumnIndex == e.ColumnIndex) return;
+        e.Paint(e.CellBounds, DataGridViewPaintParts.All & ~DataGridViewPaintParts.ContentForeground);
+        TextRenderer.DrawText(e.Graphics!, "Boş kart: yazmak için tıklayın", _grid.Font, Rectangle.Inflate(e.CellBounds, -4, 0), Color.Gray,
+                              TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis);
+        e.Handled = true;
     }
 
     private static void SetColorCell(DataGridViewRow row, Color color)
@@ -276,12 +375,12 @@ public sealed class CardsForm : AppForm
 
     private async Task LoadCountsAsync()
     {
-        _countsPending = _grid.Rows.Count;
+        _countsPending = _grid.Rows.Cast<DataGridViewRow>().Count(r => r.Tag is CategoryRef);
         UpdateSummary();
         foreach (DataGridViewRow row in _grid.Rows)
         {
             if (IsDisposed) return;
-            if (row.Tag is not CategoryRef c) { _countsPending--; continue; }
+            if (row.Tag is not CategoryRef c) continue;
             int n;
             string source;
             try { (n, source) = await _ctx.BoardCount(c); }
@@ -303,9 +402,12 @@ public sealed class CardsForm : AppForm
     private void UpdateSummary()
     {
         var cards = Selected().ToList();
+        int cats = _grid.Rows.Cast<DataGridViewRow>().Count(r => r.Tag is CategoryRef);
+        int catCards = cards.Where(c => c.Kind == CardKind.Category).Sum(c => c.Copies), signCards = cards.Where(c => c.Kind != CardKind.Category).Sum(c => c.Copies);
         _lblStatus.Text = _countsPending > 0
-            ? $"Masa sayıları hesaplanıyor… ({_grid.Rows.Count - _countsPending}/{_grid.Rows.Count})"
-            : cards.Count == 0 ? "Basılacak kart seçilmedi." : $"{cards.Count} kategori • toplam {cards.Sum(c => c.Copies)} kart (A4)";
+            ? $"Masa sayıları hesaplanıyor… ({cats - _countsPending}/{cats})"
+            : cards.Count == 0 ? "Basılacak kart seçilmedi."
+            : $"Toplam {catCards + signCards} kart (A4): {catCards} kategori kartı" + (signCards > 0 ? $" + {signCards} levha" : "");
         _btnPrint.Enabled = _btnPdf.Enabled = cards.Sum(c => c.Copies) > 0;
     }
 
@@ -314,16 +416,30 @@ public sealed class CardsForm : AppForm
         foreach (DataGridViewRow row in _grid.Rows)
         {
             if (row.Cells["Bas"].Value is not true) continue;
-            var name = row.Cells["Kategori"].Value?.ToString()?.Trim() ?? "";
-            int.TryParse(row.Cells["Adet"].Value?.ToString(), out var copies);
-            var color = CardLayout.ParseColor(row.Cells["Renk"].Value?.ToString(), Color.Gray);
-            if (name.Length > 0 && copies > 0) yield return new CardSpec(name, color, copies);
+            if (SpecOf(row) is { Copies: > 0 } spec) yield return spec;
         }
+    }
+
+    /// <summary>Satırın kartı (adet satırdaki); başlık satırı ya da yazısız kart için null.</summary>
+    private static CardSpec? SpecOf(DataGridViewRow row)
+    {
+        var text = row.Cells["Kategori"].Value?.ToString()?.Trim() ?? "";
+        int.TryParse(row.Cells["Adet"].Value?.ToString(), out var copies);
+        return row.Tag switch
+        {
+            CategoryRef when text.Length > 0 => new CardSpec(text, CardLayout.ParseColor(row.Cells["Renk"].Value?.ToString(), Color.Gray), copies),
+            SignRow { Kind: CardKind.Ban } => new CardSpec(BanText, CardSigns.Ink, copies, CardKind.Ban),
+            SignRow when text.Length > 0 => new CardSpec(CardLayout.UpperTr(text), CardSigns.Ink, copies, CardKind.Sign, ArrowOf(row.Cells["Ok"].Value)),
+            _ => null
+        };
     }
 
     private void SetAll(bool on)
     {
-        foreach (DataGridViewRow r in _grid.Rows) r.Cells["Bas"].Value = on;
+        _initializing = true;   // her satır için ayrı kaydetme olmasın
+        foreach (DataGridViewRow r in _grid.Rows) if (r.Cells["Bas"] is DataGridViewCheckBoxCell) r.Cells["Bas"].Value = on;
+        _initializing = false;
+        foreach (DataGridViewRow r in _grid.Rows) if (r.Tag is SignRow) SaveSignRow(r);
         UpdateSummary();
     }
 
@@ -423,12 +539,13 @@ public sealed class CardsForm : AppForm
 
     private void OpenDesigner()
     {
-        var row = _grid.SelectedRows.Count > 0 ? _grid.SelectedRows[0] : (_grid.Rows.Count > 0 ? _grid.Rows[0] : null);
+        var row = _grid.SelectedRows.Count > 0 && _grid.SelectedRows[0].Tag is CategoryRef ? _grid.SelectedRows[0]
+                : _grid.Rows.Cast<DataGridViewRow>().FirstOrDefault(r => r.Tag is CategoryRef);
         var sample = new CardSpec(row?.Cells["Kategori"].Value?.ToString() ?? "KATEGORİ",
                                   CardLayout.ParseColor(row?.Cells["Renk"].Value?.ToString(), Color.Gray), 1);
         var ctx = new CardDesignContext(_picLogo.Image, EventGrouping.BaseName(_ctx.EventName), _cboFont.SelectedItem as string,
                                         _rbLandscape.Checked, _rbFilled.Checked, _chkFullWidth.Checked, sample,
-                                        Selected().Select(c => c.Category).ToList(), LogoProvince());
+                                        Selected().Where(c => c.Kind == CardKind.Category).Select(c => c.Category).ToList(), LogoProvince());
         using var f = new CardDesignForm(ctx, Cfg) { Icon = Icon };
         if (f.ShowDialog(this) != DialogResult.OK) return;
         _ctx.SaveConfig();
@@ -462,9 +579,7 @@ public sealed class CardsForm : AppForm
     {
         if (_initializing) return;
         var row = _grid.SelectedRows.Count > 0 ? _grid.SelectedRows[0] : (_grid.Rows.Count > 0 ? _grid.Rows[0] : null);
-        if (row is null) return;
-        var name = row.Cells["Kategori"].Value?.ToString() ?? "";
-        var color = CardLayout.ParseColor(row.Cells["Renk"].Value?.ToString(), Color.Gray);
+        if (row is null || SpecOf(row) is not { } spec) return;   // başlık satırı ya da yazısız boş kart
         var poster = _picLogo.Image is { } img ? new SizeF(img.Width, img.Height) : (SizeF?)null;
         var font = _cboFont.SelectedItem as string;
         var eventName = EventGrouping.BaseName(_ctx.EventName);
@@ -479,11 +594,11 @@ public sealed class CardsForm : AppForm
             g.PageUnit = GraphicsUnit.Point;         // yazı puntoları baskıdakiyle aynı ölçülsün
             float k = scale * 72f / bmp.HorizontalResolution; // Point biriminde 1 pt = dpi/72 px → scale px olsun
             g.ScaleTransform(k, k);
-            // Önizleme de baskıdaki ortak puntoyu kullanır (seçili tüm kategorilerin sığdığı en büyük)
-            var names = Selected().Select(c => c.Category).Append(name);
-            var pt = CardPrinter.CommonBandPt(layout, names, font);
+            // Önizleme de baskıdaki ortak puntoyu kullanır (seçili aynı türdeki kartların sığdığı en büyük)
+            var names = Selected().Where(c => c.Kind == spec.Kind).Select(c => c.Category).Append(spec.Category);
+            var pt = spec.Kind == CardKind.Sign ? CardPrinter.CommonSignPt(layout, names, font) : CardPrinter.CommonBandPt(layout, names, font);
             lock (PagedOutput.Gate)   // arka planda yazdırma/PDF sürerken de güvenle çizilsin
-            CardPrinter.Draw(g, layout, new CardSpec(name, color, 1), _picLogo.Image,
+            CardPrinter.Draw(g, layout, spec with { Copies = 1 }, _picLogo.Image,
                              eventName, font, _rbFilled.Checked, _chkFullWidth.Checked, pt, branding, _gsbImg, _tsfImg);
             using var pen = new Pen(Color.FromArgb(200, 200, 200), 1f / k);
             g.DrawRectangle(pen, 0, 0, layout.PageW, layout.PageH); // beyaz zeminde kart kenarı görünsün

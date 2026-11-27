@@ -193,6 +193,20 @@ public sealed class AppConfig
 }
 
 /// <summary>Kategori masa kartları ayarları (kalıcı).</summary>
+/// <summary>Salon levhası: yazı, ok yönü ("None", "Left", "Right", "Up", "Down"), adet ve basılsın mı.</summary>
+public sealed class SignCardConfig
+{
+    public const string NoArrow = "None";
+    public string Text { get; set; } = "";
+    public string Arrow { get; set; } = "Right";
+    public int Copies { get; set; } = 1;
+    public bool Print { get; set; } = true;
+
+    public static List<SignCardConfig> Defaults() =>
+        new[] { "İNCELEME MASASI", "KAYIT KONTROL", "WC", "SPORCU GİRİŞİ", "SPORCU ÇIKIŞI" }
+            .Select(t => new SignCardConfig { Text = t }).ToList();
+}
+
 public sealed class CardConfig
 {
     /// <summary>Kartın üst bölümüne basılacak turnuva afişi/logosu (kırpılmış hâli; boş = turnuva adı yazılır).</summary>
@@ -239,6 +253,16 @@ public sealed class CardConfig
 
     /// <summary>Elle yerleşim: "gsb:L" / "tsf:P" (logo:yön) → sayfaya oranla merkez ve yükseklik.</summary>
     public Dictionary<string, LogoSpot> LogoSpots { get; set; } = new();
+
+    /// <summary>Salon levhaları (siyah yazı + yön oku); masa kartları penceresinde kategorilerin altında.</summary>
+    public List<SignCardConfig> Signs { get; set; } = SignCardConfig.Defaults();
+
+    /// <summary>Yasak levhası (sigara, cep telefonu, elektronik cihaz, yiyecek-içecek).</summary>
+    public bool BanPrint { get; set; } = true;
+    public int BanCopies { get; set; } = 1;
+
+    /// <summary>Yazısı kullanıcının girdiği boş kart (listenin en altında).</summary>
+    public SignCardConfig Custom { get; set; } = new() { Text = "", Arrow = SignCardConfig.NoArrow };
 
     /// <summary>Yazıcıda birbirinden net ayrılan temel renkler (otomatik atama sırası).</summary>
     public static readonly string[] Palette =

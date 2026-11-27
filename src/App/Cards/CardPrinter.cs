@@ -16,6 +16,7 @@ public sealed class CardPrinter : IPagedOutput, IDisposable
     private readonly bool _filled;
     private readonly bool _fullWidth;
     private readonly float _bandPt;            // tüm kartlarda ortak kategori yazısı puntosu
+    private readonly float _signPt;            // levha yazılarında ortak punto
     private readonly CardBranding _branding;
     private Image? _logo;
     private Image? _gsb, _tsf;
@@ -32,7 +33,8 @@ public sealed class CardPrinter : IPagedOutput, IDisposable
         _eventName = eventName;
         _font = string.IsNullOrWhiteSpace(font) ? CardFonts.Default : font!;
         _layout = CardLayout.For(landscape, ImageSize(_logoPath), fullWidth, _branding, eventName, _font);
-        _bandPt = CommonBandPt(_layout, _pages.Select(p => p.Category), _font);
+        _bandPt = CommonBandPt(_layout, _pages.Where(p => p.Kind == CardKind.Category).Select(p => p.Category), _font);
+        _signPt = CommonSignPt(_layout, _pages.Where(p => p.Kind == CardKind.Sign).Select(p => p.Category), _font);
     }
 
     /// <summary>Resmin piksel boyutu (yalnız başlığı okunur); okunamazsa null.</summary>
@@ -81,7 +83,7 @@ public sealed class CardPrinter : IPagedOutput, IDisposable
             (_gsb, _tsf) = _branding.Load(1200);
             _imagesLoaded = true;
         }
-        Draw(g, _layout, card, _logo, _eventName, _font, _filled, _fullWidth, _bandPt, _branding, _gsb, _tsf);
+        Draw(g, _layout, card, _logo, _eventName, _font, _filled, _fullWidth, card.Kind == CardKind.Sign ? _signPt : _bandPt, _branding, _gsb, _tsf);
     }
 
     public void Dispose()
@@ -144,27 +146,44 @@ public sealed class CardPrinter : IPagedOutput, IDisposable
         g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
         g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         g.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+        // Levhalar her zaman beyaz zeminde siyah yazıyla basılır (kategori rengi ve "zemin renkli" stili yalnız kategori kartlarında).
+        bool category = card.Kind == CardKind.Category;
+        var color = category ? card.Color : CardSigns.Ink;
+        filled &= category;
         if (logo is not null)
             layout.DrawLogo(g, logo, fullWidth); // oran her iki modda da korunur
         else
-            layout.DrawEventName(g, eventName, card.Color, font);
+            layout.DrawEventName(g, eventName, color, font);
 
         if (filled)
             using (var b = new SolidBrush(card.Color)) g.FillRectangle(b, layout.BandRect);
         else if (logo is null)
-            using (var pen = new Pen(card.Color, 2.5f)) // başlık ile kategori adını ayıran ince çizgi
+            using (var pen = new Pen(color, 2.5f)) // başlık ile kategori adını ayıran ince çizgi
                 g.DrawLine(pen, CardLayout.Margin, layout.BandRect.Top, layout.PageW - CardLayout.Margin, layout.BandRect.Top);
         branding?.Draw(g, layout.Logos, gsb, tsf); // afiş/bant üstünde; yazılar logolardan kaçar
         var box = layout.BandTextRect;
-        var fit = bandPt is float pt ? CardLayout.FitAt(card.Category, box, pt, font, MaxBandLines)
-                                     : CardLayout.Fit(card.Category, box, MaxBandPt, font, 14, MaxBandLines);
-        CardLayout.DrawLines(g, fit, box, filled ? Color.White : card.Color, font);
+        if (card.Kind == CardKind.Ban)
+        {
+            CardSigns.DrawBanBand(g, box, font);
+        }
+        else
+        {
+            var (textBox, arrowBox) = card.Kind == CardKind.Sign ? CardSigns.SplitSign(box, card.Arrow) : (box, RectangleF.Empty);
+            var fit = bandPt is float pt ? CardLayout.FitAt(card.Category, textBox, pt, font, MaxBandLines)
+                                         : CardLayout.Fit(card.Category, textBox, MaxBandPt, font, 14, MaxBandLines);
+            CardLayout.DrawLines(g, fit, textBox, filled ? Color.White : color, font);
+            CardSigns.DrawArrow(g, arrowBox, card.Arrow, color);
+        }
         g.InterpolationMode = prevInterp;
         g.SmoothingMode = prevSmooth;
     }
 
     private const float MaxBandPt = 230;
     private const int MaxBandLines = 3;
+
+    /// <summary>Levha yazıları için ortak punto (ok alanı ayrılmış kutuya göre): bütün levhalar aynı büyüklükte.</summary>
+    public static float CommonSignPt(CardLayout layout, IEnumerable<string> signs, string? font)
+        => CardLayout.CommonPt(signs, CardSigns.SplitSign(layout.BandTextRect, CardArrow.Right).Text, MaxBandPt, font, 14, MaxBandLines);
 
     /// <summary>Kategori adları için ortak punto: hepsinin sığdığı en büyük.</summary>
     public static float CommonBandPt(CardLayout layout, IEnumerable<string> categories, string? font)

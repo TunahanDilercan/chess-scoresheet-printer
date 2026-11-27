@@ -1,7 +1,8 @@
 namespace NotasyonOtomasyonu.App.Cards;
 
 /// <summary>Basılacak bir kategori kartı (adet kadar sayfa); <paramref name="Color"/> kategorinin tema rengi.</summary>
-public sealed record CardSpec(string Category, Color Color, int Copies);
+/// <summary>Basılacak kart: kategori kartı, yönlendirme levhası (yazı + ok) ya da yasak levhası.</summary>
+public sealed record CardSpec(string Category, Color Color, int Copies, CardKind Kind = CardKind.Category, CardArrow Arrow = CardArrow.None);
 
 /// <summary>
 /// A4 masa kartının ölçüleri (punto). Varsayılan yatay. Üstte turnuva afişi, resmi logolar (GSB + TSF il)
