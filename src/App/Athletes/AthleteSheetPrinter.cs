@@ -59,6 +59,10 @@ public sealed class AthleteSheetPrinter : IPagedOutput, IDisposable
 
     private PointF Origin => new((PageW - Cols * CardW) / 2, (PageH - Rows * CardH) / 2);
 
+    /// <summary>İsimliğin üst şeridinin genişlik/yükseklik oranı (190 mm × kart yüksekliğinin %56'sı; ≈ 5,3).</summary>
+    public static float PlateStripAspect(AthleteCardConfig cfg) => 190f / ((cfg.PlatesPerPage >= 4 ? 68 : 64) * PlateStripRatio);
+    private const float PlateStripRatio = 0.56f;
+
     /// <summary>
     /// Kart çizimleri bu kilitle yapılır: aynı görsel ve yazı tipi nesneleri arka planda PDF hazırlanırken
     /// pencerede önizleme de çizebilir (GDI+ nesneleri aynı anda iki iş parçacığında kullanılamaz).
@@ -310,7 +314,7 @@ public sealed class AthleteSheetPrinter : IPagedOutput, IDisposable
         using (var white = new SolidBrush(Color.White)) g.FillRectangle(white, r);
 
         // Üst şerit: isimlik görseli (yoksa afiş). Oranı şeride yakınsa şeridi kaplar, değilse sığdırılır.
-        float stripH = r.Height * 0.56f;
+        float stripH = r.Height * PlateStripRatio;
         var strip = new RectangleF(r.X, r.Y, r.Width, stripH);
         var banner = img.PlateBanner ?? img.Banner;
         if (banner is not null)

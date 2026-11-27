@@ -289,6 +289,7 @@ public sealed class CardsForm : AppForm
     /// <summary>Kategorilerin altında: salon levhaları, yasak levhası ve en altta boş kart (seçim, adet ve ok hatırlanır).</summary>
     private void FillSignRows()
     {
+        if (Cfg.UpgradeSigns()) _ctx.SaveConfig();
         foreach (DataGridViewRow r in _grid.Rows) if (r.Tag is CategoryRef) { r.Cells["Ok"].Value = ""; r.Cells["Ok"].ReadOnly = true; }
         int h = _grid.Rows.Add();
         var head = _grid.Rows[h];

@@ -40,8 +40,9 @@ public sealed class AthletesForm : AppForm
     private readonly Label _lblBanner = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
     private readonly NumericUpDown _numCrop = new() { Minimum = 0, Maximum = 45, Width = 60 };
     private readonly CheckBox _chkFooter = new() { Text = "Afişin alt bandını kartın altına şerit yap", AutoSize = true };
-    private readonly Button _btnPlateBanner = Icons.Set(new Button { Text = "İsimlik şeridi seç…", AutoSize = true, Height = 28 }, Ico.Image);
+    private readonly Button _btnPlateBanner = Icons.Set(new Button { Text = "Görsel seç…", AutoSize = true, Height = 28 }, Ico.Image);
     private readonly Button _btnPlateBannerClear = new() { Text = "Kaldır", AutoSize = true, Height = 28 };
+    private readonly Button _btnPlateFromPoster = Icons.Set(new Button { Text = "Afişten kırp…", AutoSize = true, Height = 28 }, Ico.Crop);
     private readonly Label _lblPlateBanner = new() { AutoSize = true, ForeColor = Color.DimGray, MaximumSize = new Size(290, 0) };
     private readonly Button _btnLogo1 = Icons.Set(new Button { Text = "Sol logo…", AutoSize = true, Height = 28 }, Ico.Image);
     private readonly Button _btnLogo1Clear = Icons.Set(new Button { Text = "", AccessibleName = "Sol logoyu kaldır", Width = 32, Height = 28 }, Ico.Close);
@@ -135,7 +136,7 @@ public sealed class AthletesForm : AppForm
         _badgeOnly.Controls.Add(_chkTsf);
         _badgeOnly.Controls.Add(_lblLogos);
         _plateOnly.Controls.Add(Head("İsimlik şeridi"));
-        _plateOnly.Controls.Add(Row(_btnPlateBanner, _btnPlateBannerClear));
+        _plateOnly.Controls.Add(Row(_btnPlateBanner, _btnPlateFromPoster, _btnPlateBannerClear));
         _plateOnly.Controls.Add(_lblPlateBanner);
         _plateOnly.Controls.Add(Row(_chkElo, _chkUkd));
 
@@ -264,7 +265,16 @@ public sealed class AthletesForm : AppForm
         _chkCatColors.CheckedChanged += (_, _) => Changed(() => { Cfg.UseCategoryColors = _chkCatColors.Checked; RefreshCategoryColors(); });
         _btnBanner.Click += (_, _) => PickImage("Turnuva afişi", p => Cfg.BannerPath = p, "afis");
         _btnBannerCards.Click += (_, _) => { if (CardPoster() is { } p) SetImage(p, v => Cfg.BannerPath = v, "afis"); };
-        _btnPlateBanner.Click += (_, _) => PickImage("İsimlik şeridi (geniş, yatay görsel)", p => Cfg.PlateBannerPath = p, "isimlik_serit");
+        _btnPlateBanner.Click += (_, _) =>
+        {
+            using var dlg = new OpenFileDialog { Title = "İsimlik şeridi için görsel", Filter = "Resim (*.png;*.jpg;*.jpeg;*.bmp)|*.png;*.jpg;*.jpeg;*.bmp" };
+            if (dlg.ShowDialog(this) == DialogResult.OK) CropPlateBanner(dlg.FileName);
+        };
+        _btnPlateFromPoster.Click += (_, _) =>
+        {
+            if (Cfg.BannerPath is { } b && File.Exists(b)) CropPlateBanner(b);
+            else _lblStatus.Text = "Önce turnuva afişini seçin; isimlik şeridi afişten kırpılır.";
+        };
         _btnPlateBannerClear.Click += (_, _) => Changed(() => { Cfg.PlateBannerPath = null; ReloadImages(); });
         _btnLogo1.Click += (_, _) => PickImage("Sol logo", p => Cfg.Logo1Path = p, "logo_sol");
         _btnLogo2.Click += (_, _) => PickImage("Sağ logo", p => Cfg.Logo2Path = p, "logo_sag");
@@ -338,7 +348,7 @@ public sealed class AthletesForm : AppForm
         _lblBanner.Text = Cfg.BannerPath is { } b && File.Exists(b) ? "✓ " + Path.GetFileName(b) : "Afiş seçilmedi: yerinde boş çerçeve basılır.";
         _lblPlateBanner.Text = Cfg.PlateBannerPath is { } pb && File.Exists(pb)
             ? "✓ " + Path.GetFileName(pb)
-            : "Seçilmezse afiş kullanılır. Geniş bir şerit görseli (ör. 1800×360) şeridi tam doldurur.";
+            : "Şerit yatay ve geniştir (yaklaşık 5:1). Görsel seçince ya da \"Afişten kırp\" ile şerit oranında kırpılır ve şeridi kenardan kenara doldurur.";
         string L(string? p, string none) => p is not null && File.Exists(p) ? Path.GetFileName(p) : none;
         _lblLogos.Text = $"Sol: {L(Cfg.Logo1Path, "yok")} • Sağ: {L(Cfg.Logo2Path, Cfg.AutoTsfLogo ? "TSF il logosu" : "yok")}";
         _btnFrame.Visible = !Cfg.UseCategoryColors;
@@ -364,6 +374,28 @@ public sealed class AthletesForm : AppForm
     }
 
     /// <summary>Görseli veri klasörüne kopyalar (asıl dosya silinse de kart basılabilsin) ve kaydeder.</summary>
+    /// <summary>
+    /// İsimlik şeridi: görsel şerit oranında (≈ 5:1) kırpılır; kırpılan bölüm şeridi kenardan kenara doldurur
+    /// (sığdırılan afişte iki yanda boşluk kalıyordu).
+    /// </summary>
+    private void CropPlateBanner(string source)
+    {
+        Bitmap src;
+        try { using var fs = File.OpenRead(source); using var img = Image.FromStream(fs); src = new Bitmap(img); }
+        catch (Exception ex) { MessageBox.Show(this, "Resim açılamadı: " + ex.Message, "İsimlik şeridi", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        using (src)
+        using (var crop = new Cards.CropForm(src, AthleteSheetPrinter.PlateStripAspect(Cfg)) { Text = "İsimlik şeridini kırp" })
+        {
+            if (crop.ShowDialog(this) != DialogResult.OK || crop.Result is null) return;
+            using var result = crop.Result;
+            var dir = Path.Combine(_ctx.BaseDir, "badges", "athletes");
+            Directory.CreateDirectory(dir);
+            var dest = Path.Combine(dir, "isimlik_serit_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".png");
+            result.Save(dest, System.Drawing.Imaging.ImageFormat.Png);
+            Changed(() => { Cfg.PlateBannerPath = dest; ReloadImages(); });
+        }
+    }
+
     private void SetImage(string source, Action<string> set, string stem)
     {
         try

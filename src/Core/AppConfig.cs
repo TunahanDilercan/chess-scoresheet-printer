@@ -203,8 +203,12 @@ public sealed class SignCardConfig
     public bool Print { get; set; } = true;
 
     public static List<SignCardConfig> Defaults() =>
-        new[] { "İNCELEME MASASI", "KAYIT KONTROL", "WC", "SPORCU GİRİŞİ", "SPORCU ÇIKIŞI" }
-            .Select(t => new SignCardConfig { Text = t }).ToList();
+        DefaultTexts.Select(t => new SignCardConfig { Text = t }).ToList();
+
+    public static readonly string[] DefaultTexts = { "İNCELEME MASASI", "KAYIT KONTROL", "WC", "SPORCU GİRİŞİ", "SPORCU ÇIKIŞI", "YÖNERGE" };
+
+    /// <summary>Levha listesinin sürümü: 2 = YÖNERGE eklendi (1.7.4'te kaydedilmiş listelere bir kez eklenir).</summary>
+    public const int CurrentSet = 2;
 }
 
 public sealed class CardConfig
@@ -256,6 +260,19 @@ public sealed class CardConfig
 
     /// <summary>Salon levhaları (siyah yazı + yön oku); masa kartları penceresinde kategorilerin altında.</summary>
     public List<SignCardConfig> Signs { get; set; } = SignCardConfig.Defaults();
+
+    /// <summary>Kayıtlı levha listesinin sürümü (bkz. <see cref="SignCardConfig.CurrentSet"/>); eski ayarlarda 0.</summary>
+    public int SignSet { get; set; }
+
+    /// <summary>Sonradan eklenen varsayılan levhaları (ör. YÖNERGE) eski listeye bir kez ekler; kullanıcının değiştirdiği ya da sildiği levhalara dokunmaz.</summary>
+    public bool UpgradeSigns()
+    {
+        if (SignSet >= SignCardConfig.CurrentSet) return false;
+        if (SignSet < 2 && !Signs.Any(s => string.Equals(s.Text, "YÖNERGE", StringComparison.OrdinalIgnoreCase)))
+            Signs.Add(new SignCardConfig { Text = "YÖNERGE" });
+        SignSet = SignCardConfig.CurrentSet;
+        return true;
+    }
 
     /// <summary>Yasak levhası (sigara, cep telefonu, elektronik cihaz, yiyecek-içecek).</summary>
     public bool BanPrint { get; set; } = true;

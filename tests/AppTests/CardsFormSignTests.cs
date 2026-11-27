@@ -57,9 +57,9 @@ public class CardsFormSignTests : IDisposable
             using var f = Open(cfg, () => { });
             var grid = Find<DataGridView>(f);
             var names = grid.Rows.Cast<DataGridViewRow>().Select(r => r.Cells["Kategori"].Value?.ToString() ?? "").ToList();
-            Assert.Equal(new[] { "12 YAŞ", "14 YAŞ", "Salon levhaları", "İNCELEME MASASI", "KAYIT KONTROL", "WC", "SPORCU GİRİŞİ", "SPORCU ÇIKIŞI", "YASAK LEVHASI", "" }, names);
+            Assert.Equal(new[] { "12 YAŞ", "14 YAŞ", "Salon levhaları", "İNCELEME MASASI", "KAYIT KONTROL", "WC", "SPORCU GİRİŞİ", "SPORCU ÇIKIŞI", "YÖNERGE", "YASAK LEVHASI", "" }, names);
             var sel = Selected(f);
-            Assert.Equal(5, sel.Count(s => s.Kind == CardKind.Sign));
+            Assert.Equal(6, sel.Count(s => s.Kind == CardKind.Sign));
             Assert.All(sel.Where(s => s.Kind == CardKind.Sign), s => { Assert.Equal(1, s.Copies); Assert.Equal(CardArrow.Right, s.Arrow); });
             Assert.Single(sel, s => s.Kind == CardKind.Ban && s.Copies == 1);
             Assert.DoesNotContain(sel, s => s.Category.Length == 0);   // yazısız boş kart basılmaz
@@ -115,9 +115,30 @@ public class CardsFormSignTests : IDisposable
             Assert.All(cfg.Cards.Signs, s => Assert.False(s.Print));
             Assert.False(cfg.Cards.BanPrint);
             all.PerformClick();
-            Assert.Equal(5, Selected(f).Count(s => s.Kind == CardKind.Sign));
+            Assert.Equal(6, Selected(f).Count(s => s.Kind == CardKind.Sign));
             Assert.True(cfg.Cards.BanPrint);
         });
+    }
+
+    [Fact]
+    public void OldSignList_GetsYonergeOnce_WithoutTouchingUserEdits()
+    {
+        // 1.7.4'te kaydedilmiş liste: YÖNERGE yok, kullanıcı WC'yi değiştirmiş
+        var cfg = new AppConfig();
+        cfg.Cards.Signs = new[] { "İNCELEME MASASI", "KAYIT KONTROL", "TUVALET", "SPORCU GİRİŞİ", "SPORCU ÇIKIŞI" }
+            .Select(t => new SignCardConfig { Text = t }).ToList();
+        cfg.Cards.SignSet = 0;
+        Assert.True(cfg.Cards.UpgradeSigns());
+        Assert.Equal(new[] { "İNCELEME MASASI", "KAYIT KONTROL", "TUVALET", "SPORCU GİRİŞİ", "SPORCU ÇIKIŞI", "YÖNERGE" }, cfg.Cards.Signs.Select(s => s.Text));
+        Assert.Equal(1, cfg.Cards.Signs[^1].Copies);
+        // kullanıcı sonra YÖNERGE'yi silerse geri gelmez
+        cfg.Cards.Signs.RemoveAt(5);
+        Assert.False(cfg.Cards.UpgradeSigns());
+        Assert.Equal(5, cfg.Cards.Signs.Count);
+        // yeni ayarda zaten var, iki kez eklenmez
+        var fresh = new AppConfig();
+        fresh.Cards.UpgradeSigns();
+        Assert.Single(fresh.Cards.Signs, s => s.Text == "YÖNERGE");
     }
 
     [Fact]

@@ -19,7 +19,7 @@ public static class CardSigns
     public static readonly Color BanRed = Color.FromArgb(211, 32, 39);
 
     /// <summary>Varsayılan levhalar (sırasıyla pencerede listelenir).</summary>
-    public static readonly string[] DefaultSigns = { "İNCELEME MASASI", "KAYIT KONTROL", "WC", "SPORCU GİRİŞİ", "SPORCU ÇIKIŞI" };
+    public static IReadOnlyList<string> DefaultSigns => Core.SignCardConfig.DefaultTexts;
 
     public enum BanIcon { Smoking, Phone, Electronics, FoodDrink }
 

@@ -30,6 +30,8 @@ public class FormSnapshotTests : IDisposable
             try
             {
                 Snap(outDir, "athletes", new AthletesForm(new AthletesContext("Deneme Turnuvası", null, cats, null, cfg, () => { }, _dir, _dir)));
+                var plateCfg = new AppConfig(); plateCfg.Athletes.Kind = AthleteCardConfig.Plate;
+                Snap(outDir, "athletes_plate", new AthletesForm(new AthletesContext("Deneme Turnuvası", null, cats, null, plateCfg, () => { }, _dir, _dir)));
                 Snap(outDir, "badges", new BadgesForm(new BadgesContext("Deneme Turnuvası",
                     () => Task.FromResult<IReadOnlyDictionary<string, string>>(new Dictionary<string, string>()), cfg, () => { }, _dir, _dir)));
                 Snap(outDir, "cards", new CardsForm(new CardsContext("Deneme Turnuvası", cats,
