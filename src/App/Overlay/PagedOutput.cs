@@ -21,6 +21,26 @@ public interface IPagedOutput
     void DrawPage(Graphics g, int page);
 }
 
+/// <summary>Yazdırma yarıda kaldı: kaç sayfanın yazıcıya gittiği ve sebebi kullanıcıya açıkça söylenir.</summary>
+public sealed class PrintIncompleteException : Exception
+{
+    public int Sent { get; }
+    public int Total { get; }
+    public PrintIncompleteException(int sent, int total, Exception inner)
+        : base(sent == 0
+                   ? $"yazıcıya gönderilemedi: {Reason(inner)}"
+                   : $"{total} sayfanın {sent} tanesi yazıcıya gönderildi, kalan {total - sent} sayfa gönderilemedi ({Reason(inner)}). Kalanları yeniden yazdırabilirsiniz.",
+               inner)
+        => (Sent, Total) = (sent, total);
+
+    private static string Reason(Exception ex) => ex switch
+    {
+        InvalidPrinterException => "yazıcı bulunamadı ya da kapalı",
+        System.ComponentModel.Win32Exception w => "yazıcı işi kabul etmedi: " + w.Message,
+        _ => ex.Message
+    };
+}
+
 public static class PagedOutput
 {
     /// <summary>
@@ -60,12 +80,25 @@ public static class PagedOutput
     }
 
     /// <summary>
+    /// Bir yazdırma işindeki en çok sayfa. Uzun çıktı bu büyüklükte işler hâlinde sırayla gönderilir: tek büyük iş
+    /// (40 sayfalık resim) bazı yazıcılarda biriktirme belleğini doldurup takılıyordu; küçük işlerde ilk sayfalar hemen
+    /// basılmaya başlar ve kuyrukta "Masa kartları (1/4)" gibi sırayla görünür.
+    /// </summary>
+    public const int PagesPerJob = 10;
+
+    /// <summary>
     /// Hazırlanan belgeyi arka planda yazıcıya gönderir (program donmaz). Her sayfa önce 300 dpi resme çizilir
     /// (PDF ile birebir aynı) ve aynı sayfalar bir kez hazırlanır: yazıcı sürücüsüne vektör olarak çizmek 120 kartta
-    /// 40 sn'yi aşıyordu. İptal edilirse kalan sayfalar gönderilmez.
+    /// 40 sn'yi aşıyordu. İşler sırayla gider (<see cref="PagesPerJob"/>); iptal edilirse kalan sayfalar gönderilmez,
+    /// bir iş hata verirse <see cref="PrintIncompleteException"/> kaç sayfanın gittiğini söyler.
     /// </summary>
-    public static async Task<bool> PrintAsync(IPagedOutput o, PrintDocument doc, IProgress<(int Done, int Total)>? progress, CancellationToken ct)
+    public static async Task<bool> PrintAsync(IPagedOutput o, PrintDocument doc, IProgress<(int Done, int Total)>? progress, CancellationToken ct,
+                                              int pagesPerJob = PagesPerJob)
     {
+        int total = o.PageCount;
+        int jobs = Math.Max(1, (total + pagesPerJob - 1) / pagesPerJob);
+        int from = 0, to = total;
+        string baseName = doc.DocumentName;
         doc.QueryPageSettings += (_, e) => e.PageSettings.Landscape = o.Landscape;
         // Tekrar eden sayfalar (masa kartı adetleri) bir kez hazırlanıp sıkıştırılmış saklanır; diğerleri doğrudan çizilir.
         var repeats = Enumerable.Range(0, o.PageCount).GroupBy(o.PageKey).Where(g => g.Count() > 1).Select(g => g.Key).ToHashSet();
@@ -73,8 +106,8 @@ public static class PagedOutput
         int w = (int)Math.Round(o.PageSizePt.Width / 72f * Dpi), h = (int)Math.Round(o.PageSizePt.Height / 72f * Dpi);
         using var page300 = new Bitmap(w, h, PixelFormat.Format24bppRgb);   // tek sayfa resmi, her sayfada yeniden kullanılır
         page300.SetResolution(Dpi, Dpi);
-        int page = 0;
-        doc.BeginPrint += (_, _) => page = 0;
+        int page = 0, sent = 0;
+        doc.BeginPrint += (_, _) => page = from;
         doc.PrintPage += (_, e) =>
         {
             if (ct.IsCancellationRequested) { e.Cancel = true; return; }
@@ -103,11 +136,26 @@ public static class PagedOutput
             g.TranslateTransform(-e.PageSettings.HardMarginX / 100f * 72f, -e.PageSettings.HardMarginY / 100f * 72f);
             g.DrawImage(page300, 0, 0, o.PageSizePt.Width, o.PageSizePt.Height);
             page++;
-            progress?.Report((page, o.PageCount));
-            e.HasMorePages = page < o.PageCount && !ct.IsCancellationRequested;
+            progress?.Report((page, total));
+            e.HasMorePages = page < to && !ct.IsCancellationRequested;
         };
-        progress?.Report((0, o.PageCount));
-        try { await RunSta(doc.Print); }
+        progress?.Report((0, total));
+        try
+        {
+            // Aynı belge (yazıcı, tepsi, sürücü tercihleri) her iş için yeniden kullanılır; işler sırayla, biri biriktirilince diğeri.
+            for (int j = 0; j < jobs && !ct.IsCancellationRequested; j++)
+            {
+                from = j * pagesPerJob;
+                to = Math.Min(total, from + pagesPerJob);
+                doc.DocumentName = jobs > 1 ? $"{baseName} ({j + 1}/{jobs})" : baseName;
+                try { await RunSta(doc.Print); }
+                catch (Exception ex) when (ex is not OperationCanceledException)
+                {
+                    throw new PrintIncompleteException(sent, total, ex);
+                }
+                sent = to;
+            }
+        }
         finally { doc.Dispose(); }
         ct.ThrowIfCancellationRequested();
         return true;
