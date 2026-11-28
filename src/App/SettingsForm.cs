@@ -162,7 +162,9 @@ public sealed class SettingsForm : AppForm
         int yPrinter = BuildPrinter();
         _host = pUpdate;
         int yUpdate = BuildUpdates();
-        int tabContent = new[] { yNotation, yTemplates, yRegion, yPrinter, yUpdate }.Max() + 12;
+        // Yazıcı sekmesi uzun (çoklu yazıcı): pencere öteki sekmelere göre boyutlanır, yazıcı sekmesi kendi içinde kayar.
+        int tabContent = new[] { yNotation, yTemplates, yRegion, yUpdate }.Max() + 12;
+        pPrinter.AutoScroll = yPrinter + 12 > tabContent;
         _tabs.Size = new System.Drawing.Size(TabW, tabContent + _tabs.ItemSize.Height + 12);
 
         // ---- Sekmelerin altı: imza ve düğmeler ----

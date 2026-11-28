@@ -44,6 +44,25 @@ public class FormSnapshotTests : IDisposable
                     new NotasyonOtomasyonu.App.Overlay.PrinterShare("Canon i-SENSYS MF443", new[] { "16 Yaş", "Açık" }, 40),
                 }, cfg.Printing, () => { }));
                 Snap(outDir, "printer_settings", new NotasyonOtomasyonu.App.Overlay.PrinterSettingsForm(cfg.Printing));
+                var notes = """
+## Yeni özellikler
+- Masa kartlarına YÖNERGE levhası eklendi: siyah yazı, yön oku, varsayılan 1 adet.
+- İsimlik şeridi şerit oranında kırpılır.
+
+## Performans
+- Yazıcıya gönderme: uzun çıktılar 10 sayfalık işler hâlinde sırayla gönderilir.
+
+## Hata düzeltmeleri
+- Bilinen hatalar giderildi.
+
+---
+
+## New features
+- English
+""";
+                Snap(outDir, "update", new NotasyonOtomasyonu.App.Update.UpdateForm(new UpdateConfig(), () => { },
+                    new NotasyonOtomasyonu.App.Update.ReleaseInfo(new Version(9, 9, 9), "v9.9.9", notes, "https://example.invalid", new DateTime(2026, 11, 27),
+                                                                  "https://example.invalid/a.zip", "a-win-x64.zip", 87_000_000, null)));
                 Snap(outDir, "log", new LogWindow(() => "Basıldı: deneme\r\nUyarı: deneme", () => { }, () => "ayrıntı"));
             }
             catch (Exception ex) { error = ex; }
