@@ -17,7 +17,7 @@ public sealed class PrinterSettingsPanel : UserControl
     private readonly ComboBox _trayA5 = new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill };
     private readonly NumericUpDown _copies = new() { Minimum = 1, Maximum = 20, Value = 1, Width = 70 };
     private readonly ToggleSwitch _silent = new() { Text = "Doğrudan yazdır (önizleme ve yazıcı penceresi açılmadan)", Dock = DockStyle.Fill, Height = 28 };
-    private readonly Button _btnPrefs = new() { Text = "Yazıcı tercihleri… (sessiz mod, kalite)", AutoSize = true, Height = 30 };
+    private readonly Button _btnPrefs = Icons.Set(new Button { Text = "Yazıcı tercihleri… (sessiz mod, kalite)", AutoSize = true, Height = 30 }, Ico.Settings);
     private readonly LinkLabel _lnkReset = new() { Text = "Sıfırla", AutoSize = true, Margin = new Padding(8, 8, 0, 0) };
     private readonly Label _lblPrefs = new() { AutoSize = true, ForeColor = Color.Gray, Margin = new Padding(3, 0, 3, 6) };
     private readonly Dictionary<string, string> _devModes = new(StringComparer.OrdinalIgnoreCase);
@@ -210,7 +210,7 @@ public sealed class PrinterSettingsForm : AppForm
         BackColor = Color.FromArgb(250, 250, 247);
 
         var green = Color.FromArgb(118, 150, 86);
-        var ok = new Button { Text = "Kaydet", Width = 110, Height = 34, BackColor = green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, DialogResult = DialogResult.OK };
+        var ok = Icons.Set(new Button { Text = "Kaydet", Width = 110, Height = 34, BackColor = green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, DialogResult = DialogResult.OK }, Ico.Save);
         var cancel = new Button { Text = "Vazgeç", Width = 90, Height = 34, FlatStyle = FlatStyle.Flat, DialogResult = DialogResult.Cancel };
         var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, Dock = DockStyle.Bottom, AutoSize = true, Padding = new Padding(0, 10, 0, 0) };
         buttons.Controls.AddRange(new Control[] { ok, cancel });

@@ -38,6 +38,12 @@ public class FormSnapshotTests : IDisposable
                     _ => Task.FromResult((8, "deneme")), cfg, () => { }, _dir, _dir)));
                 Snap(outDir, "settings", new SettingsForm(cfg, _ => { }, _ => { }));
                 Snap(outDir, "templates", new TemplatesForm(cfg));
+                Snap(outDir, "multiprint", new NotasyonOtomasyonu.App.Overlay.MultiPrintDialog(new[]
+                {
+                    new NotasyonOtomasyonu.App.Overlay.PrinterShare("HP LaserJet Pro M404", new[] { "12 Yaş", "14 Yaş" }, 44),
+                    new NotasyonOtomasyonu.App.Overlay.PrinterShare("Canon i-SENSYS MF443", new[] { "16 Yaş", "Açık" }, 40),
+                }, cfg.Printing, () => { }));
+                Snap(outDir, "printer_settings", new NotasyonOtomasyonu.App.Overlay.PrinterSettingsForm(cfg.Printing));
                 Snap(outDir, "log", new LogWindow(() => "Basıldı: deneme\r\nUyarı: deneme", () => { }, () => "ayrıntı"));
             }
             catch (Exception ex) { error = ex; }

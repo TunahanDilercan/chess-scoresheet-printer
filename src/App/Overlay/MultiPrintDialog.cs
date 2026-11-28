@@ -52,7 +52,7 @@ public sealed class MultiPrintDialog : AppForm
             var state = new Label { AutoSize = true, ForeColor = Color.DimGray, Margin = new Padding(0, 2, 0, 0) };
             void Refresh() => state.Text = config.DevModes.ContainsKey(s.Printer) ? "✓ kayıtlı tercihler" : "varsayılan ayarlar";
             Refresh();
-            var prefs = new Button { Text = "Tercihler…", AutoSize = true, Height = 30, FlatStyle = FlatStyle.Flat, BackColor = Color.White, AccessibleName = $"{s.Printer} tercihleri" };
+            var prefs = Icons.Set(new Button { Text = "Tercihler…", Width = 140, Height = 32, FlatStyle = FlatStyle.Flat, BackColor = Color.White, AccessibleName = $"{s.Printer} tercihleri" }, Ico.Settings);
             prefs.FlatAppearance.BorderColor = Color.FromArgb(208, 208, 198);
             prefs.Click += (_, _) =>
             {
@@ -75,10 +75,10 @@ public sealed class MultiPrintDialog : AppForm
             Text = "Renkli / siyah-beyaz, sessiz mod ve kalite yazıcının \"Tercihler\" penceresinden seçilir; seçimler kaydedilir ve sonraki baskılarda da uygulanır."
         });
 
-        var ok = new Button { Text = $"Yazdır ({total} kâğıt)", AutoSize = true, Height = 38, BackColor = Green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, DialogResult = DialogResult.OK };
+        var ok = Icons.Set(new Button { Text = $"Yazdır ({total} kâğıt)", Width = 190, Height = 38, BackColor = Green, ForeColor = Color.White, FlatStyle = FlatStyle.Flat, DialogResult = DialogResult.OK }, Ico.Print);
         ok.FlatAppearance.BorderColor = GreenDark;
         ok.Font = new Font(Font, FontStyle.Bold);
-        var cancel = new Button { Text = "Vazgeç", AutoSize = true, Height = 38, FlatStyle = FlatStyle.Flat, BackColor = Color.White, DialogResult = DialogResult.Cancel };
+        var cancel = new Button { Text = "Vazgeç", Width = 100, Height = 38, FlatStyle = FlatStyle.Flat, BackColor = Color.White, DialogResult = DialogResult.Cancel };
         var buttons = new FlowLayoutPanel { FlowDirection = FlowDirection.RightToLeft, AutoSize = true, WrapContents = false, Anchor = AnchorStyles.Right };
         buttons.Controls.AddRange(new Control[] { ok, cancel });
         host.Controls.Add(buttons);
