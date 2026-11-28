@@ -21,6 +21,15 @@ public sealed class PrinterSettingsPanel : UserControl
     private readonly LinkLabel _lnkReset = new() { Text = "Sıfırla", AutoSize = true, Margin = new Padding(8, 8, 0, 0) };
     private readonly Label _lblPrefs = new() { AutoSize = true, ForeColor = Color.Gray, Margin = new Padding(3, 0, 3, 6) };
     private readonly Dictionary<string, string> _devModes = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ToggleSwitch _confirmBulk = new() { Text = "Toplu yazdırmada önce yazıcı penceresini göster", Dock = DockStyle.Fill, Height = 28 };
+    private readonly ToggleSwitch _multi = new() { Text = "Tüm kategorileri birden çok yazıcıya böl", Dock = DockStyle.Fill, Height = 28 };
+    private readonly ComboBox[] _multiPrinters =
+    {
+        new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "1. yazıcı" },
+        new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "2. yazıcı" },
+        new() { DropDownStyle = ComboBoxStyle.DropDownList, Dock = DockStyle.Fill, AccessibleName = "3. yazıcı" },
+    };
+    private const string NoPrinterItem = "(kullanılmıyor)";
 
     public PrinterSettingsPanel(int width)
     {
@@ -49,6 +58,31 @@ public sealed class PrinterSettingsPanel : UserControl
         t.Controls.Add(_lblPrefs);
         t.Controls.Add(_silent);
         t.SetColumnSpan(_silent, 2);
+        t.Controls.Add(_confirmBulk);
+        t.SetColumnSpan(_confirmBulk, 2);
+        var bulkNote = new Label
+        {
+            AutoSize = true, MaximumSize = new Size(width - 10, 0), ForeColor = Color.DimGray, Margin = new Padding(3, 0, 3, 8),
+            Text = "Tüm kategoriler, tüm listeler ve çok sayfalı kartlar basılmadan önce yazıcı penceresi açılır: renkli / siyah-beyaz, " +
+                   "sessiz mod ve kalite oradaki \"Tercihler\" ile kontrol edilir. Tek kategori baskısını etkilemez."
+        };
+        t.Controls.Add(bulkNote);
+        t.SetColumnSpan(bulkNote, 2);
+        var multiHead = new Label { Text = "Çoklu yazıcı (uzun turnuvalar)", AutoSize = true, Font = new Font(Font, FontStyle.Bold), Margin = new Padding(3, 8, 3, 2) };
+        t.Controls.Add(multiHead);
+        t.SetColumnSpan(multiHead, 2);
+        t.Controls.Add(_multi);
+        t.SetColumnSpan(_multi, 2);
+        for (int i = 0; i < _multiPrinters.Length; i++) Row($"{i + 1}. yazıcı:", _multiPrinters[i]);
+        var multiNote = new Label
+        {
+            AutoSize = true, MaximumSize = new Size(width - 10, 0), ForeColor = Color.DimGray, Margin = new Padding(3, 4, 3, 8),
+            Text = "\"Tüm kategoriler\" notasyon baskısında kategoriler bölünmeden, sırayla ve kâğıt sayısına göre dengeli dağıtılır " +
+                   "(ör. 12–14 Yaş 1. yazıcıdan, 16 Yaş–Açık 2. yazıcıdan). Basmadan önce dağıtım gösterilir."
+        };
+        t.Controls.Add(multiNote);
+        t.SetColumnSpan(multiNote, 2);
+        _multi.CheckedChanged += (_, _) => UpdateMultiEnabled();
         var note = new Label
         {
             AutoSize = true, MaximumSize = new Size(width - 10, 0), ForeColor = Color.DimGray, Margin = new Padding(3, 6, 3, 3),
@@ -83,6 +117,18 @@ public sealed class PrinterSettingsPanel : UserControl
         FillTrays(pc.PaperSource, pc.PaperSourceA5);
         _copies.Value = Math.Clamp(pc.Copies, 1, 20);
         _silent.Checked = pc.Silent;
+        _confirmBulk.Checked = pc.ConfirmBulk;
+        _multi.Checked = pc.MultiPrinter;
+        var installed = PrintRouter.InstalledPrinters();
+        for (int i = 0; i < _multiPrinters.Length; i++)
+        {
+            var c = _multiPrinters[i];
+            c.Items.Clear();
+            c.Items.Add(NoPrinterItem);
+            foreach (var p in installed) c.Items.Add(p);
+            c.SelectedItem = i < pc.MultiPrinters.Count && c.Items.Contains(pc.MultiPrinters[i]) ? pc.MultiPrinters[i] : NoPrinterItem;
+        }
+        UpdateMultiEnabled();
         _devModes.Clear();
         foreach (var (k, v) in pc.DevModes) _devModes[k] = v;
         UpdatePrefsLabel();
@@ -96,7 +142,16 @@ public sealed class PrinterSettingsPanel : UserControl
         pc.PaperSourceA5 = _trayA5.SelectedItem is string t5 && t5 != SameTrayItem ? t5 : null;
         pc.Copies = (int)_copies.Value;
         pc.Silent = _silent.Checked;
+        pc.ConfirmBulk = _confirmBulk.Checked;
+        pc.MultiPrinter = _multi.Checked;
+        pc.MultiPrinters = _multiPrinters.Select(c => c.SelectedItem as string).Where(p => p is not null && p != NoPrinterItem)
+                                         .Distinct(StringComparer.OrdinalIgnoreCase).Select(p => p!).ToList();
         pc.DevModes = new Dictionary<string, string>(_devModes, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void UpdateMultiEnabled()
+    {
+        foreach (var c in _multiPrinters) c.Enabled = _multi.Checked;
     }
 
     private static string PrinterNameOf(string? item)
@@ -132,6 +187,7 @@ public sealed class PrinterSettingsPanel : UserControl
         if (pc.Copies > 1) parts.Add($"{pc.Copies} kopya");
         if (pc.DevModes.ContainsKey(PrintRouter.TargetName)) parts.Add("tercihli");
         if (PrintRouter.IsSilent) parts.Add("doğrudan");
+        if (PrintRouter.MultiTargets().Count >= 2) parts.Add($"toplu baskı {PrintRouter.MultiTargets().Count} yazıcıya");
         return string.Join(" • ", parts);
     }
 }

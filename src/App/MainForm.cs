@@ -233,6 +233,7 @@ public partial class MainForm : Form
     {
         Shown -= MainForm_Shown; // yalnızca ilk açılışta
         GridSafety.Attach(this);  // tablolarda teknik hata kutusu açılmasın (sonradan eklenenler dahil)
+        foreach (var g in new[] { grpPairings, grpQuick, grpOnline, grpFile }) GroupCaption.Set(g, g.Text);   // başlıklar tek satır
         _ = CheckForUpdateOnStartAsync(); // arka planda; turnuva yüklemesini bekletmez
         // Açılıştaki yükleme adım adım durum satırında: "Açılış • 2. adım: Turnuva bilgisi çekiliyor…"
         _startup = rbOnline.Checked;
@@ -1004,6 +1005,7 @@ public partial class MainForm : Form
         {
             UpdateConfigFromUi();
             var all = new List<Pairing>();
+            var perCategory = new List<(CategoryRef Cat, Tournament T)>();
             Tournament? first = null;
             int okCats = 0;
             foreach (var cat in cats)
@@ -1019,11 +1021,15 @@ public partial class MainForm : Form
                 if (t.Pairings.Count == 0) { Log($"• {cat.Name}: masa yok, atlandı."); continue; }
                 first ??= t;
                 all.AddRange(t.Pairings);
+                perCategory.Add((cat, t));
                 okCats++;
             }
             if (all.Count == 0 || first is null) { SetStatus("Hiçbir kategoride yazdırılacak masa bulunamadı.", ok: false); return; }
-            var combined = first with { Pairings = all };
-            PrintTournament(combined, _config.Layout.CopiesPerBoard);
+            var printers = Overlay.PrintRouter.MultiTargets();
+            if (printers.Count >= 2 && perCategory.Count >= 2)
+                PrintAcrossPrinters(perCategory, printers, _config.Layout.CopiesPerBoard);
+            else
+                PrintTournament(first with { Pairings = all }, _config.Layout.CopiesPerBoard, new Overlay.PrintOptions(Bulk: true));
             Log($"Tüm kategoriler: {okCats} kategori, {all.Count} masa.");
         }
         catch (UserMessageException ex) { Fail("Tüm kategoriler", ex.Message); }
@@ -1206,11 +1212,11 @@ public partial class MainForm : Form
 
         var cat = rbOnline.Checked ? SelectedCategory() : null;
         var sys = _gridTournament?.System is { } s0 && s0 != TournamentSystem.Unknown ? " • " + s0.DisplayName() : "";
-        grpPairings.Text = _gridTournament is null
+        GroupCaption.Set(grpPairings, _gridTournament is null
             ? "3) Basılacak masalar"
             : $"3) Basılacak masalar — " +
               (cat is null ? "" : ButtonText(cat) + " • ") +
-              (rbOnline.Checked ? $"{_gridTournament.RoundNo}. tur" : $"{numRound.Value}. tur (dosya)") + sys;
+              (rbOnline.Checked ? $"{_gridTournament.RoundNo}. tur" : $"{numRound.Value}. tur (dosya)") + sys);
         UpdateSelectionSummary();
     }
 
@@ -1309,7 +1315,41 @@ public partial class MainForm : Form
     }
 
     /// <summary>Önizleme açar; true = kullanıcı yazıcıya gönderdi.</summary>
-    private bool PrintTournament(Tournament baseT, int copies)
+    /// <summary>
+    /// Çoklu yazıcı: kategoriler bölünmeden, sırayla ve kâğıt sayısına göre yazıcılara dağıtılır; dağıtım (ve yazıcı
+    /// tercihleri) bir pencerede gösterilir ("Toplu yazdırmada önce yazıcı penceresi" kapalıysa sormadan basılır).
+    /// </summary>
+    private void PrintAcrossPrinters(List<(CategoryRef Cat, Tournament T)> perCategory, IReadOnlyList<string> printers, int copies)
+    {
+        int per = Math.Max(1, copies);
+        var weights = perCategory.Select(c => c.T.Pairings.Count * per).ToList();
+        var groups = PrintSplit.Contiguous(weights, printers.Count);
+        var shares = groups.Select((g, i) => new Overlay.PrinterShare(printers[i],
+                                                                      g.Select(k => ButtonText(perCategory[k].Cat)).ToList(),
+                                                                      g.Sum(k => weights[k]))).ToList();
+        if (_config.Printing.ConfirmBulk)
+        {
+            using var dlg = new Overlay.MultiPrintDialog(shares, _config.Printing, () => SaveConfig()) { Icon = Icon };
+            if (dlg.ShowDialog(this) != DialogResult.OK) { SetStatus("Toplu baskıdan vazgeçildi.", ok: true); return; }
+        }
+        int sent = 0;
+        var done = new List<string>();
+        for (int i = 0; i < groups.Count; i++)
+        {
+            var items = groups[i].Select(k => perCategory[k].T).ToList();
+            var combined = items[0] with { Pairings = items.SelectMany(t => t.Pairings).ToList() };
+            SetStatus($"{i + 1}/{groups.Count}. yazıcıya gönderiliyor: {shares[i].Printer} ({shares[i].Sheets} kâğıt)…", ok: true);
+            if (!PrintTournament(combined, copies, new Overlay.PrintOptions(Printer: shares[i].Printer, NoDialog: true))) break;
+            sent += shares[i].Sheets;
+            done.Add($"{shares[i].Printer}: {shares[i].Sheets}");
+        }
+        if (done.Count == groups.Count)
+            SetStatus($"✓ {sent} kâğıt {groups.Count} yazıcıya gönderildi ({string.Join(" • ", done)}).", ok: true);
+        else
+            SetStatus($"{done.Count}/{groups.Count} yazıcıya gönderildi ({sent} kâğıt); kalanlar gönderilemedi — işlem kaydına bakın.", ok: false);
+    }
+
+    private bool PrintTournament(Tournament baseT, int copies, Overlay.PrintOptions? options = null)
     {
         var t = ExpandCopies(WithProvinces(baseT), copies);
         if (!_config.Overlay.IsConfigured)
@@ -1317,11 +1357,11 @@ public partial class MainForm : Form
         SetStatus("Önizleme açılıyor…", ok: true);
         var printer = new Overlay.SheetPrinter(p => _config.TemplateFor(p.System), t, _config.Layout.PageSize,
             _config.Layout.PrintOffsetXmm, _config.Layout.PrintOffsetYmm);
-        bool printed = printer.PrintWithPreview(this);
+        bool printed = printer.PrintWithPreview(this, options);
         if (printed)
         {
             SetStatus($"✓ {t.Pairings.Count} kağıt yazıcıya gönderildi.", ok: true);
-            Log($"Basıldı: {baseT.Name} — {DescribeRounds(baseT)}, {baseT.Pairings.Count} masa × {copies} = {t.Pairings.Count} kağıt " +
+            Log($"Basıldı{(options?.Printer is { } pr ? $" ({pr})" : "")}: {baseT.Name} — {DescribeRounds(baseT)}, {baseT.Pairings.Count} masa × {copies} = {t.Pairings.Count} kağıt " +
                 $"(şablon: {printer.TemplateNames}; {_config.Layout.PageSize}; kaydırma {_config.Layout.PrintOffsetXmm:0.0}/{_config.Layout.PrintOffsetYmm:0.0} mm" +
                 (printer.PrintedPaper is { } paper ? $"; yazıcının kağıdı: {paper}" : "") + ").");
             if (printer.PaperMismatch)

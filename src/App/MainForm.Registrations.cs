@@ -99,7 +99,7 @@ public partial class MainForm
         _dgvRegs.Rows.Clear();
         if (reg is null || reg.Entries.Count == 0)
         {
-            grpPairings.Text = _busy ? "3) Kayıtlı sporcular — TSF kayıt listesi okunuyor…" : "3) Kayıtlı sporcular — TSF kayıt listesi alınamadı";
+            GroupCaption.Set(grpPairings, _busy ? "3) Kayıtlı sporcular — TSF kaydı okunuyor…" : "3) Kayıtlı sporcular — TSF kaydı alınamadı");
             lblSelection.Text = "";
             _dgvRegs.ResumeLayout();
             return;
@@ -145,7 +145,7 @@ public partial class MainForm
         }
 
         int boards = counts.Sum(c => c.Boards);
-        grpPairings.Text = $"3) Kayıtlı sporcular — TSF kayıt listesi{(IsTsfClosed(-tnr) ? " (kayıtlar bitti)" : "")} • eşleştirme henüz yok";
+        GroupCaption.Set(grpPairings, $"3) Kayıtlı sporcular (TSF{(IsTsfClosed(-tnr) ? ", kayıtlar bitti" : "")}) • eşleştirme henüz yok");
         lblSelection.Text = $"{reg.Entries.Count} sporcu · {counts.Count} kategori · {boards} masa";
     }
 }

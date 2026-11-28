@@ -8,6 +8,13 @@ namespace NotasyonOtomasyonu.App.Overlay;
 /// kağıt kaynağı (tepsi) ve kopya sayısı uygulanır. Sessiz modda yazdırma penceresi açılmadan
 /// doğrudan hedef yazıcıya gönderilir; değilse pencere bu ayarlarla önceden seçili açılır.
 /// </summary>
+/// <summary>
+/// Bir baskının seçenekleri. <paramref name="Bulk"/>: toplu baskı (tüm kategoriler, tüm listeler, çok sayfalı kartlar);
+/// "doğrudan yazdır" açık olsa da (ayar açıksa) önce yazıcı penceresi gelir. <paramref name="Printer"/>: bu baskının
+/// yazıcısı (çoklu yazıcı modu). <paramref name="NoDialog"/>: pencere hiç açılmaz (seçimler önceden onaylandı).
+/// </summary>
+public sealed record PrintOptions(bool Bulk = false, string? Printer = null, bool NoDialog = false);
+
 public static class PrintRouter
 {
     /// <summary>Uygulamanın yazıcı ayarları (ana pencere yükler, Ayarlar günceller).</summary>
@@ -51,9 +58,10 @@ public static class PrintRouter
     /// seçilen yazıcıya göre kağıdı ayarlar (false = vazgeç).
     /// </summary>
     /// <returns>true = yazıcıya gönderildi.</returns>
-    public static bool Print(PrintDocument doc, IWin32Window owner, Func<PrintDocument, IWin32Window, bool>? preparePaper = null)
+    public static bool Print(PrintDocument doc, IWin32Window owner, Func<PrintDocument, IWin32Window, bool>? preparePaper = null,
+                             PrintOptions? options = null)
     {
-        if (!Prepare(doc, owner, preparePaper)) return false;
+        if (!Prepare(doc, owner, preparePaper, options)) return false;
         doc.Print();
         return true;
     }
@@ -62,10 +70,11 @@ public static class PrintRouter
     /// Baskıya hazırlar (arayüzde): hedef yazıcı, yazıcı penceresi ("doğrudan yazdır" kapalıysa), kâğıt ve tepsi.
     /// false = kullanıcı vazgeçti. Ardından <c>doc.Print()</c> arka planda çağrılabilir.
     /// </summary>
-    public static bool Prepare(PrintDocument doc, IWin32Window owner, Func<PrintDocument, IWin32Window, bool>? preparePaper = null)
+    public static bool Prepare(PrintDocument doc, IWin32Window owner, Func<PrintDocument, IWin32Window, bool>? preparePaper = null,
+                               PrintOptions? options = null)
     {
-        ApplyTarget(doc);
-        if (!IsSilent)
+        ApplyTarget(doc, options?.Printer);
+        if (ShowsDialog(options))
         {
             using var pd = new PrintDialog { Document = doc, UseEXDialog = true, AllowSomePages = false };
             if (pd.ShowDialog(owner) != DialogResult.OK) return false;
@@ -76,10 +85,32 @@ public static class PrintRouter
         return true;
     }
 
-    /// <summary>Hedef yazıcıyı ve kopya sayısını belgeye uygular (pencere açılacaksa önceden seçili gelir).</summary>
-    public static void ApplyTarget(PrintDocument doc)
+    /// <summary>Çoklu yazıcı modunun kurulu ve farklı yazıcıları (en az 2 değilse mod kapalı sayılır).</summary>
+    public static IReadOnlyList<string> MultiTargets()
     {
-        if (!string.IsNullOrWhiteSpace(Config.PrinterName) && TargetAvailable)
+        if (!Config.MultiPrinter) return Array.Empty<string>();
+        var installed = InstalledPrinters();
+        var list = Config.MultiPrinters.Where(p => installed.Contains(p, StringComparer.OrdinalIgnoreCase))
+                                       .Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        return list.Count >= 2 ? list : Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Yazıcı penceresi açılacak mı: "doğrudan yazdır" kapalıysa her zaman; açıksa yalnız toplu baskıda
+    /// ("Toplu yazdırmada önce yazıcı penceresi" ayarı açıksa). Seçimler önceden onaylandıysa hiç.
+    /// </summary>
+    public static bool ShowsDialog(PrintOptions? options)
+        => options?.NoDialog != true && (!IsSilent || (options?.Bulk == true && Config.ConfirmBulk));
+
+    /// <summary>Önizleme atlanır mı: doğrudan yazdırda (toplu onayda yalnız yazıcı penceresi açılır) ya da seçimler onaylandıysa.</summary>
+    public static bool SkipsPreview(PrintOptions? options) => IsSilent || options?.NoDialog == true;
+
+    /// <summary>Hedef yazıcıyı ve kopya sayısını belgeye uygular (pencere açılacaksa önceden seçili gelir).</summary>
+    public static void ApplyTarget(PrintDocument doc, string? printer = null)
+    {
+        if (!string.IsNullOrWhiteSpace(printer) && InstalledPrinters().Contains(printer, StringComparer.OrdinalIgnoreCase))
+            doc.PrinterSettings.PrinterName = printer;
+        else if (!string.IsNullOrWhiteSpace(Config.PrinterName) && TargetAvailable)
             doc.PrinterSettings.PrinterName = Config.PrinterName;
         // Yazıcının kendi tercihleri (sessiz mod vb.); kağıt ve yön sonra programca ayarlanır.
         if (Config.DevModes.TryGetValue(doc.PrinterSettings.PrinterName, out var devmode))

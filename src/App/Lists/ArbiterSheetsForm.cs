@@ -1,3 +1,4 @@
+using NotasyonOtomasyonu.App.Overlay;
 using NotasyonOtomasyonu.Core;
 using NotasyonOtomasyonu.Online;
 
@@ -360,7 +361,7 @@ public sealed class ArbiterSheetsForm : AppForm
     private void Print()
     {
         if (_printer is null) return;
-        if (_printer.PrintWithPreview(this)) _lblStatus.Text = $"✓ {_printer.PageCount} sayfa yazıcıya gönderildi.";
+        if (_printer.PrintWithPreview(this, new PrintOptions(Bulk: _printer.PageCount > 1))) _lblStatus.Text = $"✓ {_printer.PageCount} sayfa yazıcıya gönderildi.";
     }
 
     private void SavePdf()

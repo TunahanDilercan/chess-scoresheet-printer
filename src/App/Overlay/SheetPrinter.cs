@@ -80,19 +80,19 @@ public sealed class SheetPrinter
     /// göstermediği için). Üstte "🖨 Yazdır" (yazıcı seçtirir) ve "Kapat" butonları vardır.
     /// true = kullanıcı yazdırdı, false = yazdırmadan kapattı.
     /// </summary>
-    public bool PrintWithPreview(IWin32Window owner)
+    public bool PrintWithPreview(IWin32Window owner, PrintOptions? options = null)
     {
         using var doc = BuildDocument();
-        // Doğrudan yazdır: önizleme ve yazıcı penceresi açılmadan hedef yazıcıya.
-        if (PrintRouter.IsSilent) return ChoosePrinterAndPrint(doc, owner);
-        return PreviewDialog.Show(owner, doc, PageCount, Caption(), f => ChoosePrinterAndPrint(doc, f));
+        // Doğrudan yazdır: önizleme açılmadan hedef yazıcıya (toplu baskıda ayar açıksa önce yazıcı penceresi).
+        if (PrintRouter.SkipsPreview(options)) return ChoosePrinterAndPrint(doc, owner, options);
+        return PreviewDialog.Show(owner, doc, PageCount, Caption(), f => ChoosePrinterAndPrint(doc, f, options));
     }
 
     /// <summary>
     /// Yazıcı seçtirir; seçilen yazıcıya göre kağıdı (A4/A5) YENİDEN bulur ve basar.
     /// Seçilen yazıcı istenen kağıdı desteklemiyorsa kullanıcıyı uyarır.
     /// </summary>
-    private bool ChoosePrinterAndPrint(PrintDocument doc, IWin32Window owner)
+    private bool ChoosePrinterAndPrint(PrintDocument doc, IWin32Window owner, PrintOptions? options = null)
         => PrintRouter.Print(doc, owner, (d, o) =>
         {
             // Pencerede başka yazıcı seçilmiş olabilir: kağıt, o yazıcının listesinden seçilmeli.

@@ -93,12 +93,12 @@ public sealed class ListPrinter
 
     // ================= Önizleme + yazıcı + PDF =================
     /// <summary>Önizleme açar ("doğrudan yazdır" açıksa önizlemesiz basar). true = yazıcıya gönderildi.</summary>
-    public bool PrintWithPreview(IWin32Window owner)
+    public bool PrintWithPreview(IWin32Window owner, PrintOptions? options = null)
     {
         using var doc = BuildDocument();
-        if (PrintRouter.IsSilent) return PrintRouter.Print(doc, owner, PreparePaper);
+        if (PrintRouter.SkipsPreview(options)) return PrintRouter.Print(doc, owner, PreparePaper, options);
         return PreviewDialog.Show(owner, doc, PageCount, $"{PageCount} sayfa • A4 dikey",
-                                  f => PrintRouter.Print(doc, f, PreparePaper));
+                                  f => PrintRouter.Print(doc, f, PreparePaper, options));
     }
 
     public void SavePdf(string path)

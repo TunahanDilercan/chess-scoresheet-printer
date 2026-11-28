@@ -518,6 +518,18 @@ public sealed class PrintConfig
     public bool Silent { get; set; }
 
     /// <summary>
+    /// Toplu yazdırmada (tüm kategoriler, tüm listeler, çok sayfalı kartlar) "doğrudan yazdır" açık olsa da önce
+    /// yazıcı penceresi açılır: renk/siyah-beyaz, sessiz mod gibi seçimler baskıdan önce kontrol edilir.
+    /// </summary>
+    public bool ConfirmBulk { get; set; } = true;
+
+    /// <summary>Çoklu yazıcı: "Tüm kategoriler" notasyon baskısı kategoriler bölünmeden yazıcılara dengeli dağıtılır.</summary>
+    public bool MultiPrinter { get; set; }
+
+    /// <summary>Çoklu yazıcı modunda kullanılacak yazıcılar (2–3; sırayla ilk kategoriler ilk yazıcıya).</summary>
+    public List<string> MultiPrinters { get; set; } = new();
+
+    /// <summary>
     /// Yazıcı adı → yazıcının kendi tercihleri (DEVMODE, base64): sessiz mod, kalite, tepsi gibi üreticiye
     /// özel ayarlar. Ayarlar → "Yazıcı tercihleri…" ile seçilir, her baskıda uygulanır.
     /// </summary>

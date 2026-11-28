@@ -75,7 +75,8 @@ public static class PagedOutput
     {
         var doc = new PrintDocument { DocumentName = o.DocumentName, OriginAtMargins = false };
         PrintRouter.ApplyTarget(doc);
-        if (!PrintRouter.Prepare(doc, owner, (d, _) => { SetA4(d, o.Landscape); return true; })) { doc.Dispose(); return null; }
+        if (!PrintRouter.Prepare(doc, owner, (d, _) => { SetA4(d, o.Landscape); return true; }, new PrintOptions(Bulk: o.PageCount > 1)))
+        { doc.Dispose(); return null; }
         return doc;
     }
 

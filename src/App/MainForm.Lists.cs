@@ -1,4 +1,5 @@
 using NotasyonOtomasyonu.App.Lists;
+using NotasyonOtomasyonu.App.Overlay;
 using NotasyonOtomasyonu.Core;
 using NotasyonOtomasyonu.Online;
 
@@ -270,7 +271,7 @@ public partial class MainForm
     {
         var kind = results ? "sonuç listesi" : "eşleştirme listesi";
         var printer = new ListPrinter(blocks, $"{blocks[0].EventName} - {kind}");
-        bool printed = printer.PrintWithPreview(this);
+        bool printed = printer.PrintWithPreview(this, new PrintOptions(Bulk: blocks.Count > 1));
         var what = string.Join(", ", blocks.Select(b => b.Category));
         if (printed)
         {
